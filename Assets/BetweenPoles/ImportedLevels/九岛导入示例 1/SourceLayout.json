@@ -1,0 +1,436 @@
+{
+  "schemaVersion": 1,
+  "cellPixels": 40,
+  "rooms": [
+    {
+      "id": "r00",
+      "name": "测试岛 0,0",
+      "x": 0,
+      "y": 0,
+      "w": 5,
+      "h": 5,
+      "cells": {
+        "1,0": true,
+        "2,0": true,
+        "3,0": true,
+        "0,1": true,
+        "1,1": true,
+        "2,1": true,
+        "3,1": true,
+        "4,1": true,
+        "0,2": true,
+        "1,2": true,
+        "2,2": true,
+        "3,2": true,
+        "4,2": true,
+        "0,3": true,
+        "1,3": true,
+        "2,3": true,
+        "3,3": true,
+        "4,3": true,
+        "1,4": true,
+        "2,4": true,
+        "3,4": true
+      }
+    },
+    {
+      "id": "r10",
+      "name": "测试岛 1,0",
+      "x": 240,
+      "y": 0,
+      "w": 5,
+      "h": 5,
+      "cells": {
+        "1,0": true,
+        "2,0": true,
+        "3,0": true,
+        "0,1": true,
+        "1,1": true,
+        "2,1": true,
+        "3,1": true,
+        "4,1": true,
+        "0,2": true,
+        "1,2": true,
+        "2,2": true,
+        "3,2": true,
+        "4,2": true,
+        "0,3": true,
+        "1,3": true,
+        "2,3": true,
+        "3,3": true,
+        "4,3": true,
+        "1,4": true,
+        "2,4": true,
+        "3,4": true
+      }
+    },
+    {
+      "id": "r20",
+      "name": "测试岛 2,0",
+      "x": 480,
+      "y": 0,
+      "w": 5,
+      "h": 5,
+      "cells": {
+        "1,0": true,
+        "2,0": true,
+        "3,0": true,
+        "0,1": true,
+        "1,1": true,
+        "2,1": true,
+        "3,1": true,
+        "4,1": true,
+        "0,2": true,
+        "1,2": true,
+        "2,2": true,
+        "3,2": true,
+        "4,2": true,
+        "0,3": true,
+        "1,3": true,
+        "2,3": true,
+        "3,3": true,
+        "4,3": true,
+        "1,4": true,
+        "2,4": true,
+        "3,4": true
+      }
+    },
+    {
+      "id": "r01",
+      "name": "测试岛 0,1",
+      "x": 0,
+      "y": 240,
+      "w": 5,
+      "h": 5,
+      "cells": {
+        "1,0": true,
+        "2,0": true,
+        "3,0": true,
+        "0,1": true,
+        "1,1": true,
+        "2,1": true,
+        "3,1": true,
+        "4,1": true,
+        "0,2": true,
+        "1,2": true,
+        "2,2": true,
+        "3,2": true,
+        "4,2": true,
+        "0,3": true,
+        "1,3": true,
+        "2,3": true,
+        "3,3": true,
+        "4,3": true,
+        "1,4": true,
+        "2,4": true,
+        "3,4": true
+      }
+    },
+    {
+      "id": "r11",
+      "name": "测试岛 1,1",
+      "x": 240,
+      "y": 240,
+      "w": 5,
+      "h": 5,
+      "cells": {
+        "1,0": true,
+        "2,0": true,
+        "3,0": true,
+        "0,1": true,
+        "1,1": true,
+        "2,1": true,
+        "3,1": true,
+        "4,1": true,
+        "0,2": true,
+        "1,2": true,
+        "2,2": true,
+        "3,2": true,
+        "4,2": true,
+        "0,3": true,
+        "1,3": true,
+        "2,3": true,
+        "3,3": true,
+        "4,3": true,
+        "1,4": true,
+        "2,4": true,
+        "3,4": true
+      }
+    },
+    {
+      "id": "r21",
+      "name": "测试岛 2,1",
+      "x": 480,
+      "y": 240,
+      "w": 5,
+      "h": 5,
+      "cells": {
+        "1,0": true,
+        "2,0": true,
+        "3,0": true,
+        "0,1": true,
+        "1,1": true,
+        "2,1": true,
+        "3,1": true,
+        "4,1": true,
+        "0,2": true,
+        "1,2": true,
+        "2,2": true,
+        "3,2": true,
+        "4,2": true,
+        "0,3": true,
+        "1,3": true,
+        "2,3": true,
+        "3,3": true,
+        "4,3": true,
+        "1,4": true,
+        "2,4": true,
+        "3,4": true
+      }
+    },
+    {
+      "id": "r02",
+      "name": "测试岛 0,2",
+      "x": 0,
+      "y": 480,
+      "w": 5,
+      "h": 5,
+      "cells": {
+        "1,0": true,
+        "2,0": true,
+        "3,0": true,
+        "0,1": true,
+        "1,1": true,
+        "2,1": true,
+        "3,1": true,
+        "4,1": true,
+        "0,2": true,
+        "1,2": true,
+        "2,2": true,
+        "3,2": true,
+        "4,2": true,
+        "0,3": true,
+        "1,3": true,
+        "2,3": true,
+        "3,3": true,
+        "4,3": true,
+        "1,4": true,
+        "2,4": true,
+        "3,4": true
+      }
+    },
+    {
+      "id": "r12",
+      "name": "测试岛 1,2",
+      "x": 240,
+      "y": 480,
+      "w": 5,
+      "h": 5,
+      "cells": {
+        "1,0": true,
+        "2,0": true,
+        "3,0": true,
+        "0,1": true,
+        "1,1": true,
+        "2,1": true,
+        "3,1": true,
+        "4,1": true,
+        "0,2": true,
+        "1,2": true,
+        "2,2": true,
+        "3,2": true,
+        "4,2": true,
+        "0,3": true,
+        "1,3": true,
+        "2,3": true,
+        "3,3": true,
+        "4,3": true,
+        "1,4": true,
+        "2,4": true,
+        "3,4": true
+      }
+    },
+    {
+      "id": "r22",
+      "name": "测试岛 2,2",
+      "x": 480,
+      "y": 480,
+      "w": 5,
+      "h": 5,
+      "cells": {
+        "1,0": true,
+        "2,0": true,
+        "3,0": true,
+        "0,1": true,
+        "1,1": true,
+        "2,1": true,
+        "3,1": true,
+        "4,1": true,
+        "0,2": true,
+        "1,2": true,
+        "2,2": true,
+        "3,2": true,
+        "4,2": true,
+        "0,3": true,
+        "1,3": true,
+        "2,3": true,
+        "3,3": true,
+        "4,3": true,
+        "1,4": true,
+        "2,4": true,
+        "3,4": true
+      }
+    }
+  ],
+  "items": [
+    {
+      "id": "wide",
+      "name": "加宽长条",
+      "w": 1,
+      "h": 1,
+      "magnet": {
+        "type": "wide",
+        "pole": "N",
+        "direction": "0"
+      }
+    },
+    {
+      "id": "N",
+      "name": "N 长条",
+      "w": 1,
+      "h": 1,
+      "magnet": {
+        "type": "bar",
+        "pole": "N",
+        "direction": "0"
+      }
+    },
+    {
+      "id": "rock",
+      "name": "石头",
+      "w": 1,
+      "h": 1
+    },
+    {
+      "id": "spawn",
+      "name": "出生点",
+      "kind": "player",
+      "w": 1,
+      "h": 1
+    },
+    {
+      "id": "goal",
+      "name": "终点",
+      "kind": "goal",
+      "w": 1,
+      "h": 1
+    }
+  ],
+  "placements": {
+    "r00": [
+      {
+        "itemId": "wide",
+        "cx": 5,
+        "cy": 2
+      },
+      {
+        "itemId": "wide",
+        "cx": 2,
+        "cy": 5,
+        "rotation": 90
+      }
+    ],
+    "r10": [
+      {
+        "itemId": "wide",
+        "cx": 5,
+        "cy": 2
+      },
+      {
+        "itemId": "wide",
+        "cx": 2,
+        "cy": 5,
+        "rotation": 90
+      }
+    ],
+    "r20": [
+      {
+        "itemId": "wide",
+        "cx": 2,
+        "cy": 5,
+        "rotation": 90
+      }
+    ],
+    "r01": [
+      {
+        "itemId": "wide",
+        "cx": 5,
+        "cy": 2
+      },
+      {
+        "itemId": "wide",
+        "cx": 2,
+        "cy": 5,
+        "rotation": 90
+      }
+    ],
+    "r11": [
+      {
+        "itemId": "wide",
+        "cx": 5,
+        "cy": 2
+      },
+      {
+        "itemId": "wide",
+        "cx": 2,
+        "cy": 5,
+        "rotation": 90
+      },
+      {
+        "itemId": "spawn",
+        "cx": 2,
+        "cy": 2
+      },
+      {
+        "itemId": "rock",
+        "cx": 1,
+        "cy": 1
+      },
+      {
+        "itemId": "N",
+        "cx": 3,
+        "cy": 1
+      }
+    ],
+    "r21": [
+      {
+        "itemId": "wide",
+        "cx": 2,
+        "cy": 5,
+        "rotation": 90
+      }
+    ],
+    "r02": [
+      {
+        "itemId": "wide",
+        "cx": 5,
+        "cy": 2
+      }
+    ],
+    "r12": [
+      {
+        "itemId": "wide",
+        "cx": 5,
+        "cy": 2
+      }
+    ],
+    "r22": [
+      {
+        "itemId": "goal",
+        "cx": 2,
+        "cy": 2
+      }
+    ]
+  },
+  "originId": "r11"
+}
