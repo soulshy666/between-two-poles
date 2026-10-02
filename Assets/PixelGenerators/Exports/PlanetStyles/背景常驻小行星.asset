@@ -1,0 +1,56 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ddc0ed2d8a547b846a761862357d75d3, type: 3}
+  m_Name: "\u80CC\u666F\u5E38\u9A7B\u5C0F\u884C\u661F"
+  m_EditorClassIdentifier: 
+  version: 1
+  modelName: "\u80CC\u666F\u5E38\u9A7B\u5C0F\u884C\u661F"
+  model: 8
+  seed: 795
+  pixels: 48
+  rotation: 0
+  speed: 0.1
+  light: {x: 0.25, y: 0.25}
+  dither: 1
+  data:
+    name: "\u5C0F\u884C\u661F"
+    relativeScale: 1
+    layers:
+    - name: Asteroid
+      shader: Asteroids
+      scale: 1
+      visible: 1
+      floats:
+      - name: rotation
+        value: 0
+      - name: time_speed
+        value: 0.4
+      - name: size
+        value: 5.294
+      - name: should_dither
+        value: 1
+      - name: pixels
+        value: 100
+      - name: octaves
+        value: 2
+      - name: seed
+        value: 1.567
+      vectors:
+      - name: light_origin
+        value: {x: 0, y: 0, z: 0, w: 0}
+      colors:
+      - name: colors
+        values:
+        - {r: 0.639216, g: 0.654902, b: 0.760784, a: 1}
+        - {r: 0.298039, g: 0.407843, b: 0.521569, a: 1}
+        - {r: 0.227451, g: 0.247059, b: 0.368627, a: 1}
+  surfaceShaders: []

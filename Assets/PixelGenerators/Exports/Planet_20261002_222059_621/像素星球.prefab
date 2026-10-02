@@ -1,0 +1,1317 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &2510499097585395449
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 6063836401885923144}
+  - component: {fileID: 7826735198703478454}
+  - component: {fileID: 7608667371382191316}
+  m_Layer: 0
+  m_Name: Lakes
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &6063836401885923144
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2510499097585395449}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: -0.01}
+  m_LocalScale: {x: 5, y: 5, z: 5}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 6412429298153337483}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!33 &7826735198703478454
+MeshFilter:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2510499097585395449}
+  m_Mesh: {fileID: 4300000, guid: 4e437c0f9f1eb14428426f1e38d00a86, type: 2}
+--- !u!23 &7608667371382191316
+MeshRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2510499097585395449}
+  m_Enabled: 1
+  m_CastShadows: 0
+  m_ReceiveShadows: 0
+  m_DynamicOccludee: 1
+  m_StaticShadowCaster: 0
+  m_MotionVectors: 1
+  m_LightProbeUsage: 1
+  m_ReflectionProbeUsage: 1
+  m_RayTracingMode: 2
+  m_RayTraceProcedural: 0
+  m_RenderingLayerMask: 1
+  m_RendererPriority: 0
+  m_Materials:
+  - {fileID: 2100000, guid: 8fb957ef243e81546bffc3b2e0875269, type: 2}
+  m_StaticBatchInfo:
+    firstSubMesh: 0
+    subMeshCount: 0
+  m_StaticBatchRoot: {fileID: 0}
+  m_ProbeAnchor: {fileID: 0}
+  m_LightProbeVolumeOverride: {fileID: 0}
+  m_ScaleInLightmap: 1
+  m_ReceiveGI: 1
+  m_PreserveUVs: 0
+  m_IgnoreNormalsForChartDetection: 0
+  m_ImportantGI: 0
+  m_StitchLightmapSeams: 1
+  m_SelectedEditorRenderState: 3
+  m_MinimumChartSize: 4
+  m_AutoUVMaxDistance: 0.5
+  m_AutoUVMaxAngle: 89
+  m_LightmapParameters: {fileID: 0}
+  m_SortingLayerID: 0
+  m_SortingLayer: 0
+  m_SortingOrder: 0
+  m_AdditionalVertexStreams: {fileID: 0}
+--- !u!1 &5164767043709965495
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 6412429298153337483}
+  - component: {fileID: 9165511163891847978}
+  - component: {fileID: 61939339269951482}
+  m_Layer: 0
+  m_Name: "\u50CF\u7D20\u661F\u7403"
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &6412429298153337483
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5164767043709965495}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 3927423446622714597}
+  - {fileID: 6063836401885923144}
+  - {fileID: 334079786895246879}
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &9165511163891847978
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5164767043709965495}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f7fa88e6587218e458b5cbc2443ff1f9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  spaceMode: 0
+  previewCamera: {fileID: 0}
+  originalCatalog: {fileID: 4900000, guid: b8fd91ed8299aef40a556b4cab176afc, type: 3}
+  catalog:
+    models:
+    - name: "\u6E7F\u6DA6\u7C7B\u5730"
+      relativeScale: 1
+      layers:
+      - name: Land
+        shader: LandRivers
+        scale: 1
+        visible: 1
+        floats:
+        - name: rotation
+          value: 0.2
+        - name: time_speed
+          value: 0.1
+        - name: dither_size
+          value: 3.951
+        - name: should_dither
+          value: 1
+        - name: light_border_1
+          value: 0.287
+        - name: light_border_2
+          value: 0.476
+        - name: size
+          value: 4.6
+        - name: time
+          value: 0
+        - name: pixels
+          value: 100
+        - name: river_cutoff
+          value: 0.368
+        - name: OCTAVES
+          value: 6
+        - name: seed
+          value: 8.98
+        vectors:
+        - name: light_origin
+          value: {x: 0.39, y: 0.39, z: 0, w: 0}
+        colors:
+        - name: colors
+          values:
+          - {r: 0.388235, g: 0.670588, b: 0.247059, a: 1}
+          - {r: 0.231373, g: 0.490196, b: 0.309804, a: 1}
+          - {r: 0.184314, g: 0.341176, b: 0.32549, a: 1}
+          - {r: 0.156863, g: 0.207843, b: 0.25098, a: 1}
+          - {r: 0.309804, g: 0.643137, b: 0.721569, a: 1}
+          - {r: 0.25098, g: 0.286275, b: 0.45098, a: 1}
+      - name: Cloud
+        shader: Clouds
+        scale: 1
+        visible: 1
+        floats:
+        - name: rotation
+          value: 0
+        - name: time_speed
+          value: 0.1
+        - name: stretch
+          value: 2
+        - name: cloud_curve
+          value: 1.3
+        - name: light_border_1
+          value: 0.52
+        - name: light_border_2
+          value: 0.62
+        - name: size
+          value: 7.315
+        - name: time
+          value: 0
+        - name: pixels
+          value: 100
+        - name: cloud_cover
+          value: 0.47
+        - name: OCTAVES
+          value: 2
+        - name: seed
+          value: 5.939
+        vectors:
+        - name: light_origin
+          value: {x: 0.39, y: 0.39, z: 0, w: 0}
+        colors:
+        - name: colors
+          values:
+          - {r: 0.960784, g: 1, b: 0.909804, a: 1}
+          - {r: 0.87451, g: 0.878431, b: 0.909804, a: 1}
+          - {r: 0.407843, g: 0.435294, b: 0.6, a: 1}
+          - {r: 0.25098, g: 0.286275, b: 0.45098, a: 1}
+    - name: "\u5E72\u71E5\u7C7B\u5730"
+      relativeScale: 1
+      layers:
+      - name: Land
+        shader: DryTerranInline1
+        scale: 1
+        visible: 1
+        floats:
+        - name: rotation
+          value: 0
+        - name: light_distance1
+          value: 0.362
+        - name: light_distance2
+          value: 0.525
+        - name: time_speed
+          value: 0.1
+        - name: dither_size
+          value: 2
+        - name: n_colors
+          value: 5
+        - name: size
+          value: 8
+        - name: time
+          value: 0
+        - name: should_dither
+          value: 1
+        - name: pixels
+          value: 100
+        - name: OCTAVES
+          value: 3
+        - name: seed
+          value: 1.175
+        vectors:
+        - name: light_origin
+          value: {x: 0.4, y: 0.3, z: 0, w: 0}
+        colors:
+        - name: colors
+          values:
+          - {r: 1, g: 0.537255, b: 0.2, a: 1}
+          - {r: 0.901961, g: 0.270588, b: 0.223529, a: 1}
+          - {r: 0.678431, g: 0.184314, b: 0.270588, a: 1}
+          - {r: 0.321569, g: 0.2, b: 0.247059, a: 1}
+          - {r: 0.239216, g: 0.160784, b: 0.211765, a: 1}
+    - name: "\u6D77\u5C9B\u661F\u7403"
+      relativeScale: 1
+      layers:
+      - name: Water
+        shader: PlanetUnder
+        scale: 1
+        visible: 1
+        floats:
+        - name: rotation
+          value: 0
+        - name: time_speed
+          value: 0.1
+        - name: dither_size
+          value: 2
+        - name: light_border_1
+          value: 0.4
+        - name: light_border_2
+          value: 0.6
+        - name: size
+          value: 5.228
+        - name: time
+          value: 0
+        - name: should_dither
+          value: 1
+        - name: pixels
+          value: 100
+        - name: OCTAVES
+          value: 3
+        - name: seed
+          value: 10
+        vectors:
+        - name: light_origin
+          value: {x: 0.39, y: 0.39, z: 0, w: 0}
+        colors:
+        - name: colors
+          values:
+          - {r: 0.57254905, g: 0.9098039, b: 0.7529412, a: 1}
+          - {r: 0.30980393, g: 0.6431373, b: 0.72156864, a: 1}
+          - {r: 0.17254902, g: 0.20784314, b: 0.3019608, a: 1}
+      - name: Land
+        shader: PlanetLandmass
+        scale: 1
+        visible: 1
+        floats:
+        - name: time_speed
+          value: 0.2
+        - name: dither_size
+          value: 2
+        - name: light_border_1
+          value: 0.32
+        - name: light_border_2
+          value: 0.534
+        - name: size
+          value: 4.292
+        - name: time
+          value: 0
+        - name: pixels
+          value: 100
+        - name: rotation
+          value: 0.2
+        - name: land_cutoff
+          value: 0.633
+        - name: OCTAVES
+          value: 6
+        - name: seed
+          value: 7.947
+        vectors:
+        - name: light_origin
+          value: {x: 0.39, y: 0.39, z: 0, w: 0}
+        colors:
+        - name: colors
+          values:
+          - {r: 0.78431374, g: 0.83137256, b: 0.3647059, a: 1}
+          - {r: 0.3882353, g: 0.67058825, b: 0.24705882, a: 1}
+          - {r: 0.18431373, g: 0.34117648, b: 0.3254902, a: 1}
+          - {r: 0.15686275, g: 0.20784314, b: 0.2509804, a: 1}
+      - name: Cloud
+        shader: Clouds
+        scale: 1
+        visible: 1
+        floats:
+        - name: rotation
+          value: 0
+        - name: time_speed
+          value: 0.47
+        - name: stretch
+          value: 2
+        - name: cloud_curve
+          value: 1.3
+        - name: light_border_1
+          value: 0.52
+        - name: light_border_2
+          value: 0.62
+        - name: size
+          value: 7.745
+        - name: time
+          value: 0
+        - name: pixels
+          value: 100
+        - name: cloud_cover
+          value: 0.415
+        - name: OCTAVES
+          value: 2
+        - name: seed
+          value: 5.939
+        vectors:
+        - name: light_origin
+          value: {x: 0.39, y: 0.39, z: 0, w: 0}
+        colors:
+        - name: colors
+          values:
+          - {r: 0.8745098, g: 0.8784314, b: 0.9098039, a: 1}
+          - {r: 0.6392157, g: 0.654902, b: 0.7607843, a: 1}
+          - {r: 0.40784314, g: 0.43529412, b: 0.6, a: 1}
+          - {r: 0.2509804, g: 0.28627452, b: 0.4509804, a: 1}
+    - name: "\u65E0\u5927\u6C14\u5CA9\u661F"
+      relativeScale: 1
+      layers:
+      - name: Ground
+        shader: NoAtmosphere
+        scale: 1
+        visible: 1
+        floats:
+        - name: rotation
+          value: 0
+        - name: time_speed
+          value: 0.4
+        - name: dither_size
+          value: 2
+        - name: light_border_1
+          value: 0.615
+        - name: light_border_2
+          value: 0.729
+        - name: size
+          value: 8
+        - name: time
+          value: 0
+        - name: should_dither
+          value: 1
+        - name: pixels
+          value: 100
+        - name: OCTAVES
+          value: 4
+        - name: seed
+          value: 1.012
+        vectors:
+        - name: light_origin
+          value: {x: 0.25, y: 0.25, z: 0, w: 0}
+        colors:
+        - name: colors
+          values:
+          - {r: 0.639216, g: 0.654902, b: 0.760784, a: 1}
+          - {r: 0.298039, g: 0.407843, b: 0.521569, a: 1}
+          - {r: 0.227451, g: 0.247059, b: 0.368627, a: 1}
+      - name: Craters
+        shader: Craters
+        scale: 1
+        visible: 1
+        floats:
+        - name: rotation
+          value: 0
+        - name: light_border
+          value: 0.465
+        - name: size
+          value: 5
+        - name: time
+          value: 0
+        - name: pixels
+          value: 87.419
+        - name: time_speed
+          value: 0.001
+        - name: seed
+          value: 4.517
+        vectors:
+        - name: light_origin
+          value: {x: 0.25, y: 0.25, z: 0, w: 0}
+        colors:
+        - name: colors
+          values:
+          - {r: 0.298039, g: 0.407843, b: 0.521569, a: 1}
+          - {r: 0.227451, g: 0.247059, b: 0.368627, a: 1}
+    - name: "\u6C14\u6001\u5DE8\u661F"
+      relativeScale: 1
+      layers:
+      - name: Cloud
+        shader: GasPlanet
+        scale: 1
+        visible: 1
+        floats:
+        - name: time_speed
+          value: 0.7
+        - name: stretch
+          value: 1
+        - name: cloud_curve
+          value: 1.3
+        - name: light_border_1
+          value: 0.692
+        - name: light_border_2
+          value: 0.666
+        - name: rotation
+          value: 0
+        - name: size
+          value: 9
+        - name: time
+          value: 0
+        - name: pixels
+          value: 100
+        - name: cloud_cover
+          value: 0
+        - name: OCTAVES
+          value: 5
+        - name: seed
+          value: 5.939
+        vectors:
+        - name: light_origin
+          value: {x: 0.25, y: 0.25, z: 0, w: 0}
+        colors:
+        - name: colors
+          values:
+          - {r: 0.231373, g: 0.12549, b: 0.152941, a: 1}
+          - {r: 0.231373, g: 0.12549, b: 0.152941, a: 1}
+          - {r: 0, g: 0, b: 0, a: 1}
+          - {r: 0.129412, g: 0.0941176, b: 0.105882, a: 1}
+      - name: Cloud2
+        shader: GasPlanet
+        scale: 1
+        visible: 1
+        floats:
+        - name: time_speed
+          value: 0.47
+        - name: stretch
+          value: 1
+        - name: cloud_curve
+          value: 1.3
+        - name: light_border_1
+          value: 0.439
+        - name: light_border_2
+          value: 0.746
+        - name: rotation
+          value: 0
+        - name: size
+          value: 9
+        - name: time
+          value: 0
+        - name: pixels
+          value: 100
+        - name: cloud_cover
+          value: 0.538
+        - name: OCTAVES
+          value: 5
+        - name: seed
+          value: 5.939
+        vectors:
+        - name: light_origin
+          value: {x: 0.25, y: 0.25, z: 0, w: 0}
+        colors:
+        - name: colors
+          values:
+          - {r: 0.941176, g: 0.709804, b: 0.254902, a: 1}
+          - {r: 0.811765, g: 0.458824, b: 0.168627, a: 1}
+          - {r: 0.670588, g: 0.317647, b: 0.188235, a: 1}
+          - {r: 0.490196, g: 0.219608, b: 0.2, a: 1}
+    - name: "\u661F\u73AF\u5DE8\u661F"
+      relativeScale: 3
+      layers:
+      - name: GasLayers
+        shader: GasLayers
+        scale: 1
+        visible: 1
+        floats:
+        - name: pixels
+          value: 100
+        - name: rotation
+          value: 0
+        - name: time_speed
+          value: 0.05
+        - name: stretch
+          value: 2.204
+        - name: cloud_curve
+          value: 1.376
+        - name: light_border_1
+          value: 0.52
+        - name: light_border_2
+          value: 0.62
+        - name: bands
+          value: 0.892
+        - name: should_dither
+          value: 1
+        - name: n_colors
+          value: 3
+        - name: size
+          value: 10.107
+        - name: time
+          value: 0
+        - name: cloud_cover
+          value: 0.61
+        - name: OCTAVES
+          value: 3
+        - name: seed
+          value: 6.314
+        vectors:
+        - name: light_origin
+          value: {x: -0.1, y: 0.3, z: 0, w: 0}
+        colors:
+        - name: colors
+          values:
+          - {r: 0.933333, g: 0.764706, b: 0.603922, a: 1}
+          - {r: 0.85098, g: 0.627451, b: 0.4, a: 1}
+          - {r: 0.560784, g: 0.337255, b: 0.231373, a: 1}
+        - name: dark_colors
+          values:
+          - {r: 0.4, g: 0.223529, b: 0.192157, a: 1}
+          - {r: 0.270588, g: 0.156863, b: 0.235294, a: 1}
+          - {r: 0.133333, g: 0.12549, b: 0.203922, a: 1}
+      - name: Ring
+        shader: Ring
+        scale: 3
+        visible: 1
+        floats:
+        - name: pixels
+          value: 300
+        - name: rotation
+          value: 0.7
+        - name: time_speed
+          value: 0.2
+        - name: light_border_1
+          value: 0.52
+        - name: light_border_2
+          value: 0.62
+        - name: ring_width
+          value: 0.127
+        - name: ring_perspective
+          value: 6
+        - name: scale_rel_to_planet
+          value: 6
+        - name: n_colors
+          value: 3
+        - name: size
+          value: 15
+        - name: time
+          value: 0
+        - name: OCTAVES
+          value: 4
+        - name: seed
+          value: 8.461
+        vectors:
+        - name: light_origin
+          value: {x: -0.1, y: 0.3, z: 0, w: 0}
+        colors:
+        - name: colors
+          values:
+          - {r: 0.933333, g: 0.764706, b: 0.603922, a: 1}
+          - {r: 0.701961, g: 0.478431, b: 0.313726, a: 1}
+          - {r: 0.560784, g: 0.337255, b: 0.231373, a: 1}
+        - name: dark_colors
+          values:
+          - {r: 0.333333, g: 0.188235, b: 0.211765, a: 1}
+          - {r: 0.196078, g: 0.137255, b: 0.215686, a: 1}
+          - {r: 0.133333, g: 0.12549, b: 0.203922, a: 1}
+    - name: "\u51B0\u96EA\u4E16\u754C"
+      relativeScale: 1
+      layers:
+      - name: Land
+        shader: PlanetUnder
+        scale: 1
+        visible: 1
+        floats:
+        - name: rotation
+          value: 0
+        - name: time_speed
+          value: 0.25
+        - name: dither_size
+          value: 2
+        - name: light_border_1
+          value: 0.48
+        - name: light_border_2
+          value: 0.632
+        - name: size
+          value: 8
+        - name: time
+          value: 0
+        - name: should_dither
+          value: 1
+        - name: pixels
+          value: 100
+        - name: OCTAVES
+          value: 2
+        - name: seed
+          value: 1.036
+        vectors:
+        - name: light_origin
+          value: {x: 0.3, y: 0.3, z: 0, w: 0}
+        colors:
+        - name: colors
+          values:
+          - {r: 0.980392, g: 1, b: 1, a: 1}
+          - {r: 0.780392, g: 0.831373, b: 0.882353, a: 1}
+          - {r: 0.572549, g: 0.560784, b: 0.721569, a: 1}
+      - name: Lakes
+        shader: IceWorldInline2
+        scale: 1
+        visible: 1
+        floats:
+        - name: rotation
+          value: 0
+        - name: time_speed
+          value: 0.2
+        - name: light_border_1
+          value: 0.024
+        - name: light_border_2
+          value: 0.047
+        - name: size
+          value: 10
+        - name: time
+          value: 0
+        - name: pixels
+          value: 100
+        - name: lake_cutoff
+          value: 0.55
+        - name: OCTAVES
+          value: 3
+        - name: seed
+          value: 1.14
+        vectors:
+        - name: light_origin
+          value: {x: 0.3, y: 0.3, z: 0, w: 0}
+        colors:
+        - name: colors
+          values:
+          - {r: 0.309804, g: 0.643137, b: 0.721569, a: 1}
+          - {r: 0.298039, g: 0.407843, b: 0.521569, a: 1}
+          - {r: 0.227451, g: 0.247059, b: 0.368627, a: 1}
+      - name: Clouds
+        shader: Clouds
+        scale: 1
+        visible: 1
+        floats:
+        - name: rotation
+          value: 0
+        - name: time_speed
+          value: 0.1
+        - name: stretch
+          value: 2.5
+        - name: cloud_curve
+          value: 1.3
+        - name: light_border_1
+          value: 0.566
+        - name: light_border_2
+          value: 0.781
+        - name: size
+          value: 4
+        - name: time
+          value: 0
+        - name: pixels
+          value: 100
+        - name: cloud_cover
+          value: 0.546
+        - name: OCTAVES
+          value: 4
+        - name: seed
+          value: 1.14
+        vectors:
+        - name: light_origin
+          value: {x: 0.3, y: 0.3, z: 0, w: 0}
+        colors:
+        - name: colors
+          values:
+          - {r: 0.882353, g: 0.94902, b: 1, a: 1}
+          - {r: 0.752941, g: 0.890196, b: 1, a: 1}
+          - {r: 0.368627, g: 0.439216, b: 0.647059, a: 1}
+          - {r: 0.25098, g: 0.286275, b: 0.45098, a: 1}
+    - name: "\u7194\u5CA9\u4E16\u754C"
+      relativeScale: 1
+      layers:
+      - name: Land
+        shader: NoAtmosphere
+        scale: 1
+        visible: 1
+        floats:
+        - name: rotation
+          value: 0
+        - name: time_speed
+          value: 0.2
+        - name: dither_size
+          value: 2
+        - name: light_border_1
+          value: 0.4
+        - name: light_border_2
+          value: 0.6
+        - name: size
+          value: 10
+        - name: time
+          value: 0
+        - name: should_dither
+          value: 1
+        - name: pixels
+          value: 100
+        - name: OCTAVES
+          value: 3
+        - name: seed
+          value: 1.551
+        vectors:
+        - name: light_origin
+          value: {x: 0.3, y: 0.3, z: 0, w: 0}
+        colors:
+        - name: colors
+          values:
+          - {r: 0.560784, g: 0.301961, b: 0.341176, a: 1}
+          - {r: 0.321569, g: 0.2, b: 0.247059, a: 1}
+          - {r: 0.239216, g: 0.160784, b: 0.211765, a: 1}
+      - name: Craters
+        shader: Craters
+        scale: 1
+        visible: 1
+        floats:
+        - name: rotation
+          value: 0
+        - name: light_border
+          value: 0.4
+        - name: size
+          value: 3.5
+        - name: time
+          value: 0
+        - name: pixels
+          value: 100
+        - name: time_speed
+          value: 0.2
+        - name: seed
+          value: 1.561
+        vectors:
+        - name: light_origin
+          value: {x: 0.3, y: 0.3, z: 0, w: 0}
+        colors:
+        - name: colors
+          values:
+          - {r: 0.321569, g: 0.2, b: 0.247059, a: 1}
+          - {r: 0.239216, g: 0.160784, b: 0.211765, a: 1}
+      - name: LavaRivers
+        shader: LavaRivers
+        scale: 1
+        visible: 1
+        floats:
+        - name: rotation
+          value: 0
+        - name: time_speed
+          value: 0.2
+        - name: light_border_1
+          value: 0.019
+        - name: light_border_2
+          value: 0.036
+        - name: size
+          value: 10
+        - name: time
+          value: 0
+        - name: pixels
+          value: 100
+        - name: river_cutoff
+          value: 0.579
+        - name: OCTAVES
+          value: 4
+        - name: seed
+          value: 2.527
+        vectors:
+        - name: light_origin
+          value: {x: 0.3, y: 0.3, z: 0, w: 0}
+        colors:
+        - name: colors
+          values:
+          - {r: 1, g: 0.537255, b: 0.2, a: 1}
+          - {r: 0.901961, g: 0.270588, b: 0.223529, a: 1}
+          - {r: 0.678431, g: 0.184314, b: 0.270588, a: 1}
+    - name: "\u5C0F\u884C\u661F"
+      relativeScale: 1
+      layers:
+      - name: Asteroid
+        shader: Asteroids
+        scale: 1
+        visible: 1
+        floats:
+        - name: rotation
+          value: 0
+        - name: time_speed
+          value: 0.4
+        - name: size
+          value: 5.294
+        - name: should_dither
+          value: 1
+        - name: pixels
+          value: 100
+        - name: octaves
+          value: 2
+        - name: seed
+          value: 1.567
+        vectors:
+        - name: light_origin
+          value: {x: 0, y: 0, z: 0, w: 0}
+        colors:
+        - name: colors
+          values:
+          - {r: 0.639216, g: 0.654902, b: 0.760784, a: 1}
+          - {r: 0.298039, g: 0.407843, b: 0.521569, a: 1}
+          - {r: 0.227451, g: 0.247059, b: 0.368627, a: 1}
+    - name: "\u9ED1\u6D1E"
+      relativeScale: 2
+      layers:
+      - name: BlackHole
+        shader: BlackHole
+        scale: 1
+        visible: 1
+        floats:
+        - name: pixels
+          value: 100
+        - name: radius
+          value: 0.247
+        - name: light_width
+          value: 0.028
+        vectors: []
+        colors:
+        - name: colors
+          values:
+          - {r: 0.152941, g: 0.152941, b: 0.211765, a: 1}
+          - {r: 1, g: 1, b: 0.921569, a: 1}
+          - {r: 0.929412, g: 0.482353, b: 0.223529, a: 1}
+      - name: Disk
+        shader: BlackHoleRing
+        scale: 3
+        visible: 1
+        floats:
+        - name: pixels
+          value: 300
+        - name: rotation
+          value: 0.766
+        - name: time_speed
+          value: 0.2
+        - name: disk_width
+          value: 0.065
+        - name: ring_perspective
+          value: 14
+        - name: should_dither
+          value: 1
+        - name: n_colors
+          value: 5
+        - name: size
+          value: 6.598
+        - name: time
+          value: 0
+        - name: OCTAVES
+          value: 3
+        - name: seed
+          value: 8.175
+        vectors:
+        - name: light_origin
+          value: {x: 0.607, y: 0.444, z: 0, w: 0}
+        colors:
+        - name: colors
+          values:
+          - {r: 1, g: 1, b: 0.921569, a: 1}
+          - {r: 1, g: 0.960784, b: 0.25098, a: 1}
+          - {r: 1, g: 0.721569, b: 0.290196, a: 1}
+          - {r: 0.929412, g: 0.482353, b: 0.223529, a: 1}
+          - {r: 0.741176, g: 0.25098, b: 0.207843, a: 1}
+    - name: "\u65CB\u6DA1\u661F\u7CFB"
+      relativeScale: 1
+      layers:
+      - name: Galaxy
+        shader: Galaxy
+        scale: 1
+        visible: 1
+        floats:
+        - name: rotation
+          value: 0.674
+        - name: time_speed
+          value: 1
+        - name: dither_size
+          value: 2
+        - name: should_dither
+          value: 1
+        - name: n_colors
+          value: 6
+        - name: size
+          value: 7
+        - name: time
+          value: 0
+        - name: tilt
+          value: 3
+        - name: n_layers
+          value: 4
+        - name: layer_height
+          value: 0.4
+        - name: zoom
+          value: 1.375
+        - name: swirl
+          value: -9
+        - name: pixels
+          value: 200
+        - name: OCTAVES
+          value: 1
+        - name: seed
+          value: 5.881
+        vectors: []
+        colors:
+        - name: colors
+          values:
+          - {r: 1, g: 1, b: 0.921569, a: 1}
+          - {r: 1, g: 0.913725, b: 0.552941, a: 1}
+          - {r: 0.709804, g: 0.878431, b: 0.4, a: 1}
+          - {r: 0.396078, g: 0.647059, b: 0.4, a: 1}
+          - {r: 0.223529, g: 0.364706, b: 0.392157, a: 1}
+          - {r: 0.196078, g: 0.223529, b: 0.301961, a: 1}
+          - {r: 0.196078, g: 0.160784, b: 0.278431, a: 1}
+    - name: "\u6052\u661F"
+      relativeScale: 2
+      layers:
+      - name: Blobs
+        shader: StarBlobs
+        scale: 2
+        visible: 1
+        floats:
+        - name: time_speed
+          value: 0.05
+        - name: time
+          value: 0
+        - name: rotation
+          value: 0
+        - name: circle_amount
+          value: 2
+        - name: circle_size
+          value: 1
+        - name: size
+          value: 4.93
+        - name: pixels
+          value: 200
+        - name: seed
+          value: 3.078
+        - name: OCTAVES
+          value: 4
+        vectors: []
+        colors:
+        - name: colors
+          values:
+          - {r: 1, g: 1, b: 0.894118, a: 1}
+      - name: Star
+        shader: Star
+        scale: 1
+        visible: 1
+        floats:
+        - name: time_speed
+          value: 0.05
+        - name: rotation
+          value: 0
+        - name: n_colors
+          value: 4
+        - name: should_dither
+          value: 1
+        - name: size
+          value: 4.463
+        - name: pixels
+          value: 100
+        - name: time
+          value: 51.877
+        - name: seed
+          value: 4.837
+        - name: OCTAVES
+          value: 4
+        - name: TILES
+          value: 1
+        vectors: []
+        colors:
+        - name: colors
+          values:
+          - {r: 0.960784, g: 1, b: 0.909804, a: 1}
+          - {r: 0.466667, g: 0.839216, b: 0.756863, a: 1}
+          - {r: 0.109804, g: 0.572549, b: 0.654902, a: 1}
+          - {r: 0.0117647, g: 0.243137, b: 0.368627, a: 1}
+      - name: StarFlares
+        shader: StarFlares
+        scale: 2
+        visible: 1
+        floats:
+        - name: time_speed
+          value: 0.05
+        - name: rotation
+          value: 0
+        - name: should_dither
+          value: 1
+        - name: storm_width
+          value: 0.3
+        - name: storm_dither_width
+          value: 0
+        - name: scale
+          value: 1
+        - name: circle_amount
+          value: 2
+        - name: circle_scale
+          value: 1
+        - name: size
+          value: 1.6
+        - name: pixels
+          value: 200
+        - name: time
+          value: 0
+        - name: seed
+          value: 3.078
+        - name: OCTAVES
+          value: 4
+        vectors: []
+        colors:
+        - name: colors
+          values:
+          - {r: 0.466667, g: 0.839216, b: 0.756863, a: 1}
+          - {r: 1, g: 1, b: 0.894118, a: 1}
+  visuals:
+  - renderer: {fileID: 4297810006609288557}
+    model: 6
+    layer: 0
+    origin: {x: 0, y: 0, z: 0}
+    wrap: {x: 0, y: 0}
+  - renderer: {fileID: 7608667371382191316}
+    model: 6
+    layer: 1
+    origin: {x: 0, y: 0, z: 0}
+    wrap: {x: 0, y: 0}
+  - renderer: {fileID: 6641637498490459385}
+    model: 6
+    layer: 2
+    origin: {x: 0, y: 0, z: 0}
+    wrap: {x: 0, y: 0}
+  model: 6
+  seed: 795
+  pixels: 100
+  rotation: 12
+  speed: 1
+  light: {x: 0.16508397, y: 0.59717166}
+  dither: 1
+  paused: 0
+  showPanel: 0
+  standaloneAsset: 1
+  stars: 1
+  dust: 1
+  nebula: 1
+  planets: 1
+  transparent: 0
+  tile: 0
+  pixelArt: 1
+  quiet: 0
+  clearEdges: 0
+  density: 0.13
+  flow: 0.5
+  warp: 0.009
+  drift: 0.25
+  twinkle: 1
+  meteorCollision: 1
+  meteorPeriod: 28
+  meteorScale: 1
+  meteorCenter: {x: 0.19, y: 0.27}
+  meteorOffset: 0
+  background: {r: 0.03137255, g: 0.050980393, b: 0.14117648, a: 1}
+  spaceColors:
+  - {r: 0.03137255, g: 0.050980393, b: 0.14117648, a: 1}
+  - {r: 0.09019608, g: 0.105882354, b: 0.25882354, a: 1}
+  - {r: 0.16078432, g: 0.13725491, b: 0.30980393, a: 1}
+  - {r: 0.24313726, g: 0.19607843, b: 0.42352942, a: 1}
+  - {r: 0.34901962, g: 0.27058825, b: 0.5686275, a: 1}
+  - {r: 0.46666667, g: 0.39215687, b: 0.73333335, a: 1}
+  - {r: 0.63529414, g: 0.5921569, b: 0.8745098, a: 1}
+  - {r: 0.89411765, g: 0.92941177, b: 1, a: 1}
+  width: 640
+  height: 360
+  frames: 48
+  duration: 8
+  columns: 8
+  margin: 0
+  phase: 1616.9426
+--- !u!114 &61939339269951482
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5164767043709965495}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6299dd547c673f640b6964b503dd6cc1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  faceCamera: 1
+  targetCamera: {fileID: 0}
+--- !u!1 &6228007295701333383
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 3927423446622714597}
+  - component: {fileID: 6785549435109500557}
+  - component: {fileID: 4297810006609288557}
+  m_Layer: 0
+  m_Name: "\u5927\u9646"
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &3927423446622714597
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6228007295701333383}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 5, y: 5, z: 5}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 6412429298153337483}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!33 &6785549435109500557
+MeshFilter:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6228007295701333383}
+  m_Mesh: {fileID: 4300000, guid: 4e437c0f9f1eb14428426f1e38d00a86, type: 2}
+--- !u!23 &4297810006609288557
+MeshRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6228007295701333383}
+  m_Enabled: 1
+  m_CastShadows: 0
+  m_ReceiveShadows: 0
+  m_DynamicOccludee: 1
+  m_StaticShadowCaster: 0
+  m_MotionVectors: 1
+  m_LightProbeUsage: 1
+  m_ReflectionProbeUsage: 1
+  m_RayTracingMode: 2
+  m_RayTraceProcedural: 0
+  m_RenderingLayerMask: 1
+  m_RendererPriority: 0
+  m_Materials:
+  - {fileID: 2100000, guid: 1b941a6d7ff4358418f8093b73ca3de1, type: 2}
+  m_StaticBatchInfo:
+    firstSubMesh: 0
+    subMeshCount: 0
+  m_StaticBatchRoot: {fileID: 0}
+  m_ProbeAnchor: {fileID: 0}
+  m_LightProbeVolumeOverride: {fileID: 0}
+  m_ScaleInLightmap: 1
+  m_ReceiveGI: 1
+  m_PreserveUVs: 0
+  m_IgnoreNormalsForChartDetection: 0
+  m_ImportantGI: 0
+  m_StitchLightmapSeams: 1
+  m_SelectedEditorRenderState: 3
+  m_MinimumChartSize: 4
+  m_AutoUVMaxDistance: 0.5
+  m_AutoUVMaxAngle: 89
+  m_LightmapParameters: {fileID: 0}
+  m_SortingLayerID: 0
+  m_SortingLayer: 0
+  m_SortingOrder: 0
+  m_AdditionalVertexStreams: {fileID: 0}
+--- !u!1 &8134944561474701702
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 334079786895246879}
+  - component: {fileID: 665562998404077725}
+  - component: {fileID: 6641637498490459385}
+  m_Layer: 0
+  m_Name: "\u4E91\u5C42"
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &334079786895246879
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8134944561474701702}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: -0.02}
+  m_LocalScale: {x: 5, y: 5, z: 5}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 6412429298153337483}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!33 &665562998404077725
+MeshFilter:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8134944561474701702}
+  m_Mesh: {fileID: 4300000, guid: 4e437c0f9f1eb14428426f1e38d00a86, type: 2}
+--- !u!23 &6641637498490459385
+MeshRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8134944561474701702}
+  m_Enabled: 1
+  m_CastShadows: 0
+  m_ReceiveShadows: 0
+  m_DynamicOccludee: 1
+  m_StaticShadowCaster: 0
+  m_MotionVectors: 1
+  m_LightProbeUsage: 1
+  m_ReflectionProbeUsage: 1
+  m_RayTracingMode: 2
+  m_RayTraceProcedural: 0
+  m_RenderingLayerMask: 1
+  m_RendererPriority: 0
+  m_Materials:
+  - {fileID: 2100000, guid: a4c24d2234ca0e94d83b6a432648d7e2, type: 2}
+  m_StaticBatchInfo:
+    firstSubMesh: 0
+    subMeshCount: 0
+  m_StaticBatchRoot: {fileID: 0}
+  m_ProbeAnchor: {fileID: 0}
+  m_LightProbeVolumeOverride: {fileID: 0}
+  m_ScaleInLightmap: 1
+  m_ReceiveGI: 1
+  m_PreserveUVs: 0
+  m_IgnoreNormalsForChartDetection: 0
+  m_ImportantGI: 0
+  m_StitchLightmapSeams: 1
+  m_SelectedEditorRenderState: 3
+  m_MinimumChartSize: 4
+  m_AutoUVMaxDistance: 0.5
+  m_AutoUVMaxAngle: 89
+  m_LightmapParameters: {fileID: 0}
+  m_SortingLayerID: 0
+  m_SortingLayer: 0
+  m_SortingOrder: 0
+  m_AdditionalVertexStreams: {fileID: 0}
