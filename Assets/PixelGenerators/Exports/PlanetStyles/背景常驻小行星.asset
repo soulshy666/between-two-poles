@@ -16,10 +16,10 @@ MonoBehaviour:
   modelName: "\u80CC\u666F\u5E38\u9A7B\u5C0F\u884C\u661F"
   model: 8
   seed: 795
-  pixels: 48
-  rotation: 0
+  pixels: 100
+  rotation: 12
   speed: 0.1
-  light: {x: 0.25, y: 0.25}
+  light: {x: 0.17, y: 0.6}
   dither: 1
   data:
     name: "\u5C0F\u884C\u661F"

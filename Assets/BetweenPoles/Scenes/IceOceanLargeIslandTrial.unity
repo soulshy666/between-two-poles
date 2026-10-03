@@ -21284,11 +21284,11 @@ PrefabInstance:
       objectReference: {fileID: 2054248348}
     - target: {fileID: 3129161447429489516, guid: 2dda035a7b7c7c24eb9edceb63fefb48, type: 3}
       propertyPath: m_LocalPosition.x
-      value: 2.5971894
+      value: 2.5216017
       objectReference: {fileID: 0}
     - target: {fileID: 3129161447429489516, guid: 2dda035a7b7c7c24eb9edceb63fefb48, type: 3}
       propertyPath: m_LocalPosition.y
-      value: -0.6646963
+      value: -0.71142817
       objectReference: {fileID: 0}
     - target: {fileID: 3954495821831351558, guid: 2dda035a7b7c7c24eb9edceb63fefb48, type: 3}
       propertyPath: m_LocalScale.x
@@ -21344,11 +21344,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 6240648714771761927, guid: 2dda035a7b7c7c24eb9edceb63fefb48, type: 3}
       propertyPath: m_LocalPosition.x
-      value: -2.3641596
+      value: -2.4020877
       objectReference: {fileID: 0}
     - target: {fileID: 6240648714771761927, guid: 2dda035a7b7c7c24eb9edceb63fefb48, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 1.6835313
+      value: 1.7318738
       objectReference: {fileID: 0}
     - target: {fileID: 6724411169143554899, guid: 2dda035a7b7c7c24eb9edceb63fefb48, type: 3}
       propertyPath: m_Name
@@ -21356,11 +21356,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8678895703042961997, guid: 2dda035a7b7c7c24eb9edceb63fefb48, type: 3}
       propertyPath: m_LocalPosition.x
-      value: -4.055465
+      value: -3.9430392
       objectReference: {fileID: 0}
     - target: {fileID: 8678895703042961997, guid: 2dda035a7b7c7c24eb9edceb63fefb48, type: 3}
       propertyPath: m_LocalPosition.y
-      value: -1.8178861
+      value: -1.8252753
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -21444,7 +21444,7 @@ MonoBehaviour:
   asteroidStyle: {fileID: 11400000, guid: 9dc71c71b09ebe4489eb3a9bb48506ff, type: 2}
   quad: {fileID: 4300000, guid: 32280e229e6dcf949be2a7a75c094ae0, type: 2}
   material: {fileID: 2100000, guid: 88c11401726610b428ce843ce616211f, type: 2}
-  count: 7
+  count: 5
 --- !u!1 &1513966691
 GameObject:
   m_ObjectHideFlags: 0
