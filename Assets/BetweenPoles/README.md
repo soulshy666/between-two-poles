@@ -1,6 +1,19 @@
 # 两极之间 Unity 场景原型
 
-打开 `Assets/BetweenPoles/Scenes/FirstSignal.unity`。
+当前第一章游玩场景：`Assets/BetweenPoles/Scenes/Chapter01_IceWorld.unity`。
+
+五座小岛使用 `Assets/BetweenPoles/Art/Chapter01Ice` 的最新版浮冰美术（像素冰雪纹理、圆角冰层、冰面后处理）。场景中的“第一章 · 最新浮冰美术”保存显示模型，原有 GridTile 继续负责地块逻辑。
+
+## 章节游玩场景
+
+- 第一章：`Scenes/Chapter01_IceWorld.unity`，冰雪星球与浮冰岛。
+- 第二章：`Scenes/Chapter02_VerdantWorld.unity`，绿野星球与草地岩岛。
+- 第三章：`Scenes/Chapter03_RingWorld.unity`，星环星球与砂岩岛。
+- 第四章：`Scenes/Chapter04_LavaWorld.unity`，熔岩星球与火山岩岛。
+
+后三章当前沿用第一章的五岛测试布局和游玩机制，独立保存星球样式、小岛材质及岩石配色；章节专属谜题尚待设计。展示场景为 `Scenes/PlanetChapterShowcase.unity`。
+
+> 下方为早期原型说明，机制范围和旧参数不代表当前版本。
 
 ## 编辑与观看
 

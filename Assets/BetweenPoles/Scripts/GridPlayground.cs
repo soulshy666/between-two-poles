@@ -1,4 +1,4 @@
-﻿using System.Collections;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -6,7 +6,7 @@ namespace BetweenPoles {
 public sealed partial class GridPlayground:MonoBehaviour {
     public float cellSize=1.5f;
     public float stepSeconds=.22f;
-    [Range(.3f,1.2f)] public float joinSeconds=.65f;
+    [Range(.6f,2.5f)] public float joinSeconds=1.35f;
     public Transform player;
     public Transform playerVisual;
     public GridTile[] tiles;
@@ -16,10 +16,7 @@ public sealed partial class GridPlayground:MonoBehaviour {
     public bool ReachedGoal { get; private set; }
     public bool Busy { get; private set; }
     public event System.Action<GridTile> Landed;
-    struct Snapshot { public Transform parent; public Vector3 position,scale; public Quaternion rotation; public bool combined,walkable,enabled,active; public Transform geometry; public Quaternion pose; public Vector3 geoPosition; public MagnetProduct product; public bool baseNorth; public Vector2Int bridgeDirection; }
-    Snapshot[] initial; bool[] poles; MagnetShape[] shapes;
-    Vector3 playerStart; Quaternion playerRotation;
-    Material initialGoal;
+    struct Snapshot { public Transform parent,owner; public Vector3 position,scale; public Quaternion rotation; public bool combined,walkable,enabled,active,north; public Transform geometry; public Quaternion pose; public Vector3 geoPosition; public MagnetShape shape; public MagnetProduct product; public bool baseNorth; public Vector2Int bridgeDirection; }
     Vector2Int Cell(Transform t){return new Vector2Int(Mathf.RoundToInt(t.position.x/cellSize),Mathf.RoundToInt(t.position.z/cellSize));}
     GridTile Tile(Vector2Int p){foreach(var t in tiles)if(t&&Cell(t.transform)==p)return t;return null;}
     MagnetPiece Piece(Vector2Int p,MagnetPiece ignore=null){foreach(var m in magnets)if(m&&m.enabled&&m!=ignore&&m.gameObject.activeInHierarchy&&m.Occupies(p,cellSize))return m;return null;}
@@ -29,15 +26,14 @@ public sealed partial class GridPlayground:MonoBehaviour {
         CaptureInitialState();
     }
     public void CaptureInitialState(){
-        playerStart=player.position;playerRotation=player.rotation;
-        if(goalLight)initialGoal=goalLight.sharedMaterial;
-        initial=new Snapshot[magnets.Length];poles=new bool[magnets.Length];shapes=new MagnetShape[magnets.Length];
-        for(int i=0;i<magnets.Length;i++) {var m=magnets[i];initial[i]=new Snapshot{geometry=m.geometry,pose=m.geometry.localRotation,geoPosition=m.geometry.localPosition,product=m.product,baseNorth=m.baseNorth,bridgeDirection=m.bridgeDirection,parent=m.transform.parent,position=m.transform.position,rotation=m.transform.rotation,scale=m.geometry.localScale,combined=m.combined,walkable=m.walkable,enabled=m.enabled,active=m.gameObject.activeSelf};poles[i]=m.north;shapes[i]=m.shape;}
+        currentIsland=Owner(Tile(Cell(player)));islandEntry=player.position;islandEntryRotation=player.rotation;
+        history.Clear();initialState=SaveWorld();ReleaseUnusedGeometry();
     }
     void Update(){
         var panel=GetComponent<MagnetDebugPanel>();
         if(panel&&panel.enabled&&panel.IsOpen)return;
-        if(Input.GetKeyDown(KeyCode.R)){ResetPuzzle();return;}
+        if(Input.GetKeyDown(KeyCode.Z)){UndoStep();return;}
+        if(Input.GetKeyDown(KeyCode.R)){ResetCurrentIsland();return;}
         if(Busy)return;
         if(Input.GetKeyDown(KeyCode.D)||Input.GetKeyDown(KeyCode.RightArrow))TryStep(Vector2Int.right);
         else if(Input.GetKeyDown(KeyCode.A)||Input.GetKeyDown(KeyCode.LeftArrow))TryStep(Vector2Int.left);
@@ -68,18 +64,10 @@ public sealed partial class GridPlayground:MonoBehaviour {
         incoming=Vector3.Lerp(Vector3.Lerp(incomingStart,laneStart,separate),incomingEnd,advance);
         target=Vector3.Lerp(targetStart,targetEnd,separate);
     }
+    // Full reset is retained for the independent test-panel reset button.
     public void ResetPuzzle(){
-        StopAllCoroutines();Busy=false;ReachedGoal=false;
-        for(int i=0;i<magnets.Length;i++)magnets[i].transform.SetParent(initial[i].parent,true);
-        for(int i=0;i<magnets.Length;i++){
-            var m=magnets[i];m.transform.position=initial[i].position;m.transform.rotation=initial[i].rotation;
-            if(m.geometry!=initial[i].geometry){m.geometry.gameObject.SetActive(false);Destroy(m.geometry.gameObject);m.geometry=initial[i].geometry;}
-            m.geometry.gameObject.SetActive(true);m.geometry.localPosition=initial[i].geoPosition;m.geometry.localRotation=initial[i].pose;m.geometry.localScale=initial[i].scale;
-            m.product=initial[i].product;m.baseNorth=initial[i].baseNorth;m.bridgeDirection=initial[i].bridgeDirection;
-            m.north=poles[i];m.shape=shapes[i];m.combined=initial[i].combined;m.walkable=initial[i].walkable;m.enabled=initial[i].enabled;m.gameObject.SetActive(initial[i].active);
-        }
-        player.position=playerStart;player.rotation=playerRotation;if(goalLight)goalLight.sharedMaterial=initialGoal;
-        var tile=Tile(Cell(player));if(tile)Landed?.Invoke(tile);
+        if(initialState==null)return;
+        RestoreWorld(initialState);history.Clear();ReleaseUnusedGeometry();LastRule="已恢复测试初始布局";
     }
 }
 }

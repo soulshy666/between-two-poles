@@ -1,11 +1,12 @@
-﻿using UnityEngine;
+using UnityEngine;
 namespace BetweenPoles {
 // Small runtime meshes use the same bent-world material as the imported islands.
 public static class MagnetVisuals {
     static Material red,blue;
     static Material Color(bool north) {
         var m=north?red:blue;if(m)return m;
-        m=new Material(Shader.Find("BetweenPoles/PaintedIceTrial"));m.color=north?new Color(.92f,.23f,.32f):new Color(.18f,.48f,.73f);
+        m=new Material(Shader.Find("BetweenPoles/PaintedIceTrial"));m.color=north?new Color(.88f,.22f,.29f):new Color(.18f,.55f,.78f);
+        m.SetFloat("_Painted",0);m.SetFloat("_Snow",0);m.SetFloat("_Grid",0);
         if(north)red=m;else blue=m;return m;
     }
     static Transform Group(Transform parent,string name){var g=new GameObject(name);g.transform.SetParent(parent,false);return g.transform;}

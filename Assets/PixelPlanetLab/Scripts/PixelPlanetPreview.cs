@@ -81,7 +81,7 @@ namespace BetweenPoles.PixelLab
         }
         float Slider(string title,float value,float min,float max,string format="F2") { GUILayout.Label(title+"   "+value.ToString(format),GUILayout.Height(25)); return GUILayout.HorizontalSlider(value,min,max,GUILayout.Height(22)); }
         void OnGUI() {
-            if(!showPanel) return;
+            if(!showPanel || gameObject.scene != UnityEngine.SceneManagement.SceneManager.GetActiveScene()) return;
             if(!chineseFont) chineseFont=Font.CreateDynamicFontFromOSFont(new[]{"Microsoft YaHei","SimHei","Noto Sans CJK SC"},16);
             var oldFont=GUI.skin.font; GUI.skin.font=chineseFont;
             Matrix4x4 old=GUI.matrix; float scale=Mathf.Min(Screen.width/1100f,Screen.height/760f); GUI.matrix=Matrix4x4.Scale(new Vector3(scale,scale,1));

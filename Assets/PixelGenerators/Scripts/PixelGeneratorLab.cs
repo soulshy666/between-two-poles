@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
@@ -184,7 +184,7 @@ namespace BetweenPoles.Generators {
   }
   float Slider(string name,float value,float min,float max){GUILayout.Label(name+"  "+value.ToString("0.##"),GUILayout.Height(25));return GUILayout.HorizontalSlider(value,min,max,GUILayout.Height(19));}
   int Number(string label,int value,int min,int max){GUILayout.BeginHorizontal();GUILayout.Label(label,GUILayout.Width(145),GUILayout.Height(25));int n;string t=GUILayout.TextField(value.ToString(),GUILayout.Height(25));GUILayout.EndHorizontal();return int.TryParse(t,out n)?Mathf.Clamp(n,min,max):value;}
-  void OnGUI(){if(standaloneAsset||!showPanel)return;if(!font)font=Font.CreateDynamicFontFromOSFont(new[]{"Microsoft YaHei","SimHei"},16);var oldFont=GUI.skin.font;GUI.skin.font=font;Matrix4x4 old=GUI.matrix;float scale=Mathf.Min(Screen.width/1200f,Screen.height/800f);GUI.matrix=Matrix4x4.Scale(new Vector3(scale,scale,1));
+  void OnGUI(){if(standaloneAsset||!showPanel||gameObject.scene!=UnityEngine.SceneManagement.SceneManager.GetActiveScene())return;if(!font)font=Font.CreateDynamicFontFromOSFont(new[]{"Microsoft YaHei","SimHei"},16);var oldFont=GUI.skin.font;GUI.skin.font=font;Matrix4x4 old=GUI.matrix;float scale=Mathf.Min(Screen.width/1200f,Screen.height/800f);GUI.matrix=Matrix4x4.Scale(new Vector3(scale,scale,1));
    GUILayout.BeginArea(new Rect(18,18,335,764),GUI.skin.box);GUILayout.Label(spaceMode?"像素太空 · 动态背景实验室":"像素星球 · 完整功能实验室",new GUIStyle(GUI.skin.label){fontSize=19},GUILayout.Height(34));
    tab=GUILayout.Toolbar(tab,new[]{"生成","颜色","图层","导出"},GUILayout.Height(32));scroll=GUILayout.BeginScrollView(scroll);
    GUI.enabled=!IsExporting;
