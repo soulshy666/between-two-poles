@@ -1,0 +1,128 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ddc0ed2d8a547b846a761862357d75d3, type: 3}
+  m_Name: PlanetStyle
+  m_EditorClassIdentifier: 
+  version: 1
+  modelName: "\u7B2C\u56DB\u7AE0 \xB7 \u7194\u5CA9\u4E16\u754C"
+  model: 7
+  seed: 1079
+  pixels: 160
+  rotation: 12
+  speed: 0.12
+  light: {x: 0.18, y: 0.32}
+  dither: 1
+  data:
+    name: "\u7194\u5CA9\u4E16\u754C"
+    relativeScale: 1
+    layers:
+    - name: Land
+      shader: NoAtmosphere
+      scale: 1
+      visible: 1
+      floats:
+      - name: rotation
+        value: 0
+      - name: time_speed
+        value: 0.2
+      - name: dither_size
+        value: 2
+      - name: light_border_1
+        value: 0.4
+      - name: light_border_2
+        value: 0.6
+      - name: size
+        value: 10
+      - name: time
+        value: 0
+      - name: should_dither
+        value: 1
+      - name: pixels
+        value: 100
+      - name: OCTAVES
+        value: 3
+      - name: seed
+        value: 1.551
+      vectors:
+      - name: light_origin
+        value: {x: 0.3, y: 0.3, z: 0, w: 0}
+      colors:
+      - name: colors
+        values:
+        - {r: 0.560784, g: 0.301961, b: 0.341176, a: 1}
+        - {r: 0.321569, g: 0.2, b: 0.247059, a: 1}
+        - {r: 0.239216, g: 0.160784, b: 0.211765, a: 1}
+    - name: Craters
+      shader: Craters
+      scale: 1
+      visible: 1
+      floats:
+      - name: rotation
+        value: 0
+      - name: light_border
+        value: 0.4
+      - name: size
+        value: 3.5
+      - name: time
+        value: 0
+      - name: pixels
+        value: 100
+      - name: time_speed
+        value: 0.2
+      - name: seed
+        value: 1.561
+      vectors:
+      - name: light_origin
+        value: {x: 0.3, y: 0.3, z: 0, w: 0}
+      colors:
+      - name: colors
+        values:
+        - {r: 0.321569, g: 0.2, b: 0.247059, a: 1}
+        - {r: 0.239216, g: 0.160784, b: 0.211765, a: 1}
+    - name: LavaRivers
+      shader: LavaRivers
+      scale: 1
+      visible: 1
+      floats:
+      - name: rotation
+        value: 0
+      - name: time_speed
+        value: 0.2
+      - name: light_border_1
+        value: 0.019
+      - name: light_border_2
+        value: 0.036
+      - name: size
+        value: 10
+      - name: time
+        value: 0
+      - name: pixels
+        value: 100
+      - name: river_cutoff
+        value: 0.579
+      - name: OCTAVES
+        value: 4
+      - name: seed
+        value: 2.527
+      vectors:
+      - name: light_origin
+        value: {x: 0.3, y: 0.3, z: 0, w: 0}
+      colors:
+      - name: colors
+        values:
+        - {r: 1, g: 0.537255, b: 0.2, a: 1}
+        - {r: 0.901961, g: 0.270588, b: 0.223529, a: 1}
+        - {r: 0.678431, g: 0.184314, b: 0.270588, a: 1}
+  surfaceShaders:
+  - {fileID: 4800000, guid: e9eff2cdd5582a04299a62765543af10, type: 3}
+  - {fileID: 4800000, guid: 6a095e7417a5246429de743be2c572ca, type: 3}
+  - {fileID: 4800000, guid: 3f86a8ff9206f24478af7f8a1de2e4fa, type: 3}

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Linq;
 using System.Collections.Generic;
@@ -10,7 +10,7 @@ using UnityEngine.SceneManagement;
 
 namespace BetweenPoles.Authoring {
 public static class WebSketchImporter {
-    const string Template="Assets/BetweenPoles/Scenes/IceOceanLargeIslandTrial.unity";
+    const string Template="Assets/BetweenPoles/Scenes/Chapter01_IceWorld.unity";
     const float Cell=1.5f;
     public class RoomData { public string id,name;public List<Vector2Int> cells=new List<Vector2Int>();public Vector2Int offset;public int[] neighbors=new int[4]{-1,-1,-1,-1}; }
     public class PieceData { public int room;public string kind,pole;public Vector2Int cell;public int angle,w=1,h=1;public bool upright; }
@@ -84,7 +84,20 @@ public static class WebSketchImporter {
         if(EditorApplication.isPlaying){EditorUtility.DisplayDialog("请先停止运行","退出 Play 后再更新小岛美术。","知道了");return;}
         var scene=SceneManager.GetActiveScene();var window=Find<FiveIslandWindow>(scene);
         if(!window||string.IsNullOrEmpty(scene.path)){EditorUtility.DisplayDialog("未找到导入关卡","请先打开网页 JSON 生成的关卡场景。","知道了");return;}
-        string folder=Path.GetDirectoryName(scene.path).Replace('\\','/');Material material=null;
+        string folder=null;
+        foreach(var room in window.rooms){
+            var surface=room.surfaces.FirstOrDefault(r=>r&&r.name=="冰面及外侧壁");
+            var filter=surface?surface.GetComponent<MeshFilter>():null;
+            string meshPath=filter?AssetDatabase.GetAssetPath(filter.sharedMesh):null;
+            if(!string.IsNullOrEmpty(meshPath)){folder=Path.GetDirectoryName(meshPath).Replace('\\','/');break;}
+        }
+        if(string.IsNullOrEmpty(folder)){
+            const string assetsRoot="Assets/BetweenPoles/ImportedLevels";
+            if(!AssetDatabase.IsValidFolder(assetsRoot))AssetDatabase.CreateFolder("Assets/BetweenPoles","ImportedLevels");
+            folder=AssetDatabase.GenerateUniqueAssetPath(assetsRoot+"/"+Path.GetFileNameWithoutExtension(scene.path));
+            AssetDatabase.CreateFolder(assetsRoot,Path.GetFileName(folder));
+        }
+        Material material=null;
         foreach(var room in window.rooms){
             var surface=room.surfaces.FirstOrDefault(r=>r&&r.name=="冰面及外侧壁");if(!surface)continue;
             var filter=surface.GetComponent<MeshFilter>();if(!filter)continue;
@@ -101,7 +114,9 @@ public static class WebSketchImporter {
         if(EditorApplication.isPlaying)throw new Exception("请退出播放模式");
         string baseFolder="Assets/BetweenPoles/ImportedLevels";if(!AssetDatabase.IsValidFolder(baseFolder))AssetDatabase.CreateFolder("Assets/BetweenPoles","ImportedLevels");
         string folder=AssetDatabase.GenerateUniqueAssetPath(baseFolder+"/"+Path.GetFileNameWithoutExtension(source));AssetDatabase.CreateFolder(baseFolder,Path.GetFileName(folder));
-        string scenePath=folder+"/Level.unity";if(!AssetDatabase.CopyAsset(Template,scenePath))throw new Exception("无法复制环境模板");
+        string sceneFolder="Assets/BetweenPoles/Scenes";
+        if(!AssetDatabase.IsValidFolder(sceneFolder))AssetDatabase.CreateFolder("Assets/BetweenPoles","Scenes");
+        string scenePath=AssetDatabase.GenerateUniqueAssetPath(sceneFolder+"/"+Path.GetFileName(folder)+".unity");if(!AssetDatabase.CopyAsset(Template,scenePath))throw new Exception("无法复制环境模板");
         var scene=EditorSceneManager.OpenScene(scenePath,OpenSceneMode.Single);
         var board=Find<GridPlayground>(scene);var camera=Find<IslandCamera>(scene);var curved=Find<CurvedTrialCamera>(scene);
         camera.viewingOffset=IslandCamera.DefaultViewingOffset;

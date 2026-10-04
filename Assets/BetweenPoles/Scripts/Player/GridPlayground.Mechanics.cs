@@ -1,4 +1,4 @@
-using System.Collections;
+﻿using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
@@ -39,6 +39,13 @@ public sealed partial class GridPlayground {
         return Mathf.Abs((bar*Vector3.right).y)<.05f?MagnetProduct.BridgeHalf:MagnetProduct.None;
     }
     public bool TryStep(Vector2Int dir) {
+        if(Busy||Mathf.Abs(dir.x)+Mathf.Abs(dir.y)!=1)return false;
+        var before=SaveWorld();
+        bool accepted=TryStepCore(dir);
+        if(accepted)RecordHistory(before);
+        return accepted;
+    }
+    bool TryStepCore(Vector2Int dir) {
         if(Busy||Mathf.Abs(dir.x)+Mathf.Abs(dir.y)!=1)return false;
         var from=Cell(player);var support=Piece(from);
         if(support&&support.product==MagnetProduct.Bridge){var side=support.transform.forward;float across=Vector3.Dot(new Vector3(dir.x,0,dir.y),side);float lane=Vector3.Dot(player.position-support.transform.position,side);if(Mathf.Abs(across)>.5f&&across*lane<0)return Reject("桥中央镂空，请沿当前侧梁行走");}
@@ -98,7 +105,34 @@ public sealed partial class GridPlayground {
         for(float t=0;t<stepSeconds;t+=Time.deltaTime){float a=Mathf.SmoothStep(0,1,t/stepSeconds);m.transform.position=Vector3.Lerp(start,end,a);m.geometry.rotation=Quaternion.AngleAxis(degrees*a,axis)*pose;MagnetVisuals.Ground(m);yield return null;}
         m.transform.position=end;m.geometry.rotation=final;MagnetVisuals.Ground(m);
     }
-    IEnumerator RollThenWalk(MagnetPiece m,Vector2Int dir,Vector2Int target,Vector2Int next){yield return RollPiece(m,dir,target);yield return Walk(next);Busy=false;}
+    IEnumerator PushSingleBar(MagnetPiece m,Vector2Int dir,Vector2Int target,Vector2Int next){
+        Vector3 start=m.transform.position,end=Position(target,GroundHeight(target));
+        Vector3 playerStart=player.position,playerEnd=Position(next,GroundHeight(next));
+        Vector3 forward=new Vector3(dir.x,0,dir.y),axis=new Vector3(dir.y,0,-dir.x);
+        Quaternion facing=Quaternion.LookRotation(forward),pose=m.Pose;
+        float degrees;Quaternion final=MagnetPiece.Rolled(m.shape,pose,dir,out degrees);
+        // A short plant/lean precedes the heavy movement; the player follows
+        // during the push instead of waiting for the magnet to finish moving.
+        float duration=Mathf.Max(.85f,stepSeconds*3);
+        for(float elapsed=0;elapsed<duration;elapsed+=Time.deltaTime){
+            float p=Mathf.Clamp01(elapsed/duration);
+            float brace=AssemblyPhase(p,0,.20f),drive=AssemblyPhase(p,.20f,.86f),settle=AssemblyPhase(p,.86f,1);
+            float effort=brace*(1-settle);
+            player.rotation=Quaternion.AngleAxis(10*effort,axis)*facing;
+            player.position=Vector3.Lerp(playerStart,playerEnd,drive)+forward*(cellSize*.12f*brace*(1-drive));
+            m.transform.position=Vector3.Lerp(start,end,drive);
+            m.geometry.rotation=Quaternion.AngleAxis(degrees*drive,axis)*pose;
+            MagnetVisuals.Ground(m);
+            yield return null;
+        }
+        m.transform.position=end;m.geometry.rotation=final;MagnetVisuals.Ground(m);
+        player.SetPositionAndRotation(playerEnd,facing);NotifyLanding(next);
+    }
+    IEnumerator RollThenWalk(MagnetPiece m,Vector2Int dir,Vector2Int target,Vector2Int next){
+        if(m.shape==MagnetShape.Bar)yield return PushSingleBar(m,dir,target,next);
+        else {yield return RollPiece(m,dir,target);yield return Walk(next);}
+        Busy=false;
+    }
     IEnumerator Repel(MagnetPiece near,MagnetPiece far,Vector2Int dir,Vector2Int next,Vector2Int target,Vector2Int beyond){yield return RollPiece(far,dir,beyond);yield return RollPiece(near,dir,target);yield return Walk(next);Busy=false;}
     IEnumerator Recoil(Vector2Int back){var start=player.position;var end=Position(back,GroundHeight(back));float duration=stepSeconds*2;for(float t=0;t<duration;t+=Time.deltaTime){float a=t/duration;player.position=Vector3.Lerp(start,end,a)+Vector3.up*Mathf.Sin(a*Mathf.PI)*.6f;yield return null;}player.position=end;NotifyLanding(back);Busy=false;}
     IEnumerator Assemble(MagnetPiece incoming,MagnetPiece target,Vector2Int dir,Quaternion arrival,MagnetProduct product,Vector2Int next,Vector2Int bridgeDir){
@@ -110,31 +144,7 @@ public sealed partial class GridPlayground {
         Quaternion receiverEnd=tippedReceiver?ReceiverLandingPose(target,dir):receiverStart;
         Quaternion yaw=Yaw(receiverEnd*Vector3.right);
         if(product==MagnetProduct.BridgeHalf||product==MagnetProduct.Bridge)yaw=Yaw(new Vector3(bridgeDir.x,0,bridgeDir.y));
-        // Keep grid anchors fixed: only the receiver's visible body sinks or slides.
-        Vector3 receiverBody=target.geometry.position,side=yaw*Vector3.forward;
-        for(float t=0;t<joinSeconds;t+=Time.deltaTime){
-            float progress=t/joinSeconds;
-            float a=Mathf.SmoothStep(0,1,progress);
-            float settle=Mathf.SmoothStep(0,1,Mathf.Clamp01((progress-.65f)/.35f));
-            incoming.transform.position=Vector3.Lerp(start,target.transform.position,a);
-            var rolled=Quaternion.AngleAxis(degrees*Mathf.SmoothStep(0,1,Mathf.Clamp01(progress/.65f)),new Vector3(dir.y,0,-dir.x))*old;
-            incoming.geometry.rotation=product==MagnetProduct.WideBar?Quaternion.Slerp(rolled,yaw,settle):rolled;
-            MagnetVisuals.Ground(incoming);
-            if(tippedReceiver){
-                target.geometry.rotation=Quaternion.Slerp(receiverStart,receiverEnd,Mathf.SmoothStep(0,1,Mathf.Clamp01(progress/.65f)));
-                MagnetVisuals.Ground(target);
-            }
-            if(product==MagnetProduct.WideBar){
-                incoming.geometry.position+=side*(.12f*settle);
-                if(tippedReceiver)target.geometry.position-=side*(.12f*settle);
-                else target.geometry.position=receiverBody-side*(.12f*settle);
-            }else if(product==MagnetProduct.Cross){
-                if(tippedReceiver)target.geometry.position+=Vector3.up*(.24f*a);
-                else if(tippedIncoming)incoming.geometry.position+=Vector3.up*(.24f*a);
-                else target.geometry.position=receiverBody-Vector3.up*(.24f*Mathf.SmoothStep(0,1,Mathf.Clamp01(progress/.55f)));
-            }
-            yield return null;
-        }
+        yield return AnimateAssembly(incoming,target,dir,product,yaw,bridgeDir,uNorth,tippedReceiver,tippedIncoming,receiverEnd);
         incoming.transform.SetParent(target.transform,true);incoming.enabled=false;incoming.combined=true;incoming.gameObject.SetActive(false);
         target.bridgeDirection=bridgeDir;MagnetVisuals.Product(target,product,cellSize,yaw,uNorth,tippedReceiver&&product==MagnetProduct.Cross);
         if(product==MagnetProduct.Cross&&!tippedReceiver&&!tippedIncoming)target.geometry.localPosition=Vector3.down*.24f;
@@ -163,7 +173,7 @@ public sealed partial class GridPlayground {
         Vector3 direction=target-player.position;direction.y=0;if(direction.sqrMagnitude>.01f)player.rotation=Quaternion.LookRotation(direction);
         yield return Slide(player,target,stepSeconds);NotifyLanding(cell);
     }
-    void NotifyLanding(Vector2Int p){var t=Tile(p);if(t&&t.goal){ReachedGoal=true;if(goalLight&&goalCompleteMaterial)goalLight.sharedMaterial=goalCompleteMaterial;}if(t)Landed?.Invoke(t);}
+    void NotifyLanding(Vector2Int p){var t=Tile(p);if(t&&t.goal){ReachedGoal=true;if(goalLight&&goalCompleteMaterial)goalLight.sharedMaterial=goalCompleteMaterial;}if(t){TrackIsland(t);Landed?.Invoke(t);}}
     public bool RotorActive(MagnetPiece cross){
         if(!cross||cross.product!=MagnetProduct.Cross)return false;var c=Cell(cross.transform);
         foreach(var axis in new[]{Vector2Int.right,Vector2Int.up}){
