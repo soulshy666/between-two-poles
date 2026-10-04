@@ -9,12 +9,16 @@ namespace BetweenPoles {
   [Min(10),InspectorName("星球半径")] public float planetRadius=10;
   [InspectorName("星球与主岛画面中心对齐")] public bool centeredGlobe;
   public float displayRadius;
+  [Range(1,1.5f),InspectorName("岛屿与格子显示倍率")] public float islandDisplayScale=1.2f;
   readonly Vector4[] anchors=new Vector4[16];
   void OnEnable(){Apply(editFocus);}
   void LateUpdate(){if(!island)return;Vector3 focus=Application.isPlaying&&island.enabled?transform.position-island.viewingOffset:editFocus;Apply(focus);}
   public static Vector3 SphereNormal(Vector3 point,float radius=10){float d=new Vector2(point.x,point.z).magnitude;return d<.001f?Vector3.up:new Vector3(point.x/d*Mathf.Sin(d/radius),Mathf.Cos(d/radius),point.z/d*Mathf.Sin(d/radius));}
   public void Apply(Vector3 focus){
+   // Share the physical camera offset in edit mode and during island transitions.
+   if(island)island.ApplyView(focus);
    Shader.SetGlobalFloat("_IceRadius",planetRadius);
+   Shader.SetGlobalFloat("_IslandDisplayScale",islandDisplayScale);
    Shader.SetGlobalVector("_IceFocus",new Vector4(focus.x,0,focus.z,0));
    var window=island&&island.board?island.board.GetComponent<FiveIslandWindow>():null;
    var centers=window&&window.VisibleCenters!=null?window.VisibleCenters:(island?island.islandCenters:null);
@@ -33,7 +37,7 @@ namespace BetweenPoles {
      int selected=0;for(int j=1;j<count;j++)if(((Vector3)anchors[j]-focus).sqrMagnitude<((Vector3)anchors[selected]-focus).sqrMagnitude)selected=j;
      Vector3 center=anchors[selected];
      foreach(var tile in island.board.tiles){if(!tile||!tile.gameObject.activeInHierarchy)continue;Vector3 p=tile.transform.position;int owner=0;for(int j=1;j<count;j++)if((p-(Vector3)anchors[j]).sqrMagnitude<(p-(Vector3)anchors[owner]).sqrMagnitude)owner=j;var binding=tile.GetComponentInParent<IslandSurfaceAnchor>();if(binding&&binding.center){for(int j=0;j<count;j++)if(centers[j]==binding.center){owner=j;break;}}if(owner!=selected)continue;
-      Vector3 delta=p-center;float pad=island.board.cellSize*.72f;
+      Vector3 delta=(p-center)*islandDisplayScale;float pad=island.board.cellSize*.72f*islandDisplayScale;
       size=Mathf.Max(size,Mathf.Abs(Vector3.Dot(transform.up,delta))+pad+2.2f,(Mathf.Abs(Vector3.Dot(transform.right,delta))+pad+2.2f)/Mathf.Max(.5f,camera.aspect));
      }
     }

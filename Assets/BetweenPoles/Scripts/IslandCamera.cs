@@ -7,7 +7,9 @@ public sealed class IslandCamera : MonoBehaviour {
     public Transform player;
     public Transform[] islandCenters;
     public GridPlayground board;
-    public Vector3 viewingOffset = new Vector3(0,16,-11.2f);
+    public static readonly Vector3 DefaultViewingOffset = new Vector3(1.5f,15,-12.5f);
+    [Tooltip("斜俯视并略偏向侧面，便于辨认竖立磁铁的形状。")]
+    public Vector3 viewingOffset = DefaultViewingOffset;
     public float transitionSeconds = .65f;
     Vector3 focus, velocity;
     int current;
@@ -40,6 +42,10 @@ public sealed class IslandCamera : MonoBehaviour {
         focus=Vector3.SmoothDamp(focus,islandCenters[current].position,ref velocity,transitionSeconds);
         Apply();
     }
-    void Apply(){transform.position=focus+viewingOffset;transform.LookAt(focus);}
+    public void ApplyView(Vector3 target){
+        transform.position=target+viewingOffset;
+        transform.rotation=Quaternion.LookRotation(-viewingOffset,Vector3.up);
+    }
+    void Apply(){ApplyView(focus);}
 }
 }
