@@ -13,7 +13,7 @@ public static class WebSketchImporter {
     const string Template="Assets/BetweenPoles/Scenes/IceOceanLargeIslandTrial.unity";
     const float Cell=1.5f;
     public class RoomData { public string id,name;public List<Vector2Int> cells=new List<Vector2Int>();public Vector2Int offset;public int[] neighbors=new int[4]{-1,-1,-1,-1}; }
-    public class PieceData { public int room;public string kind,pole;public Vector2Int cell;public int angle,w=1,h=1; }
+    public class PieceData { public int room;public string kind,pole;public Vector2Int cell;public int angle,w=1,h=1;public bool upright; }
     public class Layout { public List<RoomData> rooms=new List<RoomData>();public List<PieceData> pieces=new List<PieceData>();public List<string> warnings=new List<string>();public Vector2Int spawn;public int start; }
     static int Int(JToken t,string name){if(t==null||!double.TryParse(t.ToString(),out var n)||double.IsNaN(n)||double.IsInfinity(n)||n!=Math.Round(n)||Math.Abs(n)>100000)throw new Exception(name+" 必须是有效整数");return (int)n;}
     static string Kind(JObject it){var explicitKind=(string)it["kind"];if(!string.IsNullOrEmpty(explicitKind))return explicitKind;var m=(string)it["magnet"]?["type"];if(m!=null)return m;var n=(string)it["name"]??"";if(n=="石头"||n=="土地")return "rock";if(n=="出生点"||n=="主角")return "player";if(n=="终点")return "goal";if(n.Contains("两格桥"))return "bridge";if(n.Contains("加宽"))return "wide";if(n.Contains("U型")||n.Contains("U 型"))return "u";if(n.Contains("长条"))return "bar";return "unknown";}
@@ -43,9 +43,9 @@ public static class WebSketchImporter {
             var room=data.rooms[ri];var list=placements[room.id] as JArray;if(list==null)continue;
             foreach(JObject p in list){if(!itemMap.TryGetValue((string)p["itemId"]??"",out var it))throw new Exception("摆放引用了不存在的物品");string kind=Kind(it);
                 if(!new[]{"bar","u","wide","bridge","rock","player","goal"}.Contains(kind))throw new Exception("暂不支持物品“"+(string)it["name"]+"”的游戏规则。请先移除其摆放；当前支持石头、长条、U型、加宽条、两格桥、出生点、终点。");
-                string direction=(string)it["magnet"]?["direction"]??"0";if(direction=="upright")throw new Exception("当前运行时尚不支持竖立磁铁，请先改用平面磁铁。");
+                string direction=(string)it["magnet"]?["direction"]??"0";
                 int angle=(int.TryParse(direction,out int a)?a:0)+(p["rotation"]==null?0:Int(p["rotation"],"物品旋转"));if(angle%90!=0)throw new Exception("物品方向必须是90度的倍数");angle=(angle%360+360)%360;
-                var piece=new PieceData{room=ri,kind=kind,pole=(string)it["magnet"]?["pole"]??(((string)it["name"]??"").Contains("S")?"S":"N"),cell=room.offset+new Vector2Int(Int(p["cx"],"物品X"),-Int(p["cy"],"物品Y")),angle=angle};
+                var piece=new PieceData{room=ri,kind=kind,upright=direction=="upright",pole=(string)it["magnet"]?["pole"]??(((string)it["name"]??"").Contains("S")?"S":"N"),cell=room.offset+new Vector2Int(Int(p["cx"],"物品X"),-Int(p["cy"],"物品Y")),angle=angle};
                 if(kind=="bridge"){piece.w=angle%180==0?2:1;piece.h=angle%180==0?1:2;}
                 for(int dy=0;dy<piece.h;dy++)for(int dx=0;dx<piece.w;dx++){var c=piece.cell+new Vector2Int(dx,-dy);if(!used.Add(c))throw new Exception("物品重叠："+c);}
                 if((kind=="rock"||kind=="player"||kind=="goal")&&!occupied.ContainsKey(piece.cell))throw new Exception("石头、出生点和终点必须放在地块上。");
@@ -56,7 +56,6 @@ public static class WebSketchImporter {
         if(players>1||goals>1)throw new Exception("只允许一个出生点和一个终点");
         if(players==0){int ri=data.rooms.FindIndex(r=>r.id==(string)root["originId"]);data.start=Mathf.Max(0,ri);var available=data.rooms[data.start].cells.Where(c=>!used.Contains(c)).ToList();if(available.Count==0)throw new Exception("原点房间没有空地，请放置出生点");data.spawn=available[0];data.warnings.Add("未设置出生点：使用原点房间第一块空地。");}
         if(goals==0)data.warnings.Add("未设置终点：可游玩测试，但没有通关目标。");
-        if(data.pieces.Any(p=>p.kind=="u"))data.warnings.Add("U型可推动，但现有运行时尚未实现U型合成配方。");
         if(data.pieces.Any(p=>p.kind=="bridge"))data.warnings.Add("两格桥按已拼接、不可推动的可通行桥导入；不模拟其合成过程。");
         // Neighbor candidates share a grid row/column with no intervening island tile.
         var distance=new int[data.rooms.Count,4];for(int i=0;i<data.rooms.Count;i++)for(int d=0;d<4;d++)distance[i,d]=int.MaxValue;
@@ -105,6 +104,7 @@ public static class WebSketchImporter {
         string scenePath=folder+"/Level.unity";if(!AssetDatabase.CopyAsset(Template,scenePath))throw new Exception("无法复制环境模板");
         var scene=EditorSceneManager.OpenScene(scenePath,OpenSceneMode.Single);
         var board=Find<GridPlayground>(scene);var camera=Find<IslandCamera>(scene);var curved=Find<CurvedTrialCamera>(scene);
+        camera.viewingOffset=IslandCamera.DefaultViewingOffset;
         var playerCopy=UnityEngine.Object.Instantiate(board.player.gameObject);playerCopy.name="Player";
         var keep=new HashSet<GameObject>{board.gameObject.transform.root.gameObject,camera.transform.root.gameObject,curved.planet.root.gameObject};
         foreach(var r in scene.GetRootGameObjects())if(r.GetComponentInChildren<Light>(true)||r.GetComponentInChildren<BetweenPoles.Generators.GeneratedBackgroundFollower>(true))keep.Add(r);
@@ -136,7 +136,8 @@ public static class WebSketchImporter {
                 string prefab="Assets/BetweenPoles/Prefabs/"+(p.kind=="bar"?"Bar ":"U ")+(p.pole=="S"?"S":"N")+".prefab";
                 var o=(GameObject)PrefabUtility.InstantiatePrefab(AssetDatabase.LoadAssetAtPath<GameObject>(prefab),scene);o.transform.SetParent(root.transform);o.transform.position=Pos(p.cell);o.transform.rotation=Quaternion.Euler(0,p.angle,0);
                 foreach(var renderer in o.GetComponentsInChildren<Renderer>())renderer.sharedMaterial=p.pole=="S"?blue:red;
-                var binding=o.AddComponent<IslandSurfaceAnchor>();binding.center=rooms[p.room].center;magnets.Add(o.GetComponent<MagnetPiece>());
+                var piece=o.GetComponent<MagnetPiece>();if(p.upright){piece.geometry.localRotation=Quaternion.Euler(0,0,90);MagnetVisuals.Ground(piece);}
+                var binding=o.AddComponent<IslandSurfaceAnchor>();binding.center=rooms[p.room].center;magnets.Add(piece);
             }else{
                 // Occupancy is explicit for both cells of a prejoined bridge.
                 for(int dy=0;dy<p.h;dy++)for(int dx=0;dx<p.w;dx++){

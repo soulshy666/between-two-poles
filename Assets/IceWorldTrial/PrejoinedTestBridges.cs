@@ -13,6 +13,17 @@ namespace BetweenPoles {
         public Link[] links;
         MaterialPropertyBlock block;
         Renderer[] playerRenderers;
+        // Authored gap connectors are flush with their shores. Puzzle products retain their height.
+        public bool TryGetShoreLevel(MagnetPiece magnet,out float height){
+            height=0;
+            if(!magnet||!magnet.combined||!magnet.walkable||magnet.product!=MagnetProduct.None||links==null)return false;
+            foreach(var link in links){
+                if(link==null||link.magnet!=magnet||!link.shoreA||!link.shoreB)continue;
+                if(Mathf.Abs(link.shoreA.surfaceHeight-link.shoreB.surfaceHeight)>.001f)return false;
+                height=link.shoreA.surfaceHeight;return true;
+            }
+            return false;
+        }
         void OnEnable() { if(board) playerRenderers=board.player.GetComponentsInChildren<Renderer>(true); }
         void Set(Renderer r, Link link) {
             if(!r)return;

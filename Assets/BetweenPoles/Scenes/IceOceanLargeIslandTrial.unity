@@ -4548,6 +4548,9 @@ MonoBehaviour:
   combined: 1
   geometry: {fileID: 722527530}
   walkable: 1
+  product: 0
+  baseNorth: 0
+  bridgeDirection: {x: 1, y: 0}
 --- !u!114 &283348524
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -8189,7 +8192,7 @@ Transform:
   m_GameObject: {fileID: 552510275}
   serializedVersion: 2
   m_LocalRotation: {x: -0.020794174, y: 0, z: 0.10397086, w: 0.99436295}
-  m_LocalPosition: {x: 3.75, y: -10.79351, z: 7.7920265}
+  m_LocalPosition: {x: 2.906457, y: -10.768669, z: 7.779525}
   m_LocalScale: {x: 1.13, y: 1.13, z: 1.13}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -11888,6 +11891,9 @@ MonoBehaviour:
   combined: 1
   geometry: {fileID: 888393754}
   walkable: 1
+  product: 0
+  baseNorth: 0
+  bridgeDirection: {x: 1, y: 0}
 --- !u!114 &793434025
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -21284,51 +21290,51 @@ PrefabInstance:
       objectReference: {fileID: 2054248348}
     - target: {fileID: 3129161447429489516, guid: 2dda035a7b7c7c24eb9edceb63fefb48, type: 3}
       propertyPath: m_LocalPosition.x
-      value: 2.5216017
+      value: 2.5848174
       objectReference: {fileID: 0}
     - target: {fileID: 3129161447429489516, guid: 2dda035a7b7c7c24eb9edceb63fefb48, type: 3}
       propertyPath: m_LocalPosition.y
-      value: -0.71142817
+      value: -0.7322525
       objectReference: {fileID: 0}
     - target: {fileID: 3954495821831351558, guid: 2dda035a7b7c7c24eb9edceb63fefb48, type: 3}
       propertyPath: m_LocalScale.x
-      value: 4.02
+      value: 4.112887
       objectReference: {fileID: 0}
     - target: {fileID: 3954495821831351558, guid: 2dda035a7b7c7c24eb9edceb63fefb48, type: 3}
       propertyPath: m_LocalScale.y
-      value: 4.02
+      value: 4.112887
       objectReference: {fileID: 0}
     - target: {fileID: 3954495821831351558, guid: 2dda035a7b7c7c24eb9edceb63fefb48, type: 3}
       propertyPath: m_LocalScale.z
-      value: 4.02
+      value: 4.112887
       objectReference: {fileID: 0}
     - target: {fileID: 3954495821831351558, guid: 2dda035a7b7c7c24eb9edceb63fefb48, type: 3}
       propertyPath: m_LocalPosition.x
-      value: 3.75
+      value: -0.87771606
       objectReference: {fileID: 0}
     - target: {fileID: 3954495821831351558, guid: 2dda035a7b7c7c24eb9edceb63fefb48, type: 3}
       propertyPath: m_LocalPosition.y
-      value: -46.45771
+      value: -46.277153
       objectReference: {fileID: 0}
     - target: {fileID: 3954495821831351558, guid: 2dda035a7b7c7c24eb9edceb63fefb48, type: 3}
       propertyPath: m_LocalPosition.z
-      value: 39.464745
+      value: 39.314297
       objectReference: {fileID: 0}
     - target: {fileID: 3954495821831351558, guid: 2dda035a7b7c7c24eb9edceb63fefb48, type: 3}
       propertyPath: m_LocalRotation.w
-      value: 0.90558946
+      value: 0.90471876
       objectReference: {fileID: 0}
     - target: {fileID: 3954495821831351558, guid: 2dda035a7b7c7c24eb9edceb63fefb48, type: 3}
       propertyPath: m_LocalRotation.x
-      value: 0.42415544
+      value: 0.42180863
       objectReference: {fileID: 0}
     - target: {fileID: 3954495821831351558, guid: 2dda035a7b7c7c24eb9edceb63fefb48, type: 3}
       propertyPath: m_LocalRotation.y
-      value: -0
+      value: -0.054089095
       objectReference: {fileID: 0}
     - target: {fileID: 3954495821831351558, guid: 2dda035a7b7c7c24eb9edceb63fefb48, type: 3}
       propertyPath: m_LocalRotation.z
-      value: -0
+      value: 0.025218058
       objectReference: {fileID: 0}
     - target: {fileID: 3954495821831351558, guid: 2dda035a7b7c7c24eb9edceb63fefb48, type: 3}
       propertyPath: m_LocalEulerAnglesHint.x
@@ -21344,11 +21350,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 6240648714771761927, guid: 2dda035a7b7c7c24eb9edceb63fefb48, type: 3}
       propertyPath: m_LocalPosition.x
-      value: -2.4020877
+      value: -2.3494825
       objectReference: {fileID: 0}
     - target: {fileID: 6240648714771761927, guid: 2dda035a7b7c7c24eb9edceb63fefb48, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 1.7318738
+      value: 1.743236
       objectReference: {fileID: 0}
     - target: {fileID: 6724411169143554899, guid: 2dda035a7b7c7c24eb9edceb63fefb48, type: 3}
       propertyPath: m_Name
@@ -21356,11 +21362,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8678895703042961997, guid: 2dda035a7b7c7c24eb9edceb63fefb48, type: 3}
       propertyPath: m_LocalPosition.x
-      value: -3.9430392
+      value: -4.0577483
       objectReference: {fileID: 0}
     - target: {fileID: 8678895703042961997, guid: 2dda035a7b7c7c24eb9edceb63fefb48, type: 3}
       propertyPath: m_LocalPosition.y
-      value: -1.8252753
+      value: -1.7818663
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -22804,6 +22810,9 @@ MonoBehaviour:
   combined: 1
   geometry: {fileID: 238918669}
   walkable: 1
+  product: 0
+  baseNorth: 0
+  bridgeDirection: {x: 1, y: 0}
 --- !u!114 &1586729544
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -27111,6 +27120,9 @@ MonoBehaviour:
   combined: 1
   geometry: {fileID: 1882937611}
   walkable: 1
+  product: 0
+  baseNorth: 0
+  bridgeDirection: {x: 1, y: 0}
 --- !u!114 &1890115081
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -28667,7 +28679,7 @@ Camera:
   far clip plane: 100
   field of view: 60
   orthographic: 1
-  orthographic size: 10
+  orthographic size: 10.231062
   m_Depth: -10
   m_CullingMask:
     serializedVersion: 2
@@ -28691,8 +28703,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2054248345}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.42415544, y: -0, z: -0, w: 0.90558946}
-  m_LocalPosition: {x: 3.75, y: 15, z: -11.75}
+  m_LocalRotation: {x: 0.42180863, y: -0.054089095, z: 0.025218058, w: 0.90471876}
+  m_LocalPosition: {x: 5.25, y: 15, z: -11.75}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -28718,7 +28730,7 @@ MonoBehaviour:
   - {fileID: 1556612}
   - {fileID: 1712807095}
   board: {fileID: 1108717419}
-  viewingOffset: {x: 0, y: 15, z: -12.5}
+  viewingOffset: {x: 1.5, y: 15, z: -12.5}
   transitionSeconds: 0.65
 --- !u!114 &2054248351
 MonoBehaviour:
@@ -28740,6 +28752,7 @@ MonoBehaviour:
   planetRadius: 18
   centeredGlobe: 1
   displayRadius: 11.3
+  islandDisplayScale: 1.2
 --- !u!114 &2054248352
 MonoBehaviour:
   m_ObjectHideFlags: 0

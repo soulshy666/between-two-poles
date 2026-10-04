@@ -4,7 +4,8 @@ Shader "BetweenPoles/PaintedIceTrial" {
  #pragma surface surf Lambert vertex:bend addshadow
  #include "UnityCG.cginc"
  fixed4 _Color;float _Grid,_Snow,_IceArt,_Painted,_Cracks;struct Input{float3 worldPos;float3 worldNormal;float2 logicalXZ;float4 iceTint;float2 iceSurface;};
- float4 _IceFocus,_IslandAnchors[16],_ExplicitIsland;int _IslandCount;float _IceRadius,_IslandFlatten;float3 _IslandViewOffset;float _IceDiskRadius;float3 _IceDiskCenter,_IceDiskRight,_IceDiskUp;float4x4 _IceRotation;
+ float4 _IceFocus,_IslandAnchors[16],_ExplicitIsland;int _IslandCount;float _IceRadius,_IslandFlatten;float3 _IslandViewOffset;float _IceDiskRadius;float3 _IceDiskCenter,_IceDiskRight,_IceDiskUp;float4x4 _IceRotation;float _IslandDisplayScale;
+ float3 displayPoint(float3 p){return _IceFocus.xyz+(p-_IceFocus.xyz)*max(1,_IslandDisplayScale);}
  float3 turn(float3 q,float3 axis,float si,float co){return q*co+cross(axis,q)*si+axis*dot(axis,q)*(1-co);}
  float _BridgeEnabled;float4 _BridgeStart,_BridgeEnd,_BridgeIslandA,_BridgeIslandB;
  float3 _BridgeOffsetA,_BridgeOffsetB;
@@ -29,11 +30,11 @@ Shader "BetweenPoles/PaintedIceTrial" {
   float3 across=normalize(cross(forward,up));up=normalize(cross(across,forward));
   float3 wp=lerp(a,b,t)+across*dot(p-_BridgeStart.xyz,side)+up*p.y;
   float3 n=UnityObjectToWorldNormal(v.normal);float3 wn=forward*dot(n,direction)+across*dot(n,side)+up*n.y;
-  v.vertex=mul(unity_WorldToObject,float4(wp,1));v.normal=mul((float3x3)unity_WorldToObject,wn);return;
+  v.vertex=mul(unity_WorldToObject,float4(displayPoint(wp),1));v.normal=mul((float3x3)unity_WorldToObject,wn);return;
  }
  float3 anchor=_ExplicitIsland.w>.5?_ExplicitIsland.xyz:_IceFocus.xyz;
  float3 result=bridgeWarp(p,float4(anchor,0),float3(0,0,0));
- v.vertex=mul(unity_WorldToObject,float4(result,1));
+ v.vertex=mul(unity_WorldToObject,float4(displayPoint(result),1));
  float3 normal=bridgeNormal(UnityObjectToWorldNormal(v.normal),float4(anchor,0));
  v.normal=mul((float3x3)unity_WorldToObject,normal);
  }
