@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -8,6 +8,8 @@ using UnityEngine.EventSystems;
 namespace BetweenPoles {
 [Serializable] public class ChapterMapIsland {
     public string id;
+    public bool hasBlackHole;
+    public Vector2Int blackHoleCell;
     public Vector2 position;
     public Vector2Int[] cells;
     public Vector2Int[] rocks;
@@ -39,6 +41,7 @@ public sealed class ChapterAtlas : MonoBehaviour {
     Vector3 cameraStart; float sizeStart; int selected; Font font;
     public static string Key(string scene,string room){return "ChapterAtlas.visited.v1."+scene+"."+room;}
     public bool IsUnlocked(int chapter,int island){var c=chapters[chapter];return island==c.start||PlayerPrefs.GetInt(Key(c.scene,c.islands[island].id),0)==1;}
+    public bool CanSelectIsland(int chapter,int island){var c=chapters[chapter];if(island<0||island>=c.islands.Length)return false;return BlackHoleTravel.Selecting ? c.islands[island].hasBlackHole && PlayerPrefs.GetInt(Key(c.scene,c.islands[island].id),0)==1 && BlackHoleTravel.IsAvailable(c.scene,c.islands[island].id) : IsUnlocked(chapter,island);}
     void Start(){
         if(!showcaseCamera)showcaseCamera=GetComponent<Camera>();
         cameraStart=showcaseCamera.transform.position;sizeStart=showcaseCamera.orthographicSize;
@@ -48,7 +51,8 @@ public sealed class ChapterAtlas : MonoBehaviour {
     }
     void OnDestroy(){foreach(var t in owned)if(t)Destroy(t);if(font)Destroy(font);if(canvas)Destroy(canvas.gameObject);}
     void Update(){
-        if(Input.GetKeyDown(KeyCode.Escape)&&IsMapOpen&&!IsTransitioning)CloseMap();
+        if(BlackHoleTravel.InTransit)return;
+        if(Input.GetKeyDown(KeyCode.Escape)&&!IsTransitioning){if(IsMapOpen)CloseMap();else if(BlackHoleTravel.Selecting)BlackHoleTravel.Cancel();}
         if(IsMapOpen||IsTransitioning)return;
         if(Input.GetMouseButtonDown(0)&&(!EventSystem.current||!EventSystem.current.IsPointerOverGameObject())){
             Vector3 p=showcaseCamera.ScreenToWorldPoint(new Vector3(Input.mousePosition.x,Input.mousePosition.y,30));
@@ -84,25 +88,28 @@ public sealed class ChapterAtlas : MonoBehaviour {
         Label("两极之间  /  星际航图",spacePanel.transform,new Vector2(-480,390),new Vector2(520,55),28,TextAnchor.MiddleLeft);
         Label("选择一颗章节星球，展开它的世界地图",spacePanel.transform,new Vector2(0,-400),new Vector2(900,48),22,TextAnchor.MiddleCenter);
         for(int i=0;i<chapters.Length;i++){int index=i;Button("0"+(i+1)+"  "+chapters[i].title,spacePanel.transform,new Vector2(-510+i*340,-345),new Vector2(305,48),()=>OpenMap(index));}
+        if(BlackHoleTravel.Selecting)Button("取消穿梭",spacePanel.transform,new Vector2(645,385),new Vector2(220,52),BlackHoleTravel.Cancel);
         mapPanel=Box("展开的世界地图",root,Vector2.zero,new Vector2(1600,900)).gameObject;group=mapPanel.AddComponent<CanvasGroup>();
         var ar=Box("地表与迷雾",mapPanel.transform,Vector2.zero,new Vector2(1800,1100));art=ar.gameObject.AddComponent<RawImage>();art.raycastTarget=false;
         Button("← 星际航图",mapPanel.transform,new Vector2(645,385),new Vector2(220,52),CloseMap);
-        enter=Button("进入小岛 →",mapPanel.transform,new Vector2(635,-370),new Vector2(245,60),EnterIsland);
+        enter=Button(BlackHoleTravel.Selecting?"穿梭至黑洞 →":"进入小岛 →",mapPanel.transform,new Vector2(635,-370),new Vector2(245,60),EnterIsland);
         selection=Box("选中小岛",mapPanel.transform,Vector2.zero,new Vector2(16,5));var marker=selection.gameObject.AddComponent<Image>();marker.color=new Color(.9f,.95f,.78f);marker.raycastTarget=false;
         mapPanel.SetActive(false);
     }
     void RenderMap(){
         var c=chapters[CurrentChapter];foreach(var pin in pins)Destroy(pin);pins.Clear();
         if(art.texture){owned.Remove((Texture2D)art.texture);Destroy(art.texture);}var texture=DrawMap(c);owned.Add(texture);art.texture=texture;
-        for(int i=0;i<c.islands.Length;i++){int index=i;var island=c.islands[i];Vector2 pos=new Vector2((island.position.x-.5f)*1800,(island.position.y-.5f)*1100);bool open=IsUnlocked(CurrentChapter,i);
+        for(int i=0;i<c.islands.Length;i++){int index=i;var island=c.islands[i];Vector2 pos=new Vector2((island.position.x-.5f)*1800,(island.position.y-.5f)*1100);bool open=CanSelectIsland(CurrentChapter,i);
             if(open){
-                var hit=Box("选择小岛 "+i,mapPanel.transform,pos,new Vector2(200,195));var img=hit.gameObject.AddComponent<Image>();img.color=Color.clear;var button=hit.gameObject.AddComponent<Button>();button.onClick.AddListener(()=>SelectIsland(index));pins.Add(hit.gameObject);
+                var hit=Box("选择小岛 "+i,mapPanel.transform,pos,new Vector2(200,195));var img=hit.gameObject.AddComponent<Image>();img.color=Color.clear;var button=hit.gameObject.AddComponent<Button>();button.onClick.AddListener(()=>{SelectIsland(index);if(BlackHoleTravel.Selecting)EnterIsland();});pins.Add(hit.gameObject);
             }
         }
-        SelectIsland(c.start);
+        selected=-1;selection.gameObject.SetActive(false);enter.interactable=false;
+        for(int i=0;i<c.islands.Length;i++)if(CanSelectIsland(CurrentChapter,i)){SelectIsland(i);break;}
     }
-    public void SelectIsland(int island){if(!IsMapOpen&& !IsTransitioning)return;if(island<0||island>=chapters[CurrentChapter].islands.Length||!IsUnlocked(CurrentChapter,island))return;selected=island;var position=chapters[CurrentChapter].islands[island].position;selection.anchoredPosition=new Vector2((position.x-.5f)*1800,(position.y-.5f)*1100-118);enter.interactable=true;}
-    public void EnterIsland(){if(!IsMapOpen||IsTransitioning||!IsUnlocked(CurrentChapter,selected))return;StartCoroutine(LoadIsland());}
+    public void SelectIsland(int island){if(!IsMapOpen&& !IsTransitioning)return;if(island<0||island>=chapters[CurrentChapter].islands.Length||!CanSelectIsland(CurrentChapter,island))return;selected=island;selection.gameObject.SetActive(true);var position=chapters[CurrentChapter].islands[island].position;selection.anchoredPosition=new Vector2((position.x-.5f)*1800,(position.y-.5f)*1100-118);enter.interactable=true;}
+    public void EnterIsland(){if(!IsMapOpen||IsTransitioning||!CanSelectIsland(CurrentChapter,selected))return;if(BlackHoleTravel.Selecting){var c=chapters[CurrentChapter];BlackHoleTravel.Choose(c.scene,c.islands[selected].id);return;}StartCoroutine(LoadIsland());}
+    public void ShowPortalBlocked(){if(enter)enter.GetComponentInChildren<Text>().text="出洞方向被挡住";}
     IEnumerator LoadIsland(){
         IsTransitioning=true;enter.interactable=false;enter.GetComponentInChildren<Text>().text="进入中…";
         var c=chapters[CurrentChapter];DestinationIsland=selected;DestinationRoom=c.islands[selected].id;DestinationScene=c.scene;ReturnChapter=CurrentChapter;
@@ -116,7 +123,7 @@ public sealed class ChapterAtlas : MonoBehaviour {
         Action<int,int,Color> dot=(x,y,col)=>{if(x>=0&&x<w&&y>=0&&y<h){col.a=1;pixels[y*w+x]=col;}};
         for(int i=0;i<c.islands.Length;i++){
             var island=c.islands[i];int cx=(int)(island.position.x*w),cy=(int)(island.position.y*h);
-            if(IsUnlocked(CurrentChapter,i)){
+            if(IsUnlocked(CurrentChapter,i)||(BlackHoleTravel.Selecting&&CanSelectIsland(CurrentChapter,i))){
                 var occupied=new HashSet<Vector2Int>(island.cells);
                 // Three-pixel rock sides and a narrow top bevel give the same slab
                 // silhouette as the playable islands, rather than a flat grid stamp.
@@ -134,6 +141,7 @@ public sealed class ChapterAtlas : MonoBehaviour {
                 }
                 foreach(var rock in island.rocks){int rx=cx+rock.x*7,ry=cy+rock.y*7;for(int yy=-2;yy<=2;yy++)for(int xx=-2;xx<=2;xx++)dot(rx+xx,ry+yy,c.land*(xx>0?.40f:.52f));for(int xx=-2;xx<=1;xx++)dot(rx+xx,ry+2,c.land*.67f);}
                 for(int m=0;m<island.magnets.Length;m++){var cell=island.magnets[m];if(Array.IndexOf(island.cells,cell)<0)continue;for(int xx=-3;xx<=3;xx++)dot(cx+cell.x*7+xx,cy+cell.y*7,m%2==0?new Color(.95f,.16f,.25f):new Color(.13f,.65f,.95f));}
+                if(island.hasBlackHole){int bx=cx+island.blackHoleCell.x*7,by=cy+island.blackHoleCell.y*7;for(int y=-3;y<=3;y++)for(int x=-3;x<=3;x++){float r=Mathf.Sqrt(x*x+y*y);if(r>3.5f)continue;float arm=Mathf.Sin(Mathf.Atan2(y,x)*3+r*2);dot(bx+x,by+y,r<1.5f?new Color(.025f,.005f,.06f):Color.Lerp(new Color(.13f,.03f,.25f),new Color(.65f,.3f,.9f),(arm+1)*.5f));}}
             }else {
                 for(int y=-40;y<=40;y++)for(int x=-52;x<=52;x++){
                     float radial=x*x/(48f*48)+y*y/(31f*31);float n=Mathf.PerlinNoise((x+110+i*80)*.11f,(y+80)*.11f);if(radial> .76f+n*.48f)continue;
