@@ -1,4 +1,4 @@
-# 两极之间 Unity 场景原型
+﻿# 两极之间 Unity 场景原型
 
 当前第一章游玩场景：`Assets/BetweenPoles/Scenes/Chapter01_IceWorld.unity`。
 
@@ -12,6 +12,14 @@
 - 第四章：`Scenes/Chapter04_LavaWorld.unity`，熔岩星球与火山岩岛。
 
 后三章当前沿用第一章的五岛测试布局和游玩机制，独立保存星球样式、小岛材质及岩石配色；章节专属谜题尚待设计。展示场景为 `Scenes/PlanetChapterShowcase.unity`。
+
+## 章节地图入口
+
+运行 `Scenes/PlanetChapterShowcase.unity`，点击冰雪、绿野、星环或熔岩星球。镜头拉近后展开对应章节地图；也可用底部章节按钮选择。太阳和地球不进入关卡。
+
+地图暂时从现有五岛布局生成，默认只开放起点，其余以像素迷雾覆盖。选择已探索小岛后点击“进入小岛”；游玩左上角“章节地图”返回地图，地图右上角或 Esc 返回星际航图。
+
+到访小岛后保存探索记录（PlayerPrefs 的 `ChapterAtlas.visited.v1.` 前缀）；Z / R 不清除探索记录。地图进度是到访记录，尚未接入正式关卡通关条件；重新从地图进入会加载该章节的初始谜题状态。正式关卡制作完成后，可替换展示相机上 `ChapterAtlas.chapters` 的地图数据。
 
 > 下方为早期原型说明，机制范围和旧参数不代表当前版本。
 
