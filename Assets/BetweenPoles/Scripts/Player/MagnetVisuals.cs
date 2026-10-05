@@ -2,7 +2,8 @@ using UnityEngine;
 namespace BetweenPoles {
 // Small runtime meshes use the same bent-world material as the imported islands.
 public static class MagnetVisuals {
-    static Material red,blue;
+    const string LinkName="磁流连接",BridgeSurfaceName="通路电屏障";
+    static Material red,blue,link,bridgeSurface;
     static Material Color(bool north) {
         var m=north?red:blue;if(m)return m;
         m=new Material(Shader.Find("BetweenPoles/PaintedIceTrial"));m.color=north?new Color(.88f,.22f,.29f):new Color(.18f,.55f,.78f);
@@ -10,7 +11,37 @@ public static class MagnetVisuals {
         if(north)red=m;else blue=m;return m;
     }
     static Transform Group(Transform parent,string name){var g=new GameObject(name);g.transform.SetParent(parent,false);return g.transform;}
-    static void Box(Transform parent,Vector3 p,Vector3 size,bool north){var g=GameObject.CreatePrimitive(PrimitiveType.Cube);g.name=north?"N 极实体":"S 极实体";g.transform.SetParent(parent,false);g.transform.localPosition=p;g.transform.localScale=size;Object.Destroy(g.GetComponent<Collider>());g.GetComponent<Renderer>().sharedMaterial=Color(north);}
+    static void Box(Transform parent,Vector3 p,Vector3 size,Material material,string name){var g=GameObject.CreatePrimitive(PrimitiveType.Cube);g.name=name;g.transform.SetParent(parent,false);g.transform.localPosition=p;g.transform.localScale=size;Object.Destroy(g.GetComponent<Collider>());g.GetComponent<Renderer>().sharedMaterial=material;}
+    static void Box(Transform parent,Vector3 p,Vector3 size,bool north){Box(parent,p,size,Color(north),north?"N 极实体":"S 极实体");}
+    static Material LinkMaterial() {
+        if(link)return link;
+        link=new Material(Shader.Find("BetweenPoles/PaintedIceTrial"));link.color=new Color(1,.78f,.16f);
+        link.SetFloat("_Painted",0);link.SetFloat("_Snow",0);link.SetFloat("_Grid",0);return link;
+    }
+    static Material BridgeSurfaceMaterial() {
+        if(bridgeSurface)return bridgeSurface;
+        bridgeSurface=new Material(Shader.Find("BetweenPoles/BridgeEnergyGlass"));bridgeSurface.color=new Color(.12f,.58f,1f,.30f);
+        return bridgeSurface;
+    }
+    static void MagneticLink(Transform parent,float z,float begin,float end) {
+        var root=Group(parent,LinkName);
+        const int waveSegments=12,pulseCount=3;
+        for(int i=0;i<waveSegments;i++)Box(root,new Vector3(begin,.16f,z),new Vector3(.1f,.045f,.065f),LinkMaterial(),"波动磁流");
+        Box(root,new Vector3(begin,.16f,z),new Vector3(.13f,.08f,.14f),LinkMaterial(),"U 型接口");
+        Box(root,new Vector3(end,.16f,z),new Vector3(.13f,.08f,.14f),LinkMaterial(),"长条接口");
+        for(int i=0;i<pulseCount;i++)Box(root,new Vector3(begin,.18f,z),new Vector3(.17f,.085f,.12f),LinkMaterial(),"传输脉冲");
+        root.gameObject.AddComponent<MagneticLinkPulse>().Configure(begin,end,z);
+    }
+    static void BridgeSurface(Transform parent,float begin,float end) {
+        var root=Group(parent,BridgeSurfaceName);
+        // Cover the complete two-cell assembly, including both rails and the U-shaped base.
+        Box(root,new Vector3((begin+end)*.5f,.247f,0),new Vector3(end-begin,.012f,1.2f),BridgeSurfaceMaterial(),"蓝色桥面");
+    }
+    public static bool IsMagneticEffect(Renderer renderer) {
+        for(var current=renderer?renderer.transform:null;current;current=current.parent)
+            if(current.name==LinkName||current.name==BridgeSurfaceName)return true;
+        return false;
+    }
     static void Arc(Transform parent,bool north,float begin,float end) {
         for(int i=0;i<20;i++){float a=Mathf.Lerp(begin,end,(i+.5f)/20)*Mathf.Deg2Rad;
             var part=Group(parent,"磁弧");part.localPosition=new Vector3(Mathf.Cos(a)*.48f,.12f,Mathf.Sin(a)*.48f);
@@ -26,9 +57,16 @@ public static class MagnetVisuals {
         if(product==MagnetProduct.Lift){Arc(g,baseNorth,180,360);Box(g,new Vector3(0,cell*.5f,0),new Vector3(.24f,cell,.24f),!baseNorth);}
         if(product==MagnetProduct.Bridge||product==MagnetProduct.BridgeHalf){
             var basePart=Group(g,"U 型桥首");basePart.localPosition=new Vector3(-cell*.5f+.48f,0,0);basePart.localRotation=Quaternion.Euler(0,90,0);Arc(basePart,baseNorth,180,360);
-            float start=-cell*.5f+.48f,end=cell*1.5f;
-            Box(g,new Vector3((start+end)*.5f,.12f,-.48f),new Vector3(end-start,.24f,.22f),!baseNorth);
-            if(product==MagnetProduct.Bridge)Box(g,new Vector3((start+end)*.5f,.12f,.48f),new Vector3(end-start,.24f,.22f),!baseNorth);
+            // Each rail remains one original bar long in the second occupied cell.
+            // The short gap to the U sockets is an energy connection, not stretched material.
+            float railCenter=cell,railStart=cell*.5f,linkStart=-cell*.5f+.48f;
+            Box(g,new Vector3(railCenter,.12f,-.48f),new Vector3(cell,.24f,.22f),!baseNorth);
+            if(product==MagnetProduct.Bridge)Box(g,new Vector3(railCenter,.12f,.48f),new Vector3(cell,.24f,.22f),!baseNorth);
+            MagneticLink(g,-.48f,linkStart,railStart);
+            if(product==MagnetProduct.Bridge){
+                MagneticLink(g,.48f,linkStart,railStart);
+                BridgeSurface(g,-cell*.5f,cell*1.5f);
+            }
         }
         return g;
     }

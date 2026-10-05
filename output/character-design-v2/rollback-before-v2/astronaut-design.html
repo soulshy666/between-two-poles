@@ -1,0 +1,181 @@
+<div id="btp-astronaut-design">
+  <div class="viz-row"><strong>宇航员 · 造型提案</strong><span class="text-small text-muted">低模实体预览</span></div>
+  <canvas aria-label="暖白色切角头盔宇航员，深色面罩，右腰固定暗金色密封盒，可拖动旋转" role="img"></canvas>
+  <div class="viz-controls">
+    <button class="btn" type="button" data-view="three" aria-pressed="true">三分之四</button>
+    <button class="btn" type="button" data-view="front" aria-pressed="false">正面</button>
+    <button class="btn" type="button" data-view="back" aria-pressed="false">背面</button>
+    <button class="btn" type="button" data-view="game" aria-pressed="false">俯视角</button>
+    <label class="form-check"><input class="form-check-input" type="checkbox" data-pixel><span class="form-check-label">像素预览</span></label>
+  </div>
+  <div class="viz-row text-small text-muted" aria-live="polite" data-caption>三分之四 · 右腰密封盒与运输锁扣</div>
+  <span class="sr-only">可用方向视图按钮观看模型；鼠标或触摸拖动也可旋转。像素预览仅示意低分辨率轮廓，不等同 Unity 游戏截图。</span>
+</div>
+<style>
+#btp-astronaut-design { color: var(--foreground); }
+#btp-astronaut-design canvas {display:block; width:100%; height:420px; touch-action:pan-y; cursor:grab;}
+#btp-astronaut-design [data-caption] {margin-top:10px;}
+@media(max-width:440px){#btp-astronaut-design canvas {height:340px;}}
+</style>
+<script>
+// One geometric source for the review and the OBJ export. Units and front (+Z)
+// match the existing Unity character. Palette is authored product art.
+const AstronautDesign = (() => {
+  const palette = {
+    ivory:'#DEDCCB', porcelain:'#F0ECDA', fabric:'#B4B6A9', graphite:'#34444A',
+    rubber:'#243239', visor:'#172D3C', glass:'#315469', reflection:'#A4C2BD',
+    brass:'#AF9460', brassLight:'#CCB77E', seal:'#EAD7A5', lamp:'#EAC785'
+  };
+  const parts=[];
+  const sub=(a,b)=>a.map((v,i)=>v-b[i]);
+  const cross=(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]];
+  const dot=(a,b)=>a.reduce((s,v,i)=>s+v*b[i],0);
+  function box(name,center,size,material,bevel=.015,rz=0) {
+    const h=size.map(v=>v/2), b=Math.min(bevel,...h.map(v=>v*.85));
+    const faces=[];
+    // Six inset planes, twelve edge planes, eight corner planes.
+    for(let a=0;a<3;a++) for(const sign of [-1,1]) {
+      const others=[0,1,2].filter(i=>i!==a);
+      faces.push([[-1,-1],[1,-1],[1,1],[-1,1]].map(pair=>{
+        const p=[0,0,0];p[a]=h[a]*sign;
+        others.forEach((axis,i)=>p[axis]=(h[axis]-b)*pair[i]);return p;
+      }));
+    }
+    for(let a=0;a<3;a++)for(let d=a+1;d<3;d++)for(const sa of [-1,1])for(const sd of [-1,1]) {
+      const along=3-a-d;
+      faces.push([[0,-1],[1,-1],[1,1],[0,1]].map(([edge,sv])=>{
+        const p=[0,0,0];p[a]=(h[a]-(edge?b:0))*sa;p[d]=(h[d]-(edge?0:b))*sd;p[along]=(h[along]-b)*sv;return p;
+      }));
+    }
+    for(const x of [-1,1])for(const y of [-1,1])for(const z of [-1,1]) {
+      const signs=[x,y,z];faces.push([0,1,2].map(axis=>h.map((v,i)=>(v-(i===axis?0:b))*signs[i])));
+    }
+    const c=Math.cos(rz),s=Math.sin(rz);
+    const polygons=faces.map(face=>{
+      const normal=cross(sub(face[1],face[0]),sub(face[2],face[0]));
+      if(dot(normal,face[0])<0)face.reverse();
+      return face.map(([x,y,z])=>[center[0]+x*c-y*s,center[1]+x*s+y*c,center[2]+z]);
+    });
+    parts.push({name,material,polygons});
+  }
+  // Comfortable short-limbed silhouette, full human body, no mechanised limbs.
+  box('Torso_fabric',[0,.531,0],[.34,.37,.245],'fabric',.045);
+  box('Chest_shell',[0,.57,.048],[.372,.282,.235],'ivory',.045);
+  box('Pelvis',[0,.335,0],[.30,.12,.23],'graphite',.02);
+  box('Belt',[0,.377,.002],[.356,.062,.26],'rubber',.012);
+  box('Buckle',[-.024,.376,.144],[.078,.048,.028],'brass',.007);
+  for(const sign of [-1,1]) {
+    const side=sign===1?'Right':'Left';
+    box(side+'_thigh',[sign*.097,.261,0],[.15,.192,.192],'ivory',.026);
+    box(side+'_knee',[sign*.099,.19,.018],[.127,.073,.178],'graphite',.017);
+    box(side+'_kneepad',[sign*.099,.195,.104],[.119,.069,.032],'fabric',.009);
+    box(side+'_shin',[sign*.10,.122,0],[.152,.133,.187],'porcelain',.021);
+    box(side+'_boot',[sign*.10,.068,.044],[.182,.123,.285],'ivory',.027);
+    box(side+'_sole',[sign*.10,.018,.045],[.185,.036,.289],'rubber',.012);
+    box(side+'_toe',[sign*.10,.060,.160],[.159,.06,.035],'graphite',.01);
+    const tilt=sign*.105;
+    box(side+'_shoulder',[sign*.235,.631,0],[.157,.179,.216],'ivory',.04,tilt);
+    box(side+'_upperarm',[sign*.253,.539,.013],[.128,.14,.174],'fabric',.023,tilt);
+    box(side+'_elbow',[sign*.264,.477,.022],[.126,.059,.159],'graphite',.013,tilt);
+    box(side+'_cuff',[sign*.274,.432,.036],[.145,.07,.18],'porcelain',.016,tilt);
+    box(side+'_glove',[sign*.282,.376,.055],[.142,.108,.185],'graphite',.028,tilt);
+    box(side+'_glove_pad',[sign*.282,.383,.144],[.096,.055,.018],'fabric',.006,tilt);
+  }
+  box('Neck_seal',[0,.725,0],[.25,.075,.238],'rubber',.025);
+  box('Helmet_lower_ring',[0,.759,.011],[.382,.07,.333],'graphite',.035);
+  box('Helmet_shell',[0,.926,.008],[.481,.361,.400],'ivory',.071);
+  box('Helmet_crown',[0,1.091,-.008],[.294,.036,.245],'porcelain',.012);
+  box('Visor_gasket',[0,.920,.200],[.409,.248,.044],'rubber',.035);
+  box('Visor',[0,.928,.224],[.368,.203,.031],'visor',.034);
+  box('Visor_lower_reflection',[.055,.858,.241],[.192,.021,.005],'glass',.002);
+  box('Visor_reflection',[-.099,.989,.242],[.082,.014,.005],'reflection',.002);
+  box('Visor_reflection_short',[-.150,.976,.242],[.014,.03,.005],'reflection',.002);
+  box('Helmet_chin',[0,.791,.183],[.253,.041,.076],'porcelain',.011);
+  for(const sign of [-1,1]) {
+    box((sign>0?'Right':'Left')+'_helmet_lock',[sign*.235,.888,.035],[.034,.119,.125],'graphite',.013);
+    box((sign>0?'Right':'Left')+'_helmet_lock_cap',[sign*.254,.896,.035],[.014,.067,.078],'fabric',.009);
+  }
+  // A chest service module, not a power core or a pole marker.
+  box('Chest_console_frame',[-.018,.578,.175],[.184,.135,.045],'graphite',.014);
+  box('Chest_console',[-.018,.583,.200],[.150,.101,.016],'ivory',.008);
+  box('Chest_status',[-.056,.600,.211],[.052,.019,.008],'lamp',.003);
+  box('Chest_latch',[.030,.575,.211],[.023,.034,.008],'rubber',.003);
+  box('Harness_left',[-.146,.561,.166],[.031,.256,.02],'graphite',.005);
+  box('Harness_right',[.147,.573,.166],[.031,.237,.02],'graphite',.005);
+  // Compact life-support pack: no engine nozzle, no flight ability implied.
+  box('Life_support_pack',[0,.555,-.187],[.281,.324,.173],'graphite',.029);
+  box('Life_support_cover',[0,.561,-.28],[.25,.266,.047],'ivory',.023);
+  box('Life_support_spine',[0,.572,-.309],[.055,.213,.015],'fabric',.005);
+  box('Pack_handle',[0,.734,-.204],[.142,.033,.075],'graphite',.01);
+  for(const sign of [-1,1]) for(let i=0;i<3;i++)
+    box('Pack_vent_'+sign+'_'+i,[sign*.078,.489+i*.022,-.308],[.055,.008,.012],'rubber',.002);
+  // The plot-critical case stays on the anatomical right hip, slightly aft
+  // of the arm, away from the hand contact patch during pushing.
+  box('Case_mount',[.196,.402,-.086],[.091,.122,.086],'graphite',.01);
+  box('Sealed_case_frame',[.303,.356,-.106],[.186,.247,.193],'graphite',.024);
+  box('Sealed_case',[.310,.358,-.105],[.172,.222,.181],'brass',.021);
+  box('Case_outer_lid',[.402,.358,-.104],[.024,.174,.139],'brassLight',.009);
+  box('Case_top_seam',[.31,.469,-.105],[.158,.016,.169],'graphite',.004);
+  box('Case_front_latch',[.307,.397,-.007],[.061,.058,.021],'graphite',.006);
+  box('Case_latch_plate',[.307,.397,.006],[.035,.037,.009],'brassLight',.003);
+  box('Case_inspection_seal',[.418,.383,-.104],[.006,.086,.040],'seal',.002);
+  box('Case_inspection_mark',[.422,.393,-.104],[.004,.007,.025],'graphite',.001);
+  box('Case_serial_mark_A',[.421,.329,-.086],[.004,.005,.012],'graphite',.001);
+  box('Case_serial_mark_B',[.421,.329,-.108],[.004,.005,.013],'graphite',.001);
+  box('Case_status_lamp',[.329,.479,-.105],[.027,.009,.029],'lamp',.002);
+  return {palette,parts};
+})();
+if(typeof window!=='undefined') window.AstronautDesign=AstronautDesign;
+</script>
+<script>
+(() => {
+  const root=document.getElementById('btp-astronaut-design');
+  const canvas=root.querySelector('canvas'),ctx=canvas.getContext('2d');
+  const pixel=root.querySelector('[data-pixel]'),caption=root.querySelector('[data-caption]');
+  const buffer=document.createElement('canvas'),bc=buffer.getContext('2d');
+  const views={three:[-.65,.19],front:[0,0],back:[Math.PI,.16],game:[-.65,.96]};
+  const descriptions={three:'三分之四 · 右腰密封盒与运输锁扣',front:'正面 · 切角头盔、胸前仪表与厚手套',back:'背面 · 生命维持背包与独立侧挂盒',game:'俯视角 · 检查头盔、手脚与盒子的区分'};
+  let yaw=views.three[0],pitch=views.three[1],selected='three';
+  const sub=(a,b)=>a.map((v,i)=>v-b[i]);
+  const cross=(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]];
+  function transform([x,y,z]){y-=.548;const c=Math.cos(yaw),s=Math.sin(yaw),u=x*c+z*s,v=-x*s+z*c;return [u,y*Math.cos(pitch)-v*Math.sin(pitch),y*Math.sin(pitch)+v*Math.cos(pitch)];}
+  function save(){window.openai?.setWidgetState?.({modelContent:{design:'侧挂密封盒宇航员',view:selected,pixel:pixel.checked},privateContent:{yaw,pitch}})?.catch(()=>{});}
+  function readState(state){const m=state?.modelContent,p=state?.privateContent;if(!m)return;if(views[m.view])selected=m.view;if(Number.isFinite(p?.yaw)&&Number.isFinite(p?.pitch)){yaw=p.yaw;pitch=p.pitch;}else [yaw,pitch]=views[selected];pixel.checked=!!m.pixel;update();}
+  function update(){root.querySelectorAll('[data-view]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.view===selected)));caption.textContent=descriptions[selected]||'自由旋转 · 低模造型预览';draw();}
+  function draw(){
+    const width=Math.max(280,root.clientWidth),height=width<440?340:420;
+    const ratio=Math.min(devicePixelRatio||1,2);canvas.width=Math.round(width*ratio);canvas.height=Math.round(height*ratio);
+    const res=pixel.checked?Math.min(1,170/height):ratio;
+    buffer.width=Math.round(width*res);buffer.height=Math.round(height*res);
+    const w=buffer.width,h=buffer.height,scale=Math.min(h*.76,w*.72);
+    const styles=getComputedStyle(root),fg=styles.getPropertyValue('--foreground').trim()||styles.color;
+    bc.clearRect(0,0,w,h);
+    // Quiet ground shadow, follows the chosen projection.
+    bc.fillStyle=fg;bc.globalAlpha=.07;bc.beginPath();bc.ellipse(w/2,h/2+.553*Math.cos(pitch)*scale,.29*scale,.041*scale,0,0,Math.PI*2);bc.fill();bc.globalAlpha=1;
+    const polys=[];
+    for(const part of AstronautDesign.parts)for(const face of part.polygons){
+      const vertices=face.map(transform),normal=cross(sub(vertices[1],vertices[0]),sub(vertices[2],vertices[0]));
+      if(normal[2]<=1e-10)continue;
+      const len=Math.hypot(...normal),n=normal.map(v=>v/len);
+      const light=Math.max(0,n[0]*-.36+n[1]*.68+n[2]*.64),shade=.54+.46*light;
+      const color=AstronautDesign.palette[part.material].slice(1).match(/../g).map(v=>Math.min(255,Math.round(parseInt(v,16)*shade)));
+      polys.push({vertices,depth:vertices.reduce((s,v)=>s+v[2],0)/vertices.length,color:'rgb('+color.join(',')+')'});
+    }
+    polys.sort((a,b)=>a.depth-b.depth);
+    for(const p of polys){bc.fillStyle=p.color;bc.beginPath();p.vertices.forEach((v,i)=>{const x=w/2+v[0]*scale,y=h/2-v[1]*scale;i?bc.lineTo(x,y):bc.moveTo(x,y);});bc.closePath();bc.fill();}
+    ctx.clearRect(0,0,canvas.width,canvas.height);ctx.imageSmoothingEnabled=!pixel.checked;ctx.drawImage(buffer,0,0,canvas.width,canvas.height);
+    root.dataset.ready='true';
+  }
+  root.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click',()=>{selected=b.dataset.view;[yaw,pitch]=views[selected];update();save();}));
+  pixel.addEventListener('change',()=>{draw();save();});
+  let drag=null;
+  canvas.addEventListener('pointerdown',e=>{drag={x:e.clientX,y:e.clientY,yaw,pitch};canvas.setPointerCapture(e.pointerId);});
+  canvas.addEventListener('pointermove',e=>{if(!drag)return;selected='custom';yaw=drag.yaw+(e.clientX-drag.x)*.009;pitch=Math.max(-.2,Math.min(1.2,drag.pitch+(e.clientY-drag.y)*.006));update();});
+  canvas.addEventListener('pointerup',()=>{if(drag){drag=null;save();}});
+  canvas.addEventListener('pointercancel',()=>drag=null);
+  new ResizeObserver(draw).observe(root);
+  new MutationObserver(draw).observe(document.documentElement,{attributes:true,attributeFilter:['class','style','data-theme']});
+  window.addEventListener('openai:set_globals',e=>readState(e.detail?.globals?.widgetState));
+  readState(window.openai?.widgetState);update();
+})();
+</script>

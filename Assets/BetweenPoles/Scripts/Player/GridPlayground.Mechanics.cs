@@ -144,11 +144,22 @@ public sealed partial class GridPlayground {
         Quaternion receiverEnd=tippedReceiver?ReceiverLandingPose(target,dir):receiverStart;
         Quaternion yaw=Yaw(receiverEnd*Vector3.right);
         if(product==MagnetProduct.BridgeHalf||product==MagnetProduct.Bridge)yaw=Yaw(new Vector3(bridgeDir.x,0,bridgeDir.y));
-        yield return AnimateAssembly(incoming,target,dir,product,yaw,bridgeDir,uNorth,tippedReceiver,tippedIncoming,receiverEnd);
+        bool pushTogether=product==MagnetProduct.BridgeHalf&&incoming.shape==MagnetShape.Bar
+            &&Mathf.Abs((old*Vector3.right).y)<.05f;
+        Vector3 playerStart=player.position,playerEnd=Position(next,GroundHeight(next));
+        System.Action<float> follow=null;
+        if(pushTogether){
+            player.rotation=Quaternion.LookRotation(new Vector3(dir.x,0,dir.y));
+            // Use the bar's exact animation progress, so both bodies start and settle together.
+            follow=progress=>player.position=Vector3.Lerp(playerStart,playerEnd,progress);
+        }
+        yield return AnimateAssembly(incoming,target,dir,product,yaw,bridgeDir,uNorth,tippedReceiver,tippedIncoming,receiverEnd,follow);
         incoming.transform.SetParent(target.transform,true);incoming.enabled=false;incoming.combined=true;incoming.gameObject.SetActive(false);
         target.bridgeDirection=bridgeDir;MagnetVisuals.Product(target,product,cellSize,yaw,uNorth,tippedReceiver&&product==MagnetProduct.Cross);
         if(product==MagnetProduct.Cross&&!tippedReceiver&&!tippedIncoming)target.geometry.localPosition=Vector3.down*.24f;
-        yield return Walk(next);Busy=false;
+        if(pushTogether)NotifyLanding(next);
+        else yield return Walk(next);
+        Busy=false;
     }
     Vector3 Support(Vector2Int cell,Vector3 from){
         var m=Piece(cell);var p=Position(cell,Height(cell));

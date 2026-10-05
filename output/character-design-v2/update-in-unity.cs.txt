@@ -1,0 +1,85 @@
+if (EditorApplication.isPlaying) throw new System.Exception("Stop Play mode first.");
+const string folder = "Assets/BetweenPoles/Art/AstronautV1";
+const string visualPath = folder + "/AstronautVisual.prefab";
+var scene = UnityEngine.SceneManagement.SceneManager.GetActiveScene();
+if (scene.path != "Assets/BetweenPoles/Scenes/磁铁机制测试.unity" || scene.isDirty)
+    throw new System.Exception("Expected clean test scene; preserve unsaved editor work first.");
+var data = Newtonsoft.Json.Linq.JObject.Parse(System.IO.File.ReadAllText("output/character-design-v1/unity-geometry.json"));
+var palette = (Newtonsoft.Json.Linq.JObject)data["palette"];
+var parts = (Newtonsoft.Json.Linq.JArray)data["parts"];
+var board = UnityEngine.Object.FindObjectOfType<BetweenPoles.GridPlayground>();
+var liveModel = board.player.Find("Visual").GetComponentsInChildren<Transform>(true).First(t => t.Find("Suit and helmet") && t.Find("Sealed case"));
+var shaders = new [] { Shader.Find("BetweenPoles/CurvedIceTrial"), Shader.Find("BetweenPoles/PaintedIceTrial") };
+if (shaders.Any(s => !s || !s.isSupported)) throw new System.Exception("World shaders missing.");
+var curved = new System.Collections.Generic.Dictionary<string, Material>();
+var painted = new System.Collections.Generic.Dictionary<string, Material>();
+foreach (var prop in palette.Properties()) {
+    Color color;
+    if (!ColorUtility.TryParseHtmlString((string)prop.Value, out color)) throw new System.Exception("Invalid palette.");
+    for (int variant = 0; variant < 2; variant++) {
+        string name = prop.Name + (variant == 0 ? "_Curved" : "_Painted");
+        string path = folder + "/Materials/" + name + ".mat";
+        var mat = AssetDatabase.LoadAssetAtPath<Material>(path);
+        if (!mat) {
+            mat = new Material(shaders[variant]); mat.name = name; mat.color = color;
+            foreach (string p in new [] { "_Grid", "_Snow", "_Painted", "_IceArt" })
+                if (mat.HasProperty(p)) mat.SetFloat(p, 0);
+            AssetDatabase.CreateAsset(mat, path);
+        }
+        if (prop.Name == "brain") { mat.color = color; EditorUtility.SetDirty(mat); }
+        (variant == 0 ? curved : painted).Add(prop.Name, mat);
+    }
+}
+var keysBySection = new System.Collections.Generic.List<string[]>();
+var root = PrefabUtility.LoadPrefabContents(visualPath);
+int triangles = 0;
+try {
+    for (int section = 0; section < 2; section++) {
+        bool isCase = section == 1;
+        var selected = parts.Where(p => ((string)p["name"]).StartsWith("Case_") || ((string)p["name"]).StartsWith("Sealed_case")).ToArray();
+        var chosen = isCase ? selected : parts.Where(p => !selected.Contains(p)).ToArray();
+        var keys = chosen.Select(p => (string)p["material"]).Distinct().ToArray();
+        keysBySection.Add(keys);
+        var vertices = new System.Collections.Generic.List<Vector3>();
+        var indices = keys.Select(k => new System.Collections.Generic.List<int>()).ToArray();
+        var pivot = isCase ? new Vector3(0, .536f, -.244f) : Vector3.zero;
+        foreach (var part in chosen) {
+            int slot = System.Array.IndexOf(keys, (string)part["material"]);
+            foreach (var face in (Newtonsoft.Json.Linq.JArray)part["polygons"]) {
+                int start = vertices.Count;
+                foreach (var v in face) vertices.Add(new Vector3((float)v[0], (float)v[1], (float)v[2]) - pivot);
+                for (int i = 1; i + 1 < face.Count(); i++) indices[slot].AddRange(new [] { start, start + i, start + i + 1 });
+            }
+        }
+        var child = root.transform.Find(isCase ? "Sealed case" : "Suit and helmet");
+        var mesh = child.GetComponent<MeshFilter>().sharedMesh;
+        if (!mesh) throw new System.Exception("Existing mesh missing.");
+        // Mutate in place: all existing asset GUIDs, prefab children and scene links survive.
+        mesh.Clear(); mesh.SetVertices(vertices);
+        mesh.colors = Enumerable.Repeat(Color.white, vertices.Count).ToArray();
+        mesh.uv = new Vector2[vertices.Count]; mesh.subMeshCount = keys.Length;
+        for (int i = 0; i < keys.Length; i++) mesh.SetTriangles(indices[i], i);
+        mesh.RecalculateNormals(); mesh.bounds = new Bounds(Vector3.zero, Vector3.one * 200);
+        EditorUtility.SetDirty(mesh);
+        child.localPosition = pivot;
+        child.GetComponent<MeshRenderer>().sharedMaterials = keys.Select(k => curved[k]).ToArray();
+        triangles += indices.Sum(list => list.Count / 3);
+    }
+    PrefabUtility.SaveAsPrefabAsset(root, visualPath);
+} finally { PrefabUtility.UnloadPrefabContents(root); }
+// This standalone test player intentionally uses the Painted shader variant.
+// Replace the complete override arrays because head materials change submeshes.
+for (int section = 0; section < 2; section++) {
+    var renderer = liveModel.Find(section == 1 ? "Sealed case" : "Suit and helmet").GetComponent<MeshRenderer>();
+    renderer.sharedMaterials = keysBySection[section].Select(k => painted[k]).ToArray();
+    PrefabUtility.RecordPrefabInstancePropertyModifications(renderer);
+}
+var anchor = board.player.GetComponent<BetweenPoles.IslandSurfaceAnchor>();
+if (anchor) { bool enabled = anchor.enabled; anchor.enabled = false; anchor.enabled = true; anchor.enabled = enabled; }
+AssetDatabase.SaveAssets();
+UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(scene);
+UnityEditor.SceneManagement.EditorSceneManager.SaveScene(scene);
+SceneView.RepaintAll();
+return new { updated = true, triangles, parts = parts.Count, backpackPivot = liveModel.Find("Sealed case").localPosition,
+    visibleRenderers = board.player.GetComponentsInChildren<Renderer>().Count(r => r.enabled),
+    hiddenOriginalRenderers = board.player.GetComponentsInChildren<Renderer>().Count(r => !r.enabled) };

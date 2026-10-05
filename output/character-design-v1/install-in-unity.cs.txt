@@ -1,0 +1,101 @@
+if (EditorApplication.isPlaying) throw new System.Exception("Stop Play mode before installation.");
+const string folder = "Assets/BetweenPoles/Art/AstronautV1";
+const string playerPath = "Assets/BetweenPoles/Prefabs/Player.prefab";
+const string visualPath = folder + "/AstronautVisual.prefab";
+var scene = UnityEngine.SceneManagement.SceneManager.GetActiveScene();
+if (scene.path != "Assets/BetweenPoles/Scenes/磁铁机制测试.unity" || scene.isDirty)
+    throw new System.Exception("Expected the clean magnetic test scene; preserve other editor work first.");
+if (AssetDatabase.IsValidFolder(folder)) throw new System.Exception("AstronautV1 already exists; refusing to overwrite.");
+var data = Newtonsoft.Json.Linq.JObject.Parse(System.IO.File.ReadAllText("output/character-design-v1/unity-geometry.json"));
+var palette = (Newtonsoft.Json.Linq.JObject)data["palette"];
+var parts = (Newtonsoft.Json.Linq.JArray)data["parts"];
+var shaders = new [] { Shader.Find("BetweenPoles/CurvedIceTrial"), Shader.Find("BetweenPoles/PaintedIceTrial") };
+if (shaders.Any(s => !s || !s.isSupported)) throw new System.Exception("World shaders missing or unsupported.");
+var board = UnityEngine.Object.FindObjectOfType<BetweenPoles.GridPlayground>();
+if (!board || !board.player || !board.player.Find("Visual")) throw new System.Exception("Player missing.");
+AssetDatabase.CreateFolder("Assets/BetweenPoles/Art", "AstronautV1");
+AssetDatabase.CreateFolder(folder, "Materials");
+AssetDatabase.CreateFolder(folder, "Meshes");
+var curved = new System.Collections.Generic.Dictionary<string, Material>();
+var painted = new System.Collections.Generic.Dictionary<string, Material>();
+foreach (var prop in palette.Properties()) {
+    Color color;
+    if (!ColorUtility.TryParseHtmlString((string)prop.Value, out color)) throw new System.Exception("Invalid palette.");
+    for (int variant = 0; variant < 2; variant++) {
+        var mat = new Material(shaders[variant]);
+        mat.name = prop.Name + (variant == 0 ? "_Curved" : "_Painted");
+        mat.color = color;
+        foreach (string parameter in new [] { "_Grid", "_Snow", "_Painted", "_IceArt" })
+            if (mat.HasProperty(parameter)) mat.SetFloat(parameter, 0);
+        AssetDatabase.CreateAsset(mat, folder + "/Materials/" + mat.name + ".mat");
+        (variant == 0 ? curved : painted).Add(prop.Name, mat);
+    }
+}
+var root = new GameObject("Astronaut V1");
+try {
+    for (int section = 0; section < 2; section++) {
+        bool isCase = section == 1;
+        var selected = parts.Where(p => ((string)p["name"]).StartsWith("Case_") || ((string)p["name"]).StartsWith("Sealed_case")).ToArray();
+        var chosen = isCase ? selected : parts.Where(p => !selected.Contains(p)).ToArray();
+        var keys = chosen.Select(p => (string)p["material"]).Distinct().ToArray();
+        var vertices = new System.Collections.Generic.List<Vector3>();
+        var indices = keys.Select(k => new System.Collections.Generic.List<int>()).ToArray();
+        // Give the sealed box an independent pivot at the transport mount.
+        var pivot = isCase ? new Vector3(.303f, .356f, -.106f) : Vector3.zero;
+        foreach (var part in chosen) {
+            int slot = System.Array.IndexOf(keys, (string)part["material"]);
+            foreach (var face in (Newtonsoft.Json.Linq.JArray)part["polygons"]) {
+                int start = vertices.Count;
+                foreach (var v in face) vertices.Add(new Vector3((float)v[0], (float)v[1], (float)v[2]) - pivot);
+                for (int i = 1; i + 1 < face.Count(); i++) indices[slot].AddRange(new [] { start, start + i, start + i + 1 });
+            }
+        }
+        var mesh = new Mesh();
+        mesh.name = isCase ? "SealedCase" : "AstronautBody";
+        mesh.SetVertices(vertices);
+        mesh.colors = Enumerable.Repeat(Color.white, vertices.Count).ToArray();
+        mesh.uv = new Vector2[vertices.Count];
+        mesh.subMeshCount = keys.Length;
+        for (int i = 0; i < keys.Length; i++) mesh.SetTriangles(indices[i], i);
+        mesh.RecalculateNormals();
+        // Existing world shaders move vertices far from their logical position.
+        // Match the original mesh bounds to prevent camera frustum culling.
+        mesh.bounds = new Bounds(Vector3.zero, Vector3.one * 200);
+        AssetDatabase.CreateAsset(mesh, folder + "/Meshes/" + mesh.name + ".asset");
+        var child = new GameObject(isCase ? "Sealed case" : "Suit and helmet");
+        child.transform.SetParent(root.transform, false);
+        child.transform.localPosition = pivot;
+        child.AddComponent<MeshFilter>().sharedMesh = mesh;
+        child.AddComponent<MeshRenderer>().sharedMaterials = keys.Select(k => curved[k]).ToArray();
+    }
+    PrefabUtility.SaveAsPrefabAsset(root, visualPath);
+} finally { UnityEngine.Object.DestroyImmediate(root); }
+var visualPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(visualPath);
+var playerPrefab = PrefabUtility.LoadPrefabContents(playerPath);
+try {
+    var visual = playerPrefab.transform.Find("Visual");
+    if (!visual) throw new System.Exception("Player Visual node missing.");
+    // Preserve old objects and collider shapes, disabling rendering only.
+    foreach (var renderer in visual.GetComponentsInChildren<Renderer>(true)) renderer.enabled = false;
+    var model = (GameObject)PrefabUtility.InstantiatePrefab(visualPrefab, playerPrefab.scene);
+    model.transform.SetParent(visual, false);
+    PrefabUtility.SaveAsPrefabAsset(playerPrefab, playerPath);
+} finally { PrefabUtility.UnloadPrefabContents(playerPrefab); }
+var currentVisual = board.player.Find("Visual");
+foreach (var renderer in currentVisual.GetComponentsInChildren<Renderer>(true)) renderer.enabled = false;
+var currentModel = (GameObject)PrefabUtility.InstantiatePrefab(visualPrefab, scene);
+currentModel.transform.SetParent(currentVisual, false);
+foreach (var renderer in currentModel.GetComponentsInChildren<Renderer>()) {
+    renderer.sharedMaterials = renderer.sharedMaterials.Select(m => painted[m.name.Replace("_Curved", "")]).ToArray();
+    PrefabUtility.RecordPrefabInstancePropertyModifications(renderer);
+}
+var anchor = board.player.GetComponent<BetweenPoles.IslandSurfaceAnchor>();
+if (anchor) { bool wasEnabled = anchor.enabled; anchor.enabled = false; anchor.enabled = true; anchor.enabled = wasEnabled; }
+AssetDatabase.SaveAssets();
+UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(scene);
+UnityEditor.SceneManagement.EditorSceneManager.SaveScene(scene);
+SceneView.RepaintAll();
+return new { installed = true, visualPrefab = visualPath, currentScene = scene.path,
+    visibleRenderers = board.player.GetComponentsInChildren<Renderer>().Count(r => r.enabled),
+    hiddenOriginalRenderers = board.player.GetComponentsInChildren<Renderer>().Count(r => !r.enabled),
+    triangles = visualPrefab.GetComponentsInChildren<MeshFilter>().Sum(f => f.sharedMesh.triangles.Length / 3) };
