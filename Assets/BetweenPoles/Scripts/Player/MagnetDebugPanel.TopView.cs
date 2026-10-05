@@ -24,6 +24,10 @@ public sealed partial class MagnetDebugPanel {
         float left=(cell.x-.5f)*board.cellSize,bottom=(cell.y-.5f)*board.cellSize;
         foreach(var meshFilter in piece.geometry.GetComponentsInChildren<MeshFilter>()){
             var renderer=meshFilter.GetComponent<Renderer>();if(!renderer||!renderer.enabled||!meshFilter.gameObject.activeInHierarchy)continue;
+            // The schematic shows the magnet bodies beneath the transparent walkable deck.
+            // This CPU projection draws opaque pixels and cannot reproduce glass blending.
+            var material=renderer.sharedMaterial;
+            if(material&&material.shader&&material.shader.name=="BetweenPoles/BridgeEnergyGlass")continue;
             var mesh=meshFilter.sharedMesh;if(!mesh)continue;
             var vertices=mesh.vertices;var triangles=mesh.triangles;var projected=new Vector3[vertices.Length];
             for(int i=0;i<vertices.Length;i++){

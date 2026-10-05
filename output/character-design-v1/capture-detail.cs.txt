@@ -1,0 +1,45 @@
+var b = UnityEngine.Object.FindObjectOfType<BetweenPoles.GridPlayground>();
+var source = UnityEngine.Object.FindObjectOfType<BetweenPoles.PixelWorldCamera>().GetComponent<Camera>();
+var anchor = b.player.GetComponent<BetweenPoles.IslandSurfaceAnchor>().center.position;
+Vector3 focus = Shader.GetGlobalVector("_IceFocus");
+float radius = Shader.GetGlobalFloat("_IceRadius");
+var reference = new Vector3(3.75f, 0, .75f);
+var relative = anchor - focus + reference;
+float distance = new Vector2(relative.x, relative.z).magnitude;
+var axis = distance > .001f ? new Vector3(relative.z, 0, -relative.x) / distance : Vector3.forward;
+var delta = anchor - focus;
+System.Func<Vector3,float> upper = v => Mathf.SmoothStep(0,1,Mathf.Clamp01((v.z-Mathf.Abs(v.x))/6));
+float angle = distance / radius * Mathf.Rad2Deg;
+float localAngle = angle * (1 - .2f * upper(delta));
+float refDistance = new Vector2(reference.x, reference.z).magnitude;
+var original = Quaternion.AngleAxis(-refDistance/radius*Mathf.Rad2Deg, new Vector3(reference.z,0,-reference.x)/refDistance);
+Vector3 up = Shader.GetGlobalVector("_IceDiskUp");
+var wp = focus + Vector3.down*radius + original * (Quaternion.AngleAxis(angle,axis)*Vector3.up*radius + Quaternion.AngleAxis(localAngle,axis)*(b.player.position+Vector3.up*.55f-anchor)) + up*(1.4f*upper(delta)+.7f*upper(-delta));
+wp = focus + (wp-focus) * Mathf.Max(1,Shader.GetGlobalFloat("_IslandDisplayScale"));
+var temporary = new GameObject("Astronaut verification camera");
+var camera = temporary.AddComponent<Camera>();
+var rt = new RenderTexture(720,720,24);
+var previous = RenderTexture.active;
+Texture2D texture = null;
+try {
+    camera.CopyFrom(source);
+    camera.enabled = false;
+    camera.transform.rotation = source.transform.rotation;
+    camera.transform.position = wp-camera.transform.forward*8;
+    camera.orthographicSize = 1.05f;
+    camera.aspect = 1;
+    camera.targetTexture = rt;
+    camera.Render();
+    RenderTexture.active = rt;
+    texture = new Texture2D(720,720,TextureFormat.RGB24,false);
+    texture.ReadPixels(new Rect(0,0,720,720),0,0);
+    texture.Apply();
+    System.IO.File.WriteAllBytes("output/character-design-v1/unity-character-detail.png",texture.EncodeToPNG());
+} finally {
+    RenderTexture.active = previous;
+    camera.targetTexture = null;
+    UnityEngine.Object.DestroyImmediate(temporary);
+    rt.Release();UnityEngine.Object.DestroyImmediate(rt);
+    if(texture)UnityEngine.Object.DestroyImmediate(texture);
+}
+return "Detail capture saved; gameplay camera unchanged.";

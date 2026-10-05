@@ -13,10 +13,13 @@ public sealed partial class GridPlayground {
         }
         return bounds;
     }
+    static IEnumerable<Renderer> AssemblyBodies(Transform geometry) {
+        return geometry.GetComponentsInChildren<Renderer>(true).Where(r=>!MagnetVisuals.IsMagneticEffect(r));
+    }
     static float AssemblyPhase(float progress,float begin,float end){return Mathf.SmoothStep(0,1,Mathf.InverseLerp(begin,end,progress));}
     static void PlaceAssemblyBody(MagnetPiece piece,Quaternion rotation,Vector3 scale,Vector3 center) {
         piece.geometry.rotation=rotation;piece.geometry.localScale=scale;
-        var bounds=AssemblyBounds(piece.geometry.GetComponentsInChildren<Renderer>());
+        var bounds=AssemblyBounds(AssemblyBodies(piece.geometry));
         piece.geometry.position+=center-bounds.center;
     }
     // Two supported quarter-turns with a readable upright pause.
@@ -142,7 +145,7 @@ public sealed partial class GridPlayground {
         PlaceAssemblyBody(receiver,Quaternion.AngleAxis(90,axis)*receiverPose,receiverScale,endReceiver.center);
         yield return null;
     }
-    IEnumerator AnimateAssembly(MagnetPiece incoming,MagnetPiece receiver,Vector2Int direction,MagnetProduct product,Quaternion yaw,Vector2Int bridgeDirection,bool uNorth,bool receiverOnTop,bool incomingOnTop,Quaternion receiverLanding) {
+    IEnumerator AnimateAssembly(MagnetPiece incoming,MagnetPiece receiver,Vector2Int direction,MagnetProduct product,Quaternion yaw,Vector2Int bridgeDirection,bool uNorth,bool receiverOnTop,bool incomingOnTop,Quaternion receiverLanding,System.Action<float> onSlideProgress=null) {
         // Plan the actual final sockets first. Each material approaches its own socket,
         // rather than both bodies occupying the same center before a model swap.
         var preview=new GameObject("吸合姿态预览");
@@ -156,6 +159,7 @@ public sealed partial class GridPlayground {
         if(product==MagnetProduct.Cross&&!receiverOnTop&&!incomingOnTop)final.localPosition=Vector3.down*.24f;
         var incomingParts=new List<Renderer>();var receiverParts=new List<Renderer>();
         foreach(var r in final.GetComponentsInChildren<Renderer>(true)) {
+            if(MagnetVisuals.IsMagneticEffect(r))continue;
             bool belongs;
             if(product==MagnetProduct.Bridge)belongs=r.transform.IsChildOf(final.GetChild(2));
             else {var c=r.sharedMaterial.color;belongs=(c.r>c.b)==incoming.north;}
@@ -164,8 +168,8 @@ public sealed partial class GridPlayground {
         var endIncoming=AssemblyBounds(incomingParts);var endReceiver=AssemblyBounds(receiverParts);
         // Socket measurements are values; no preview objects are needed during motion.
         Destroy(preview);
-        var startIncoming=AssemblyBounds(incoming.geometry.GetComponentsInChildren<Renderer>());
-        var startReceiver=AssemblyBounds(receiver.geometry.GetComponentsInChildren<Renderer>());
+        var startIncoming=AssemblyBounds(AssemblyBodies(incoming.geometry));
+        var startReceiver=AssemblyBounds(AssemblyBodies(receiver.geometry));
         Quaternion poseIncoming=incoming.Pose,poseReceiver=receiver.Pose;
         Quaternion endPoseIncoming=yaw,endPoseReceiver=receiverLanding;
         if(product==MagnetProduct.Cross){endPoseIncoming=yaw*Quaternion.Euler(0,90,0);endPoseReceiver=yaw;}
@@ -174,14 +178,13 @@ public sealed partial class GridPlayground {
         if(product==MagnetProduct.BridgeHalf){endPoseIncoming=incoming.shape==MagnetShape.Horseshoe?yaw*Quaternion.Euler(0,90,0):yaw;endPoseReceiver=receiver.shape==MagnetShape.Horseshoe?yaw*Quaternion.Euler(0,90,0):yaw;}
         if(product==MagnetProduct.Bridge)endPoseReceiver=yaw;
         if(product==MagnetProduct.WideBar)endPoseReceiver=yaw;
+        bool slideBridgeBar=product==MagnetProduct.BridgeHalf&&incoming.shape==MagnetShape.Bar
+            &&Mathf.Abs((poseIncoming*Vector3.right).y)<.05f;
+        // A bar has equivalent forward/backward orientations. Keep an already aligned
+        // bar's exact pose instead of turning it to the recipe's canonical orientation.
+        if(slideBridgeBar&&Mathf.Abs(Vector3.Dot(poseIncoming*Vector3.right,endPoseIncoming*Vector3.right))>.95f)
+            endPoseIncoming=poseIncoming;
         var scaleIncoming=incoming.geometry.localScale;var scaleReceiver=receiver.geometry.localScale;
-        // Bridge recipes extend a rail; make that existing stylized extension visible over time.
-        var finalScaleIncoming=scaleIncoming;var finalScaleReceiver=scaleReceiver;
-        if(product==MagnetProduct.BridgeHalf||product==MagnetProduct.Bridge){
-            float length=cellSize*2-.48f;
-            if(incoming.shape==MagnetShape.Bar)finalScaleIncoming.x*=length/cellSize;
-            if(receiver.product==MagnetProduct.None&&receiver.shape==MagnetShape.Bar)finalScaleReceiver.x*=length/cellSize;
-        }
         float rollDegrees;var rolled=MagnetPiece.Rolled(incoming.shape,poseIncoming,direction,out rollDegrees);
         var rollAxis=new Vector3(direction.y,0,-direction.x);
         var forward=new Vector3(direction.x,0,direction.y);var lateral=Vector3.Cross(Vector3.up,forward);
@@ -217,28 +220,36 @@ public sealed partial class GridPlayground {
             yield break;
         }
         float seconds=Mathf.Max(1.1f,joinSeconds);
+        // Keep the player and sliding bar on the same timeline, with a quicker push response.
+        if(slideBridgeBar)seconds*=.70f;
         for(float elapsed=0;elapsed<seconds;elapsed+=Time.deltaTime){
             float p=Mathf.Clamp01(elapsed/seconds),roll=AssemblyPhase(p,0,.48f),align=AssemblyPhase(p,.38f,.70f),travel=AssemblyPhase(p,.48f,.94f);
             Quaternion inPose=Quaternion.Slerp(Quaternion.AngleAxis(rollDegrees*roll,rollAxis)*poseIncoming,endPoseIncoming,align);
+            if(slideBridgeBar)inPose=Quaternion.Slerp(poseIncoming,endPoseIncoming,AssemblyPhase(p,0,.94f));
             // A standing receiver falls in the push direction, with explicit signed rotation.
             Quaternion recvPose;
             if(receiverOnTop||MagnetPiece.VerticalBar(poseReceiver)&&receiver.shape==MagnetShape.Bar){float sign=(poseReceiver*Vector3.right).y>=0?1:-1;recvPose=Quaternion.AngleAxis(90*sign*AssemblyPhase(p,.30f,.82f),rollAxis)*poseReceiver;}
             else recvPose=Quaternion.Slerp(poseReceiver,endPoseReceiver,AssemblyPhase(p,0,.48f));
             Vector3 lane=startIncoming.center+lateral*Vector3.Dot(endIncoming.center-startIncoming.center,lateral)*AssemblyPhase(p,.12f,.45f);
             Vector3 inCenter=Vector3.Lerp(lane,endIncoming.center,travel);
+            if(slideBridgeBar){
+                float slideProgress=AssemblyPhase(p,0,.94f);
+                inCenter=Vector3.Lerp(startIncoming.center,endIncoming.center,slideProgress);
+                onSlideProgress?.Invoke(slideProgress);
+            }
             Vector3 recvCenter=Vector3.Lerp(startReceiver.center,endReceiver.center,AssemblyPhase(p,.05f,.45f));
-            var inScale=Vector3.Lerp(scaleIncoming,finalScaleIncoming,align);var recvScale=Vector3.Lerp(scaleReceiver,finalScaleReceiver,align);
-            PlaceAssemblyBody(incoming,inPose,inScale,inCenter);PlaceAssemblyBody(receiver,recvPose,recvScale,recvCenter);
+            PlaceAssemblyBody(incoming,inPose,scaleIncoming,inCenter);PlaceAssemblyBody(receiver,recvPose,scaleReceiver,recvCenter);
             // Keep rotating bodies on their support plane, rather than rotating through the ice.
             // Upper/lower cross layers reach their support height before horizontal docking.
-            var ib=AssemblyBounds(incoming.geometry.GetComponentsInChildren<Renderer>());var rb=AssemblyBounds(receiver.geometry.GetComponentsInChildren<Renderer>());
+            var ib=AssemblyBounds(AssemblyBodies(incoming.geometry));var rb=AssemblyBounds(AssemblyBodies(receiver.geometry));
             float inBottom=Mathf.Lerp(startIncoming.min.y,endIncoming.min.y,AssemblyPhase(p,.12f,.45f));
             float recvBottom=Mathf.Lerp(startReceiver.min.y,endReceiver.min.y,AssemblyPhase(p,.05f,.45f));
             incoming.geometry.position+=Vector3.up*(inBottom-ib.min.y);receiver.geometry.position+=Vector3.up*(recvBottom-rb.min.y);
             yield return null;
         }
-        PlaceAssemblyBody(incoming,endPoseIncoming,finalScaleIncoming,endIncoming.center);
-        PlaceAssemblyBody(receiver,endPoseReceiver,finalScaleReceiver,endReceiver.center);
+        PlaceAssemblyBody(incoming,endPoseIncoming,scaleIncoming,endIncoming.center);
+        PlaceAssemblyBody(receiver,endPoseReceiver,scaleReceiver,endReceiver.center);
+        if(slideBridgeBar)onSlideProgress?.Invoke(1f);
         // Show the contact pose for one frame before committing the logical recipe.
         yield return null;
     }
