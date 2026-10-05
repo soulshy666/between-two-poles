@@ -7,7 +7,18 @@ public sealed partial class MagnetDebugPanel {
     void Fill(Rect r,Color c){var old=GUI.color;GUI.color=c;GUI.DrawTexture(r,Texture2D.whiteTexture);GUI.color=old;}
     void Label(Rect r,string s,Color color,int size=14,TextAnchor align=TextAnchor.MiddleLeft){textStyle.normal.textColor=color;textStyle.fontSize=size;textStyle.alignment=align;GUI.Label(r,s,textStyle);}
     bool Button(Rect r,string title,bool active=false){Fill(new Rect(r.x+3,r.y+3,r.width,r.height),Color.black);Fill(r,Color.black);Fill(new Rect(r.x+2,r.y+2,r.width-4,r.height-4),active?accent:paper);Label(r,title,active?Color.white:ink,14,TextAnchor.MiddleCenter);return GUI.Button(r,GUIContent.none,GUIStyle.none);}
-    void SelectCell(Vector2Int p){selected=p;var m=board.MagnetAt(p);if(!m){shape=8;return;}shape=m.product==MagnetProduct.None?(m.shape==MagnetShape.Bar?0:1):(int)m.product+1;pole=(m.product==MagnetProduct.Lift||m.product==MagnetProduct.Bridge||m.product==MagnetProduct.BridgeHalf?m.baseNorth:m.north)?0:1;yaw=Mathf.RoundToInt(m.transform.eulerAngles.y/90)%4;pose=m.product==MagnetProduct.None?(m.shape==MagnetShape.Bar?(MagnetPiece.VerticalBar(m.Pose)?1:0):(MagnetPiece.FlatU(m.Pose)?0:1)):0;}
+    void SelectCell(Vector2Int p){
+        selected=p;var m=board.MagnetAt(p);if(!m){shape=8;return;}
+        shape=m.product==MagnetProduct.None?(m.shape==MagnetShape.Bar?0:1):(int)m.product+1;
+        pole=(m.product==MagnetProduct.Lift||m.product==MagnetProduct.Bridge||m.product==MagnetProduct.BridgeHalf?m.baseNorth:m.north)?0:1;
+        yaw=Mathf.RoundToInt(m.transform.eulerAngles.y/90)%4;
+        pose=m.product==MagnetProduct.None&&MagnetPiece.VerticalBar(m.Pose)?1:0;
+        if(shape==1){
+            var opening=m.Pose*Vector3.forward;
+            yaw=(Mathf.RoundToInt(Mathf.Atan2(opening.x,opening.z)*Mathf.Rad2Deg/90)+4)%4;
+            pose=(m.Pose*Vector3.up).y<0?1:0;
+        }
+    }
     void Pick(int kind){shape=kind;ApplySelectedStyle();}
     void OnGUI(){
         if(!board)board=GetComponent<GridPlayground>();if(textStyle==null)textStyle=new GUIStyle(GUI.skin.label){wordWrap=true,fontStyle=FontStyle.Bold};
@@ -25,7 +36,7 @@ public sealed partial class MagnetDebugPanel {
         if(section==1){for(int i=0;i<9;i++){var r=new Rect(16,114+i*43,246,36);bool clicked=Button(r,"",shape==i);Icon(new Rect(r.x+10,r.y+4,35,28),i,pole==0,0);Label(new Rect(r.x+54,r.y,185,r.height),kinds[i],shape==i?Color.white:ink);if(clicked)Pick(i);}
             Label(new Rect(16,510,240,24),"极性",ink);if(Button(new Rect(16,540,117,32),"N / 红",pole==0)){pole=0;if(shape!=8)ApplySelectedStyle();}if(Button(new Rect(145,540,117,32),"S / 蓝",pole==1)){pole=1;if(shape!=8)ApplySelectedStyle();}
             Label(new Rect(16,578,240,22),"朝向",ink);for(int i=0;i<4;i++)if(Button(new Rect(16+i*63,604,57,32),i*90+"°",yaw==i)){yaw=i;if(shape!=8)ApplySelectedStyle();}
-            Label(new Rect(16,645,240,22),shape<2?"姿态":"成品使用固定配方姿态",ink,13);GUI.enabled=shape<2;string[] poses={"平躺","竖立","倒立"};for(int i=0;i<3;i++)if(Button(new Rect(16+i*84,672,78,32),poses[i],pose==i)){pose=i;ApplySelectedStyle();}GUI.enabled=true;
+            Label(new Rect(16,645,240,22),shape<2?"姿态":"成品使用固定配方姿态",ink,13);GUI.enabled=shape<2;string[] poses=shape==1?new[]{"正面平躺","反面平躺"}:new[]{"平躺","竖立","倒立"};float poseWidth=252f/poses.Length;for(int i=0;i<poses.Length;i++)if(Button(new Rect(16+i*poseWidth,672,poseWidth-6,32),poses[i],pose==i)){pose=i;ApplySelectedStyle();}GUI.enabled=true;
         }
         if(section==2){string[] names={"主角移到该格","地面 / 0 层","高台 / 1 层","高台 / 2 层","石头障碍"};for(int i=0;i<5;i++)if(Button(new Rect(16,120+i*52,246,40),names[i])){if(i==0)Teleport();else SetFloor(i==4?0:i-1,i==4);}Label(new Rect(16,410,245,90),"选择右侧格子，再修改地形。磁铁清除请在物品中选择“空”。",ink);}
         Label(new Rect(305,74,width-600,36),"选中格  ("+selected.x+", "+selected.y+")   /   先选格子，再选左侧样式",Color.white,17);

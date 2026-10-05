@@ -6,6 +6,7 @@ namespace BetweenPoles {
 public sealed partial class GridPlayground:MonoBehaviour {
     public float cellSize=1.5f;
     public float stepSeconds=.22f;
+    [Range(.2f,2f)] public float uRollSeconds=.7f;
     [Range(.6f,2.5f)] public float joinSeconds=1.35f;
     public Transform player;
     public Transform playerVisual;
@@ -26,6 +27,9 @@ public sealed partial class GridPlayground:MonoBehaviour {
         CaptureInitialState();
     }
     public void CaptureInitialState(){
+        foreach(var m in magnets)if(m&&m.geometry&&!m.combined&&m.product==MagnetProduct.None&&m.shape==MagnetShape.Horseshoe&&!MagnetPiece.FlatU(m.Pose)){
+            m.geometry.rotation=MagnetPiece.FlatUPose(m.Pose);MagnetVisuals.Ground(m);
+        }
         currentIsland=Owner(Tile(Cell(player)));islandEntry=player.position;islandEntryRotation=player.rotation;
         history.Clear();initialState=SaveWorld();ReleaseUnusedGeometry();
     }
