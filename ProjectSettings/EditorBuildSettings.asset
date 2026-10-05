@@ -8,4 +8,19 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Scenes/SampleScene.unity
     guid: 9fc0d4010bbf28b4594072e72b8655ab
+  - enabled: 1
+    path: Assets/BetweenPoles/Scenes/PlanetChapterShowcase.unity
+    guid: 9b6a5c3c0ae862c4386bedfb7e0308cf
+  - enabled: 1
+    path: Assets/BetweenPoles/Scenes/Chapter01_IceWorld.unity
+    guid: f1739e03a457f8747a5cee601bf6cbd5
+  - enabled: 1
+    path: Assets/BetweenPoles/Scenes/Chapter02_VerdantWorld.unity
+    guid: 7bbe8b3fa85a6ba4cac71f5ea3928d8b
+  - enabled: 1
+    path: Assets/BetweenPoles/Scenes/Chapter03_RingWorld.unity
+    guid: 355af03606cea3e43a0ec82f82cbd71a
+  - enabled: 1
+    path: Assets/BetweenPoles/Scenes/Chapter04_LavaWorld.unity
+    guid: 97c00b154e6acf14e806d036071a0d80
   m_configObjects: {}
