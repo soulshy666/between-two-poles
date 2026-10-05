@@ -151,7 +151,7 @@ public static class WebSketchImporter {
                 string prefab="Assets/BetweenPoles/Prefabs/"+(p.kind=="bar"?"Bar ":"U ")+(p.pole=="S"?"S":"N")+".prefab";
                 var o=(GameObject)PrefabUtility.InstantiatePrefab(AssetDatabase.LoadAssetAtPath<GameObject>(prefab),scene);o.transform.SetParent(root.transform);o.transform.position=Pos(p.cell);o.transform.rotation=Quaternion.Euler(0,p.angle,0);
                 foreach(var renderer in o.GetComponentsInChildren<Renderer>())renderer.sharedMaterial=p.pole=="S"?blue:red;
-                var piece=o.GetComponent<MagnetPiece>();if(p.upright){piece.geometry.localRotation=Quaternion.Euler(0,0,90);MagnetVisuals.Ground(piece);}
+                var piece=o.GetComponent<MagnetPiece>();if(p.upright&&piece.shape==MagnetShape.Bar){piece.geometry.localRotation=Quaternion.Euler(0,0,90);MagnetVisuals.Ground(piece);}
                 var binding=o.AddComponent<IslandSurfaceAnchor>();binding.center=rooms[p.room].center;magnets.Add(piece);
             }else{
                 // Occupancy is explicit for both cells of a prejoined bridge.

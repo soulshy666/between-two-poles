@@ -1,4 +1,4 @@
-﻿using System.Collections;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
@@ -22,127 +22,156 @@ public sealed partial class GridPlayground {
         var bounds=AssemblyBounds(AssemblyBodies(piece.geometry));
         piece.geometry.position+=center-bounds.center;
     }
-    // Two supported quarter-turns with a readable upright pause.
-    public static float ForwardWideAngle(float progress) {
-        return 90*AssemblyPhase(progress,0,.42f)+90*AssemblyPhase(progress,.50f,.92f);
-    }
-    IEnumerator AnimateForwardWide(MagnetPiece incoming,MagnetPiece receiver,Vector3 forward,Vector3 axis,
-        Quaternion incomingPose,Quaternion receiverPose,Vector3 incomingScale,Vector3 receiverScale,
-        Bounds startIncoming,Bounds startReceiver,Bounds endIncoming,Bounds endReceiver) {
-        float length=Mathf.Abs(forward.x)*startIncoming.size.x+Mathf.Abs(forward.z)*startIncoming.size.z;
-        float thickness=startIncoming.size.y;
-        Vector3 pivot=startIncoming.center+forward*(length*.5f)-Vector3.up*(thickness*.5f);
-        Vector3 relative=startIncoming.center-pivot;
-        Vector3 uprightCenter=pivot+Quaternion.AngleAxis(90,axis)*relative;
-        Vector3 nextPivot=pivot+forward*thickness;
-        Vector3 rollEnd=nextPivot+Quaternion.AngleAxis(90,axis)*(uprightCenter-nextPivot);
-        float duration=Mathf.Max(1.55f,joinSeconds);
-        for(float elapsed=0;elapsed<duration;elapsed+=Time.deltaTime){
-            float p=Mathf.Clamp01(elapsed/duration),angle=ForwardWideAngle(p);
-            Vector3 center=angle<=90?pivot+Quaternion.AngleAxis(angle,axis)*relative
-                :nextPivot+Quaternion.AngleAxis(angle-90,axis)*(uprightCenter-nextPivot);
-            // Open parallel lanes before the second half-turn, then settle at the
-            // exact recipe sockets; the logical receiver cell stays fixed.
-            Vector3 correction=endIncoming.center-rollEnd;
-            Vector3 along=forward*Vector3.Dot(correction,forward);
-            Vector3 across=correction-along;across.y=0;
-            center+=across*AssemblyPhase(p,.18f,.48f)+along*AssemblyPhase(p,.50f,.96f);
-            center.y+=correction.y*AssemblyPhase(p,.50f,.96f);
-            PlaceAssemblyBody(incoming,Quaternion.AngleAxis(angle,axis)*incomingPose,incomingScale,center);
-            float giveWay=AssemblyPhase(p,.12f,.42f)*(1-AssemblyPhase(p,.86f,1));
-            Vector3 receiverCenter=Vector3.Lerp(startReceiver.center,endReceiver.center,AssemblyPhase(p,.12f,.48f))
-                +forward*(cellSize*.22f*giveWay);
-            PlaceAssemblyBody(receiver,receiverPose,receiverScale,receiverCenter);
-            yield return null;
+    static void PlaceDockingBar(MagnetPiece piece,Quaternion original,Quaternion desired,Vector3 scale,
+        Bounds start,Bounds end,Vector3 push,float progress){
+        if(!MagnetPiece.VerticalBar(original)){
+            // Equivalent ends need no extra half-turn; flat bars stay on the floor.
+            if(Vector3.Dot(original*Vector3.right,desired*Vector3.right)<0)
+                desired=Quaternion.AngleAxis(180,Vector3.up)*desired;
+            PlaceAssemblyBody(piece,Quaternion.Slerp(original,desired,progress),scale,Vector3.Lerp(start.center,end.center,progress));
+            return;
         }
-        PlaceAssemblyBody(incoming,Quaternion.AngleAxis(180,axis)*incomingPose,incomingScale,endIncoming.center);
-        PlaceAssemblyBody(receiver,receiverPose,receiverScale,endReceiver.center);
-        yield return null;
-    }
-    // A standing bar falls once onto the flat receiver. Keep its signed
-    // quarter-turn all the way to contact instead of aligning to an equivalent yaw.
-    IEnumerator AnimateStandingFall(MagnetPiece incoming,MagnetPiece receiver,Vector3 forward,Vector3 axis,
-        Quaternion incomingPose,Quaternion receiverPose,Vector3 incomingScale,Vector3 receiverScale,
-        Bounds startIncoming,Bounds startReceiver,Bounds endIncoming,Bounds endReceiver) {
-        float halfDepth=(Mathf.Abs(forward.x)*startIncoming.size.x+Mathf.Abs(forward.z)*startIncoming.size.z)*.5f;
-        Vector3 pivot=startIncoming.center+forward*halfDepth-Vector3.up*(startIncoming.size.y*.5f);
-        Vector3 relative=startIncoming.center-pivot;
+        Vector3 fall=desired*Vector3.right;fall.y=0;fall.Normalize();
+        if(Vector3.Dot(fall,push)<-.01f)fall=-fall;
+        Vector3 axis=Vector3.Cross(Vector3.up,fall);
+        float depth=Mathf.Abs(fall.x)*start.size.x+Mathf.Abs(fall.z)*start.size.z;
+        Vector3 pivot=start.center+fall*(depth*.5f)-Vector3.up*(start.size.y*.5f);
+        Vector3 relative=start.center-pivot;
+        Quaternion turn=Quaternion.AngleAxis(90*progress,axis);
         Vector3 landing=pivot+Quaternion.AngleAxis(90,axis)*relative;
-        float duration=Mathf.Max(1.1f,joinSeconds);
-        for(float elapsed=0;elapsed<duration;elapsed+=Time.deltaTime){
-            float p=Mathf.Clamp01(elapsed/duration),fall=AssemblyPhase(p,0,.94f);
-            Quaternion turn=Quaternion.AngleAxis(90*fall,axis);
-            Vector3 center=pivot+turn*relative+(endIncoming.center-landing)*fall;
-            PlaceAssemblyBody(incoming,turn*incomingPose,incomingScale,center);
-            PlaceAssemblyBody(receiver,receiverPose,receiverScale,Vector3.Lerp(startReceiver.center,endReceiver.center,fall));
-            yield return null;
-        }
-        PlaceAssemblyBody(incoming,Quaternion.AngleAxis(90,axis)*incomingPose,incomingScale,endIncoming.center);
-        PlaceAssemblyBody(receiver,receiverPose,receiverScale,endReceiver.center);
-        yield return null;
+        PlaceAssemblyBody(piece,turn*original,scale,pivot+turn*relative+(end.center-landing)*progress);
     }
-    // Raise the incoming bar beside the standing receiver, then tip the pair
-    // as one rigid arrangement. The receiver waits until the bars are parallel.
-    IEnumerator AnimatePairedFall(MagnetPiece incoming,MagnetPiece receiver,Vector3 forward,Vector3 axis,
+    IEnumerator AnimateBarDock(MagnetPiece incoming,MagnetPiece receiver,Vector3 push,MagnetProduct product,Quaternion yaw,
         Quaternion incomingPose,Quaternion receiverPose,Vector3 incomingScale,Vector3 receiverScale,
-        Bounds startIncoming,Bounds startReceiver,Bounds endIncoming,Bounds endReceiver) {
-        Quaternion quarter=Quaternion.AngleAxis(90,axis);
-        float length=Mathf.Abs(forward.x)*startIncoming.size.x+Mathf.Abs(forward.z)*startIncoming.size.z;
-        Vector3 liftPivot=startIncoming.center+forward*(length*.5f)-Vector3.up*(startIncoming.size.y*.5f);
-        Vector3 liftRelative=startIncoming.center-liftPivot;
-        Vector3 receiverUpright=startReceiver.center;
-        Vector3 incomingUpright=receiverUpright+Quaternion.Inverse(quarter)*(endIncoming.center-endReceiver.center);
-        Vector3 liftEnd=liftPivot+quarter*liftRelative;
-        float depth=Mathf.Abs(forward.x)*startReceiver.size.x+Mathf.Abs(forward.z)*startReceiver.size.z;
-        Vector3 pairPivot=receiverUpright+forward*(depth*.5f)-Vector3.up*(startReceiver.size.y*.5f);
-        Vector3 receiverLanding=pairPivot+quarter*(receiverUpright-pairPivot);
-        Vector3 correction=endReceiver.center-receiverLanding;
-        float duration=Mathf.Max(1.65f,joinSeconds);
-        for(float elapsed=0;elapsed<duration;elapsed+=Time.deltaTime){
-            float p=Mathf.Clamp01(elapsed/duration),rise=AssemblyPhase(p,0,.40f),fall=AssemblyPhase(p,.50f,.96f);
-            if(p<.50f){
-                Quaternion turn=Quaternion.AngleAxis(90*rise,axis);
-                Vector3 center=liftPivot+turn*liftRelative+(incomingUpright-liftEnd)*rise;
-                PlaceAssemblyBody(incoming,turn*incomingPose,incomingScale,center);
-                PlaceAssemblyBody(receiver,receiverPose,receiverScale,receiverUpright);
-            }else{
-                Quaternion turn=Quaternion.AngleAxis(90*fall,axis);
-                PlaceAssemblyBody(incoming,turn*quarter*incomingPose,incomingScale,
-                    pairPivot+turn*(incomingUpright-pairPivot)+correction*fall);
-                PlaceAssemblyBody(receiver,turn*receiverPose,receiverScale,
-                    pairPivot+turn*(receiverUpright-pairPivot)+correction*fall);
+        Bounds startIncoming,Bounds startReceiver,Bounds endIncoming,Bounds endReceiver){
+        bool incomingStanding=MagnetPiece.VerticalBar(incomingPose),receiverStanding=MagnetPiece.VerticalBar(receiverPose);
+        Quaternion incomingEnd=product==MagnetProduct.Cross?yaw*Quaternion.Euler(0,90,0):yaw;
+        Quaternion receiverEnd=receiverStanding?yaw:receiverPose;
+        bool bothStanding=incomingStanding&&receiverStanding;
+        Bounds stagedIncoming=startIncoming;
+        stagedIncoming.center=startReceiver.center+(endIncoming.center-endReceiver.center);
+        Vector3 sideFirst=startIncoming.center+(endIncoming.center-endReceiver.center);
+        float seconds=Mathf.Max(joinSeconds,(incomingStanding||receiverStanding)?1.6f:1.35f);
+        for(float elapsed=0;elapsed<seconds;elapsed+=Time.deltaTime){
+            float p=Mathf.Clamp01(elapsed/seconds);
+            if(bothStanding){
+                // Move into parallel lanes while upright, then fall together.
+                // Sideways clearance comes before approaching the receiver.
+                if(p<.35f){
+                    Vector3 center=Vector3.Lerp(startIncoming.center,sideFirst,AssemblyPhase(p,0,.12f));
+                    center=Vector3.Lerp(center,stagedIncoming.center,AssemblyPhase(p,.12f,.35f));
+                    PlaceAssemblyBody(incoming,incomingPose,incomingScale,center);
+                    PlaceAssemblyBody(receiver,receiverPose,receiverScale,startReceiver.center);
+                }else{
+                    float fall=AssemblyPhase(p,.35f,.94f);
+                    PlaceDockingBar(incoming,incomingPose,incomingEnd,incomingScale,stagedIncoming,endIncoming,push,fall);
+                    PlaceDockingBar(receiver,receiverPose,receiverEnd,receiverScale,startReceiver,endReceiver,push,fall);
+                }
+                yield return null;continue;
             }
+            // For a standing receiver, slide the lower bar in before it falls on top.
+            float inProgress=AssemblyPhase(p,0,receiverStanding&&!incomingStanding ? .45f : .94f);
+            float recvProgress=AssemblyPhase(p,receiverStanding&&!incomingStanding ? .30f : 0,.94f);
+            PlaceDockingBar(incoming,incomingPose,incomingEnd,incomingScale,startIncoming,endIncoming,push,inProgress);
+            PlaceDockingBar(receiver,receiverPose,receiverEnd,receiverScale,startReceiver,endReceiver,push,recvProgress);
             yield return null;
         }
-        PlaceAssemblyBody(incoming,quarter*quarter*incomingPose,incomingScale,endIncoming.center);
-        PlaceAssemblyBody(receiver,quarter*receiverPose,receiverScale,endReceiver.center);
+        PlaceDockingBar(incoming,incomingPose,incomingEnd,incomingScale,bothStanding?stagedIncoming:startIncoming,endIncoming,push,1);
+        PlaceDockingBar(receiver,receiverPose,receiverEnd,receiverScale,startReceiver,endReceiver,push,1);
         yield return null;
     }
-    // The transverse flat bar slides into contact, then the standing bar
-    // tips forward onto it. Neither body changes length or spins to match yaw.
-    IEnumerator AnimateSlideAndTopple(MagnetPiece incoming,MagnetPiece receiver,Vector3 forward,Vector3 axis,
+    static bool AxialRingDock(Quaternion incoming,Quaternion receiver,Vector2Int direction){
+        var push=new Vector3(direction.x,0,direction.y);
+        return Mathf.Abs(Vector3.Dot(incoming*Vector3.forward,push))>.95f&&Mathf.Abs(Vector3.Dot(receiver*Vector3.forward,push))>.95f;
+    }
+    static void SampleAxialRingDock(float progress,float flipEnd,Vector3 axis,bool flipIncoming,bool flipReceiver,Quaternion incomingPose,Quaternion receiverPose,
+        Vector3 startIncoming,Vector3 startReceiver,Vector3 endIncoming,Vector3 endReceiver,
+        out Quaternion inPose,out Quaternion recvPose,out Vector3 inCenter,out Vector3 recvCenter){
+        // Only halves facing away from their partner flip. Both retain their side.
+        float delay=flipIncoming&&flipReceiver?flipEnd*.25f:0;
+        inPose=Quaternion.AngleAxis(flipIncoming?180*AssemblyPhase(progress,0,flipEnd):0,axis)*incomingPose;
+        recvPose=Quaternion.AngleAxis(flipReceiver?-180*AssemblyPhase(progress,delay,flipEnd+delay):0,axis)*receiverPose;
+        float close=AssemblyPhase(progress,flipEnd+delay,1);
+        inCenter=Vector3.Lerp(startIncoming,endIncoming,close);
+        recvCenter=Vector3.Lerp(startReceiver,endReceiver,close);
+    }
+    static void GroundAssemblyBody(MagnetPiece piece,float bottom){
+        var bounds=AssemblyBounds(AssemblyBodies(piece.geometry));
+        piece.geometry.position+=Vector3.up*(bottom-bounds.min.y);
+    }
+    IEnumerator AnimateAxialRingDock(MagnetPiece incoming,MagnetPiece receiver,Vector2Int direction,
         Quaternion incomingPose,Quaternion receiverPose,Vector3 incomingScale,Vector3 receiverScale,
-        Bounds startIncoming,Bounds startReceiver,Bounds endIncoming,Bounds endReceiver) {
-        float inDepth=Mathf.Abs(forward.x)*startIncoming.size.x+Mathf.Abs(forward.z)*startIncoming.size.z;
-        float recvDepth=Mathf.Abs(forward.x)*startReceiver.size.x+Mathf.Abs(forward.z)*startReceiver.size.z;
-        float distance=Vector3.Dot(endIncoming.center-startIncoming.center,forward);
-        float gap=Vector3.Dot(startReceiver.center-startIncoming.center,forward)-(inDepth+recvDepth)*.5f;
-        float contact=distance>0?Mathf.Clamp01(gap/distance):0;
-        Vector3 pivot=startReceiver.center+forward*(recvDepth*.5f)-Vector3.up*(startReceiver.size.y*.5f);
-        Vector3 relative=startReceiver.center-pivot;
-        Vector3 landing=pivot+Quaternion.AngleAxis(90,axis)*relative;
-        float duration=Mathf.Max(1.4f,joinSeconds);
-        for(float elapsed=0;elapsed<duration;elapsed+=Time.deltaTime){
-            float p=Mathf.Clamp01(elapsed/duration),approach=AssemblyPhase(p,0,.40f),fall=AssemblyPhase(p,.40f,.96f);
-            float slide=contact*approach+(1-contact)*fall;
-            PlaceAssemblyBody(incoming,incomingPose,incomingScale,Vector3.Lerp(startIncoming.center,endIncoming.center,slide));
-            Quaternion turn=Quaternion.AngleAxis(90*fall,axis);
-            PlaceAssemblyBody(receiver,turn*receiverPose,receiverScale,
-                pivot+turn*relative+(endReceiver.center-landing)*fall);
+        Bounds startIncoming,Bounds startReceiver,Bounds endIncoming,Bounds endReceiver){
+        var axis=new Vector3(direction.y,0,-direction.x);
+        var push=new Vector3(direction.x,0,direction.y);
+        bool flipIncoming=Vector3.Dot(incomingPose*Vector3.forward,push)<0;
+        bool flipReceiver=Vector3.Dot(receiverPose*Vector3.forward,push)>0;
+        float flipSeconds=Mathf.Max(.65f,uRollSeconds),flipSpan=flipIncoming&&flipReceiver?1.25f:1;
+        float seconds=flipSeconds*flipSpan+Mathf.Max(.8f,joinSeconds*.7f),flipEnd=flipSeconds/seconds;
+        for(float elapsed=0;elapsed<seconds;elapsed+=Time.deltaTime){
+            float p=Mathf.Clamp01(elapsed/seconds);Quaternion inPose,recvPose;Vector3 inCenter,recvCenter;
+            SampleAxialRingDock(p,flipEnd,axis,flipIncoming,flipReceiver,incomingPose,receiverPose,
+                startIncoming.center,startReceiver.center,endIncoming.center,endReceiver.center,
+                out inPose,out recvPose,out inCenter,out recvCenter);
+            PlaceAssemblyBody(incoming,inPose,incomingScale,inCenter);
+            PlaceAssemblyBody(receiver,recvPose,receiverScale,recvCenter);
+            float close=AssemblyPhase(p,flipEnd*flipSpan,1);
+            GroundAssemblyBody(incoming,Mathf.Lerp(startIncoming.min.y,endIncoming.min.y,close));
+            GroundAssemblyBody(receiver,Mathf.Lerp(startReceiver.min.y,endReceiver.min.y,close));
             yield return null;
         }
-        PlaceAssemblyBody(incoming,incomingPose,incomingScale,endIncoming.center);
-        PlaceAssemblyBody(receiver,Quaternion.AngleAxis(90,axis)*receiverPose,receiverScale,endReceiver.center);
+        PlaceAssemblyBody(incoming,Quaternion.AngleAxis(flipIncoming?180:0,axis)*incomingPose,incomingScale,endIncoming.center);
+        PlaceAssemblyBody(receiver,Quaternion.AngleAxis(flipReceiver?-180:0,axis)*receiverPose,receiverScale,endReceiver.center);
+        yield return null;
+    }
+    static float DockTurn(Vector3 from,Vector3 to){
+        float angle=Vector3.SignedAngle(from,to,Vector3.up);
+        // Either half-turn is equally short; use clockwise consistently.
+        if(Mathf.Abs(angle)>179.9f)return 180;
+        return Mathf.Abs(angle)<.1f?0:angle;
+    }
+    // Rotate only as far as needed, outside the receiver. Then close along its
+    // opening, where the two aligned halves cannot cross through one another.
+    static void SampleRingDock(float progress,float alignEnd,Quaternion incomingPose,float turn,
+        Vector3 startIncoming,Vector3 startReceiver,Vector3 endIncoming,Vector3 endReceiver,
+        Vector3 opening,float approachTurn,out Quaternion pose,out Vector3 incoming,out Vector3 receiver){
+        Vector3 radial=startIncoming-startReceiver;radial.y=0;
+        Vector3 approach=startReceiver+opening*radial.magnitude;approach.y=startIncoming.y;
+        if(alignEnd>0&&progress<alignEnd){
+            float align=Mathf.SmoothStep(0,1,progress/alignEnd);
+            pose=Quaternion.AngleAxis(turn*align,Vector3.up)*incomingPose;
+            incoming=startReceiver+Quaternion.AngleAxis(approachTurn*align,Vector3.up)*radial;
+            incoming.y=startIncoming.y;receiver=startReceiver;
+        }else{
+            float close=Mathf.SmoothStep(0,1,Mathf.InverseLerp(alignEnd,1,progress));
+            pose=Quaternion.AngleAxis(turn,Vector3.up)*incomingPose;
+            incoming=Vector3.Lerp(approach,endIncoming,close);
+            receiver=Vector3.Lerp(startReceiver,endReceiver,close);
+        }
+    }
+    IEnumerator AnimateRingDock(MagnetPiece incoming,MagnetPiece receiver,Quaternion yaw,
+        Quaternion incomingPose,Quaternion receiverPose,Vector3 incomingScale,Vector3 receiverScale,
+        Bounds startIncoming,Bounds startReceiver,Bounds endIncoming,Bounds endReceiver) {
+        Vector3 opening=yaw*Vector3.forward;
+        float turn=DockTurn(incomingPose*Vector3.forward,-opening);
+        Vector3 radial=startIncoming.center-startReceiver.center;radial.y=0;
+        float approachTurn=DockTurn(radial,opening);
+        // Already facing the socket from its open side: slide straight in.
+        // Side/back approaches stay outside on a circular arc before closing.
+        float alignSeconds=Mathf.Max(Mathf.Abs(turn)/90*.65f,Mathf.Abs(approachTurn)/90*.85f);
+        float seconds=alignSeconds+Mathf.Max(1.1f,joinSeconds);
+        float alignEnd=alignSeconds/seconds;
+        for(float elapsed=0;elapsed<seconds;elapsed+=Time.deltaTime){
+            Quaternion pose;Vector3 inCenter,recvCenter;
+            SampleRingDock(Mathf.Clamp01(elapsed/seconds),alignEnd,incomingPose,turn,
+                startIncoming.center,startReceiver.center,endIncoming.center,endReceiver.center,
+                opening,approachTurn,out pose,out inCenter,out recvCenter);
+            PlaceAssemblyBody(incoming,pose,incomingScale,inCenter);
+            PlaceAssemblyBody(receiver,receiverPose,receiverScale,recvCenter);
+            yield return null;
+        }
+        PlaceAssemblyBody(incoming,MagnetPiece.UDockPose(yaw*Quaternion.Euler(0,180,0),incomingPose),incomingScale,endIncoming.center);
+        PlaceAssemblyBody(receiver,receiverPose,receiverScale,endReceiver.center);
         yield return null;
     }
     IEnumerator AnimateAssembly(MagnetPiece incoming,MagnetPiece receiver,Vector2Int direction,MagnetProduct product,Quaternion yaw,Vector2Int bridgeDirection,bool uNorth,bool receiverOnTop,bool incomingOnTop,Quaternion receiverLanding,System.Action<float> onSlideProgress=null) {
@@ -173,66 +202,60 @@ public sealed partial class GridPlayground {
         Quaternion poseIncoming=incoming.Pose,poseReceiver=receiver.Pose;
         Quaternion endPoseIncoming=yaw,endPoseReceiver=receiverLanding;
         if(product==MagnetProduct.Cross){endPoseIncoming=yaw*Quaternion.Euler(0,90,0);endPoseReceiver=yaw;}
-        if(product==MagnetProduct.Ring){endPoseIncoming=yaw;endPoseReceiver=yaw*Quaternion.Euler(0,180,0);}
+        if(product==MagnetProduct.Ring){endPoseIncoming=yaw*Quaternion.Euler(0,180,0);endPoseReceiver=yaw;}
         if(product==MagnetProduct.Lift){endPoseIncoming=incoming.shape==MagnetShape.Bar?yaw*Quaternion.Euler(0,0,90):yaw;endPoseReceiver=receiver.shape==MagnetShape.Bar?yaw*Quaternion.Euler(0,0,90):yaw;}
         if(product==MagnetProduct.BridgeHalf){endPoseIncoming=incoming.shape==MagnetShape.Horseshoe?yaw*Quaternion.Euler(0,90,0):yaw;endPoseReceiver=receiver.shape==MagnetShape.Horseshoe?yaw*Quaternion.Euler(0,90,0):yaw;}
         if(product==MagnetProduct.Bridge)endPoseReceiver=yaw;
         if(product==MagnetProduct.WideBar)endPoseReceiver=yaw;
-        bool slideBridgeBar=product==MagnetProduct.BridgeHalf&&incoming.shape==MagnetShape.Bar
-            &&Mathf.Abs((poseIncoming*Vector3.right).y)<.05f;
+        bool slideDocking=product==MagnetProduct.BridgeHalf||product==MagnetProduct.Bridge||product==MagnetProduct.Lift;
+        // A flipped U docks on its current face, without tipping upright to align.
+        if(slideDocking&&incoming.shape==MagnetShape.Horseshoe)
+            endPoseIncoming=MagnetPiece.UDockPose(endPoseIncoming,poseIncoming);
+        if(slideDocking&&receiver.product==MagnetProduct.None&&receiver.shape==MagnetShape.Horseshoe)
+            endPoseReceiver=MagnetPiece.UDockPose(endPoseReceiver,poseReceiver);
         // A bar has equivalent forward/backward orientations. Keep an already aligned
         // bar's exact pose instead of turning it to the recipe's canonical orientation.
-        if(slideBridgeBar&&Mathf.Abs(Vector3.Dot(poseIncoming*Vector3.right,endPoseIncoming*Vector3.right))>.95f)
+        if(slideDocking&&incoming.shape==MagnetShape.Bar&&Mathf.Abs(Vector3.Dot(poseIncoming*Vector3.right,endPoseIncoming*Vector3.right))>.95f)
             endPoseIncoming=poseIncoming;
+        if(slideDocking&&receiver.product==MagnetProduct.None&&receiver.shape==MagnetShape.Bar
+            &&Mathf.Abs(Vector3.Dot(poseReceiver*Vector3.right,endPoseReceiver*Vector3.right))>.95f)
+            endPoseReceiver=poseReceiver;
         var scaleIncoming=incoming.geometry.localScale;var scaleReceiver=receiver.geometry.localScale;
         float rollDegrees;var rolled=MagnetPiece.Rolled(incoming.shape,poseIncoming,direction,out rollDegrees);
         var rollAxis=new Vector3(direction.y,0,-direction.x);
         var forward=new Vector3(direction.x,0,direction.y);var lateral=Vector3.Cross(Vector3.up,forward);
+        if(product==MagnetProduct.Ring){
+            var push=new Vector3(direction.x,0,direction.y);
+            if(AxialRingDock(poseIncoming,poseReceiver,direction)
+                &&(Vector3.Dot(poseIncoming*Vector3.forward,push)<0||Vector3.Dot(poseReceiver*Vector3.forward,push)>0)){
+                yield return AnimateAxialRingDock(incoming,receiver,direction,poseIncoming,poseReceiver,
+                    scaleIncoming,scaleReceiver,startIncoming,startReceiver,endIncoming,endReceiver);
+                yield break;
+            }
+            yield return AnimateRingDock(incoming,receiver,yaw,poseIncoming,poseReceiver,
+                scaleIncoming,scaleReceiver,startIncoming,startReceiver,endIncoming,endReceiver);
+            yield break;
+        }
         if(incoming.shape==MagnetShape.Bar&&receiver.shape==MagnetShape.Bar
-            &&MagnetPiece.VerticalBar(poseIncoming)&&!MagnetPiece.VerticalBar(poseReceiver)
-            &&(product==MagnetProduct.Cross||product==MagnetProduct.WideBar)){
-            yield return AnimateStandingFall(incoming,receiver,forward,rollAxis,poseIncoming,poseReceiver,
-                scaleIncoming,scaleReceiver,startIncoming,startReceiver,endIncoming,endReceiver);
-            yield break;
-        }
-        if(product==MagnetProduct.WideBar&&incoming.shape==MagnetShape.Bar&&receiver.shape==MagnetShape.Bar
-            &&MagnetPiece.VerticalBar(poseReceiver)
-            &&Mathf.Abs(Vector3.Dot(poseIncoming*Vector3.right,forward))>.95f){
-            yield return AnimatePairedFall(incoming,receiver,forward,rollAxis,poseIncoming,poseReceiver,
-                scaleIncoming,scaleReceiver,startIncoming,startReceiver,endIncoming,endReceiver);
-            yield break;
-        }
-        if(product==MagnetProduct.Cross&&incoming.shape==MagnetShape.Bar&&receiver.shape==MagnetShape.Bar
-            &&!MagnetPiece.VerticalBar(poseIncoming)&&MagnetPiece.VerticalBar(poseReceiver)){
-            yield return AnimateSlideAndTopple(incoming,receiver,forward,rollAxis,poseIncoming,poseReceiver,
-                scaleIncoming,scaleReceiver,startIncoming,startReceiver,endIncoming,endReceiver);
-            yield break;
-        }
-        // A flat bar pushed along its long axis rolls through upright and keeps
-        // turning forward. Do not Slerp back to the receiver's zero-degree yaw.
-        bool forwardWide=product==MagnetProduct.WideBar&&incoming.shape==MagnetShape.Bar
-            &&receiver.shape==MagnetShape.Bar&&!MagnetPiece.VerticalBar(poseReceiver)
-            &&Mathf.Abs(Vector3.Dot(poseIncoming*Vector3.right,forward))>.95f
-            &&Mathf.Abs(Vector3.Dot(poseReceiver*Vector3.right,forward))>.95f;
-        if(forwardWide){
-            yield return AnimateForwardWide(incoming,receiver,forward,rollAxis,poseIncoming,poseReceiver,
+            &&(product==MagnetProduct.WideBar||product==MagnetProduct.Cross)){
+            yield return AnimateBarDock(incoming,receiver,forward,product,yaw,poseIncoming,poseReceiver,
                 scaleIncoming,scaleReceiver,startIncoming,startReceiver,endIncoming,endReceiver);
             yield break;
         }
         float seconds=Mathf.Max(1.1f,joinSeconds);
-        // Keep the player and sliding bar on the same timeline, with a quicker push response.
-        if(slideBridgeBar)seconds*=.70f;
+        // Mixed recipes slide without a preparatory roll or standing-bar fall.
+        if(slideDocking)seconds*=.70f;
         for(float elapsed=0;elapsed<seconds;elapsed+=Time.deltaTime){
             float p=Mathf.Clamp01(elapsed/seconds),roll=AssemblyPhase(p,0,.48f),align=AssemblyPhase(p,.38f,.70f),travel=AssemblyPhase(p,.48f,.94f);
             Quaternion inPose=Quaternion.Slerp(Quaternion.AngleAxis(rollDegrees*roll,rollAxis)*poseIncoming,endPoseIncoming,align);
-            if(slideBridgeBar)inPose=Quaternion.Slerp(poseIncoming,endPoseIncoming,AssemblyPhase(p,0,.94f));
+            if(slideDocking)inPose=Quaternion.Slerp(poseIncoming,endPoseIncoming,AssemblyPhase(p,0,.94f));
             // A standing receiver falls in the push direction, with explicit signed rotation.
             Quaternion recvPose;
-            if(receiverOnTop||MagnetPiece.VerticalBar(poseReceiver)&&receiver.shape==MagnetShape.Bar){float sign=(poseReceiver*Vector3.right).y>=0?1:-1;recvPose=Quaternion.AngleAxis(90*sign*AssemblyPhase(p,.30f,.82f),rollAxis)*poseReceiver;}
+            if(!slideDocking&&(receiverOnTop||MagnetPiece.VerticalBar(poseReceiver)&&receiver.shape==MagnetShape.Bar)){float sign=(poseReceiver*Vector3.right).y>=0?1:-1;recvPose=Quaternion.AngleAxis(90*sign*AssemblyPhase(p,.30f,.82f),rollAxis)*poseReceiver;}
             else recvPose=Quaternion.Slerp(poseReceiver,endPoseReceiver,AssemblyPhase(p,0,.48f));
             Vector3 lane=startIncoming.center+lateral*Vector3.Dot(endIncoming.center-startIncoming.center,lateral)*AssemblyPhase(p,.12f,.45f);
             Vector3 inCenter=Vector3.Lerp(lane,endIncoming.center,travel);
-            if(slideBridgeBar){
+            if(slideDocking){
                 float slideProgress=AssemblyPhase(p,0,.94f);
                 inCenter=Vector3.Lerp(startIncoming.center,endIncoming.center,slideProgress);
                 onSlideProgress?.Invoke(slideProgress);
@@ -249,7 +272,7 @@ public sealed partial class GridPlayground {
         }
         PlaceAssemblyBody(incoming,endPoseIncoming,scaleIncoming,endIncoming.center);
         PlaceAssemblyBody(receiver,endPoseReceiver,scaleReceiver,endReceiver.center);
-        if(slideBridgeBar)onSlideProgress?.Invoke(1f);
+        if(slideDocking)onSlideProgress?.Invoke(1f);
         // Show the contact pose for one frame before committing the logical recipe.
         yield return null;
     }

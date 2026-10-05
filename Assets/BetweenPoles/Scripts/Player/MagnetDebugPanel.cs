@@ -15,7 +15,8 @@ public sealed partial class MagnetDebugPanel:MonoBehaviour {
         var tile=board.TileAt(selected);if(tile&&tile.blocked){status="石头挡住这个格子。";return false;}
         Transform island=null;if(tile){var a=tile.GetComponentInParent<IslandSurfaceAnchor>();if(a)island=a.center;}
         if(!island){var w=board.GetComponent<FiveIslandWindow>();if(w)island=w.rooms[w.CurrentRoom].center;}
-        var rotation=Quaternion.Euler(0,yaw*90,0)*(shape>=2?Quaternion.identity:pose==1?Quaternion.Euler(0,0,90):pose==2?Quaternion.Euler(180,0,0):Quaternion.identity);
+        if(shape==1&&pose>1)pose=0;
+        var rotation=Quaternion.Euler(0,yaw*90,0)*(shape>=2?Quaternion.identity:shape==1?(pose==1?Quaternion.Euler(0,0,180):Quaternion.identity):pose==1?Quaternion.Euler(0,0,90):pose==2?Quaternion.Euler(180,0,0):Quaternion.identity);
         var bridgeDir=new Vector2Int(Mathf.RoundToInt((Quaternion.Euler(0,yaw*90,0)*Vector3.right).x),Mathf.RoundToInt((Quaternion.Euler(0,yaw*90,0)*Vector3.right).z));
         if(shape>=6){
             var second=selected+bridgeDir;var occupant=board.MagnetAt(second);

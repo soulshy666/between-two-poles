@@ -52,7 +52,8 @@ public static class MagnetVisuals {
         var g=Group(owner,"磁铁实体 · "+product);
         if(product==MagnetProduct.None){if(shape==MagnetShape.Bar)Box(g,new Vector3(0,.12f,0),new Vector3(cell,.24f,.24f),north);else Arc(g,north,180,360);}
         if(product==MagnetProduct.WideBar){Box(g,new Vector3(0,.12f,-.12f),new Vector3(cell,.24f,.24f),north);Box(g,new Vector3(0,.12f,.12f),new Vector3(cell,.24f,.24f),!north);}
-        if(product==MagnetProduct.Ring){Arc(g,north,0,180);Arc(g,!north,180,360);}
+        // The receiver retains its U opening; the incoming U closes that opening.
+        if(product==MagnetProduct.Ring){Arc(g,north,180,360);Arc(g,!north,0,180);}
         if(product==MagnetProduct.Cross){Box(g,new Vector3(0,.12f,0),new Vector3(cell,.24f,.24f),north);Box(g,new Vector3(0,.36f,0),new Vector3(.24f,.24f,cell),!north);}
         if(product==MagnetProduct.Lift){Arc(g,baseNorth,180,360);Box(g,new Vector3(0,cell*.5f,0),new Vector3(.24f,cell,.24f),!baseNorth);}
         if(product==MagnetProduct.Bridge||product==MagnetProduct.BridgeHalf){
@@ -73,13 +74,13 @@ public static class MagnetVisuals {
     public static MagnetPiece Create(Transform parent,Vector3 position,MagnetShape shape,bool north,Quaternion pose,float cell,Transform island) {
         var root=Group(parent,"调试磁铁 "+(north?"N":"S")+" "+shape);root.position=position;
         var m=root.gameObject.AddComponent<MagnetPiece>();m.shape=shape;m.north=north;m.baseNorth=north;
-        m.geometry=Build(root,shape,north,MagnetProduct.None,cell,north,Vector2Int.right);m.geometry.rotation=pose;Ground(m);
+        m.geometry=Build(root,shape,north,MagnetProduct.None,cell,north,Vector2Int.right);m.geometry.rotation=shape==MagnetShape.Horseshoe?MagnetPiece.FlatUPose(pose):pose;Ground(m);
         var binding=root.gameObject.AddComponent<IslandSurfaceAnchor>();binding.center=island;binding.Apply();return m;
     }
     public static void Ground(MagnetPiece m) {
         Vector3 min=Vector3.one*float.PositiveInfinity,max=Vector3.one*float.NegativeInfinity;
         foreach(var f in m.geometry.GetComponentsInChildren<MeshFilter>(true))foreach(var v in f.sharedMesh.vertices){var p=f.transform.TransformPoint(v)-m.transform.position;min=Vector3.Min(min,p);max=Vector3.Max(max,p);}
-        if(!float.IsInfinity(min.y)){var shift=Vector3.up*min.y;if(m.product==MagnetProduct.None)shift+=new Vector3((min.x+max.x)*.5f,0,(min.z+max.z)*.5f);m.geometry.position-=shift;}
+        if(!float.IsInfinity(min.y)){var shift=Vector3.up*min.y;if(m.product==MagnetProduct.None||m.product==MagnetProduct.Ring)shift+=new Vector3((min.x+max.x)*.5f,0,(min.z+max.z)*.5f);m.geometry.position-=shift;}
 
     }
     public static void Product(MagnetPiece m,MagnetProduct product,float cell,Quaternion yaw,bool baseNorth,bool receiverOnTop=false) {
