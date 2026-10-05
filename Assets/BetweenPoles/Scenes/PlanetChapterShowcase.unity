@@ -11435,6 +11435,8 @@ MonoBehaviour:
     start: 0
     islands:
     - id: Planet B center
+      hasBlackHole: 1
+      blackHoleCell: {x: 0, y: 2}
       position: {x: 0.5, y: 0.48}
       cells:
       - {x: -3, y: -2}
@@ -11521,6 +11523,8 @@ MonoBehaviour:
       neighbors: 01000000020000000300000004000000
       spawn: {x: 3.75, y: 0, z: 0.75}
     - id: Planet A center
+      hasBlackHole: 0
+      blackHoleCell: {x: 0, y: 0}
       position: {x: 0.24, y: 0.4935294}
       cells:
       - {x: -2, y: -1}
@@ -11547,6 +11551,8 @@ MonoBehaviour:
       neighbors: 00000000
       spawn: {x: -6.75, y: 0, z: 1.5}
     - id: "\u955C\u5934\u7126\u70B9 (11.25, 0.00, 0.00)"
+      hasBlackHole: 0
+      blackHoleCell: {x: 0, y: 0}
       position: {x: 0.76, y: 0.4935294}
       cells:
       - {x: -2, y: -1}
@@ -11571,6 +11577,8 @@ MonoBehaviour:
       neighbors: 00000000
       spawn: {x: 14.25, y: 0, z: 1.5}
     - id: "\u955C\u5934\u7126\u70B9 (3.75, 0.00, 9.00)"
+      hasBlackHole: 0
+      blackHoleCell: {x: 0, y: 0}
       position: {x: 0.5, y: 0.71}
       cells:
       - {x: -1, y: -1}
@@ -11595,6 +11603,8 @@ MonoBehaviour:
       neighbors: 00000000
       spawn: {x: 3.75, y: 0, z: 13.5}
     - id: "\u955C\u5934\u7126\u70B9 (3.75, 0.00, -9.00)"
+      hasBlackHole: 0
+      blackHoleCell: {x: 0, y: 0}
       position: {x: 0.5, y: 0.25}
       cells:
       - {x: -1, y: -1}
@@ -11629,6 +11639,8 @@ MonoBehaviour:
     start: 0
     islands:
     - id: Planet B center
+      hasBlackHole: 0
+      blackHoleCell: {x: 0, y: 2}
       position: {x: 0.5, y: 0.48}
       cells:
       - {x: -3, y: -2}
@@ -11715,6 +11727,8 @@ MonoBehaviour:
       neighbors: 01000000020000000300000004000000
       spawn: {x: 3.75, y: 0, z: 0.75}
     - id: Planet A center
+      hasBlackHole: 0
+      blackHoleCell: {x: 0, y: 0}
       position: {x: 0.24, y: 0.4935294}
       cells:
       - {x: -2, y: -1}
@@ -11741,6 +11755,8 @@ MonoBehaviour:
       neighbors: 00000000
       spawn: {x: -6.75, y: 0, z: 1.5}
     - id: "\u955C\u5934\u7126\u70B9 (11.25, 0.00, 0.00)"
+      hasBlackHole: 0
+      blackHoleCell: {x: 0, y: 0}
       position: {x: 0.76, y: 0.4935294}
       cells:
       - {x: -2, y: -1}
@@ -11765,6 +11781,8 @@ MonoBehaviour:
       neighbors: 00000000
       spawn: {x: 14.25, y: 0, z: 1.5}
     - id: "\u955C\u5934\u7126\u70B9 (3.75, 0.00, 9.00)"
+      hasBlackHole: 0
+      blackHoleCell: {x: 0, y: 0}
       position: {x: 0.5, y: 0.71}
       cells:
       - {x: -1, y: -1}
@@ -11789,6 +11807,8 @@ MonoBehaviour:
       neighbors: 00000000
       spawn: {x: 3.75, y: 0, z: 13.5}
     - id: "\u955C\u5934\u7126\u70B9 (3.75, 0.00, -9.00)"
+      hasBlackHole: 0
+      blackHoleCell: {x: 0, y: 0}
       position: {x: 0.5, y: 0.25}
       cells:
       - {x: -1, y: -1}
@@ -11823,6 +11843,8 @@ MonoBehaviour:
     start: 0
     islands:
     - id: Planet B center
+      hasBlackHole: 0
+      blackHoleCell: {x: 0, y: 2}
       position: {x: 0.5, y: 0.48}
       cells:
       - {x: -3, y: -2}
@@ -11909,6 +11931,8 @@ MonoBehaviour:
       neighbors: 01000000020000000300000004000000
       spawn: {x: 3.75, y: 0, z: 0.75}
     - id: Planet A center
+      hasBlackHole: 0
+      blackHoleCell: {x: 0, y: 0}
       position: {x: 0.24, y: 0.4935294}
       cells:
       - {x: -2, y: -1}
@@ -11935,6 +11959,8 @@ MonoBehaviour:
       neighbors: 00000000
       spawn: {x: -6.75, y: 0, z: 1.5}
     - id: "\u955C\u5934\u7126\u70B9 (11.25, 0.00, 0.00)"
+      hasBlackHole: 0
+      blackHoleCell: {x: 0, y: 0}
       position: {x: 0.76, y: 0.4935294}
       cells:
       - {x: -2, y: -1}
@@ -11959,6 +11985,8 @@ MonoBehaviour:
       neighbors: 00000000
       spawn: {x: 14.25, y: 0, z: 1.5}
     - id: "\u955C\u5934\u7126\u70B9 (3.75, 0.00, 9.00)"
+      hasBlackHole: 0
+      blackHoleCell: {x: 0, y: 0}
       position: {x: 0.5, y: 0.71}
       cells:
       - {x: -1, y: -1}
@@ -11983,6 +12011,8 @@ MonoBehaviour:
       neighbors: 00000000
       spawn: {x: 3.75, y: 0, z: 13.5}
     - id: "\u955C\u5934\u7126\u70B9 (3.75, 0.00, -9.00)"
+      hasBlackHole: 0
+      blackHoleCell: {x: 0, y: 0}
       position: {x: 0.5, y: 0.25}
       cells:
       - {x: -1, y: -1}
@@ -12017,6 +12047,8 @@ MonoBehaviour:
     start: 0
     islands:
     - id: Planet B center
+      hasBlackHole: 1
+      blackHoleCell: {x: 0, y: 2}
       position: {x: 0.5, y: 0.48}
       cells:
       - {x: -3, y: -2}
@@ -12103,6 +12135,8 @@ MonoBehaviour:
       neighbors: 01000000020000000300000004000000
       spawn: {x: 3.75, y: 0, z: 0.75}
     - id: Planet A center
+      hasBlackHole: 0
+      blackHoleCell: {x: 0, y: 0}
       position: {x: 0.24, y: 0.4935294}
       cells:
       - {x: -2, y: -1}
@@ -12129,6 +12163,8 @@ MonoBehaviour:
       neighbors: 00000000
       spawn: {x: -6.75, y: 0, z: 1.5}
     - id: "\u955C\u5934\u7126\u70B9 (11.25, 0.00, 0.00)"
+      hasBlackHole: 0
+      blackHoleCell: {x: 0, y: 0}
       position: {x: 0.76, y: 0.4935294}
       cells:
       - {x: -2, y: -1}
@@ -12153,6 +12189,8 @@ MonoBehaviour:
       neighbors: 00000000
       spawn: {x: 14.25, y: 0, z: 1.5}
     - id: "\u955C\u5934\u7126\u70B9 (3.75, 0.00, 9.00)"
+      hasBlackHole: 0
+      blackHoleCell: {x: 0, y: 0}
       position: {x: 0.5, y: 0.71}
       cells:
       - {x: -1, y: -1}
@@ -12177,6 +12215,8 @@ MonoBehaviour:
       neighbors: 00000000
       spawn: {x: 3.75, y: 0, z: 13.5}
     - id: "\u955C\u5934\u7126\u70B9 (3.75, 0.00, -9.00)"
+      hasBlackHole: 0
+      blackHoleCell: {x: 0, y: 0}
       position: {x: 0.5, y: 0.25}
       cells:
       - {x: -1, y: -1}

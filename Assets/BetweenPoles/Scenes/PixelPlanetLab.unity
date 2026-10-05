@@ -553,7 +553,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!23 &437728034
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -2440,7 +2440,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &1703072413
 Transform:
   m_ObjectHideFlags: 0
@@ -3636,7 +3636,7 @@ MonoBehaviour:
     layer: 2
     origin: {x: 0, y: 0, z: 0}
     wrap: {x: 0, y: 0}
-  model: 5
+  model: 10
   seed: 795
   pixels: 100
   rotation: 12
@@ -3681,7 +3681,7 @@ MonoBehaviour:
   duration: 8
   columns: 8
   margin: 0
-  phase: 4713.959
+  phase: 5368.7817
 --- !u!4 &1718645030
 Transform:
   m_ObjectHideFlags: 0
@@ -3726,7 +3726,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!23 &1755487519
 MeshRenderer:
   m_ObjectHideFlags: 0

@@ -1,4 +1,4 @@
-﻿using System.Collections;
+using System.Collections;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 namespace BetweenPoles {
@@ -25,7 +25,7 @@ public sealed class ChapterMapReturn : MonoBehaviour {
     }
     void Visit(GridTile tile){var anchor=tile.GetComponentInParent<IslandSurfaceAnchor>();if(!anchor||!anchor.center)return;string key=ChapterAtlas.Key(gameObject.scene.path,anchor.center.name);if(PlayerPrefs.GetInt(key,0)==0){PlayerPrefs.SetInt(key,1);PlayerPrefs.Save();}}
     void OnDestroy(){if(board)board.Landed-=Visit;}
-    public void ReturnToMap(){if(loading||board&&board.Busy)return;loading=true;string name=gameObject.scene.name;ChapterAtlas.ReturnChapter=name.Contains("01")?0:name.Contains("02")?1:name.Contains("03")?2:3;SceneManager.LoadSceneAsync(Showcase);}
-    void OnGUI(){var old=GUI.matrix;float scale=Mathf.Max(.7f,Screen.height/900f);GUI.matrix=Matrix4x4.Scale(new Vector3(scale,scale,1));GUI.enabled=!loading&&(!board||!board.Busy);if(GUI.Button(new Rect(22,22,165,42),loading?"返回地图中…":"← 章节地图"))ReturnToMap();GUI.enabled=true;GUI.matrix=old;}
+    public void ReturnToMap(){if(loading||BlackHoleTravel.InTransit||board&&board.Busy)return;loading=true;string name=gameObject.scene.name;ChapterAtlas.ReturnChapter=name.Contains("01")?0:name.Contains("02")?1:name.Contains("03")?2:3;SceneManager.LoadSceneAsync(Showcase);}
+    void OnGUI(){if(BlackHoleTravel.InTransit)return;var old=GUI.matrix;float scale=Mathf.Max(.7f,Screen.height/900f);GUI.matrix=Matrix4x4.Scale(new Vector3(scale,scale,1));GUI.enabled=!loading&&!BlackHoleTravel.InTransit&&(!board||!board.Busy);if(GUI.Button(new Rect(22,22,165,42),loading?"返回地图中…":"← 章节地图"))ReturnToMap();GUI.enabled=true;GUI.matrix=old;}
 }
 }
