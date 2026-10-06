@@ -22,8 +22,8 @@ Shader "BetweenPoles/BridgeEnergyGlass" {
 
   float3 displayPoint(float3 p){return _IceFocus.xyz+(p-_IceFocus.xyz)*max(1,_IslandDisplayScale);}
   float3 turn(float3 q,float3 axis,float si,float co){return q*co+cross(axis,q)*si+axis*dot(axis,q)*(1-co);}
-  float3 referencePoint(){return float3(3.75,0,.75);}
-  float3 originalFrame(float3 v){float3 f=referencePoint();float d=length(f.xz),a=d/_IceRadius;return turn(v,float3(f.z,0,-f.x)/d,-sin(a),cos(a));}
+  float3 referencePoint(){return float3(0,0,0);}
+  float3 originalFrame(float3 v){return v;}
   float upperWeight(float3 delta){return smoothstep(0,1,saturate((delta.z-abs(delta.x))/6));}
   float3 islandOffset(float3 anchor){float3 delta=anchor-_IceFocus.xyz;return _IceDiskUp*(.45*upperWeight(delta)+.25*upperWeight(-delta));}
   float3 bridgeWarp(float3 p,float4 anchor){
@@ -40,8 +40,10 @@ Shader "BetweenPoles/BridgeEnergyGlass" {
    if(_BridgeEnabled>.5){
     float3 direction=normalize(_BridgeEnd.xyz-_BridgeStart.xyz),side=cross(direction,float3(0,1,0));
     float t=dot(p-_BridgeStart.xyz,direction)/max(length(_BridgeEnd.xyz-_BridgeStart.xyz),.001);
-    float3 a=bridgeWarp(_BridgeStart.xyz,_BridgeIslandA),b=bridgeWarp(_BridgeEnd.xyz,_BridgeIslandB),forward=normalize(b-a);
-    float3 up=normalize(bridgeNormal(float3(0,1,0),_BridgeIslandA)+bridgeNormal(float3(0,1,0),_BridgeIslandB));
+    float3 a=bridgeWarp(_BridgeStart.xyz,_BridgeIslandA),b=bridgeWarp(_BridgeEnd.xyz,_BridgeIslandB);
+    if(abs(direction.x)>.5){a.z=b.z=(a.z+b.z)*.5;}else{a.x=b.x=(a.x+b.x)*.5;}
+    float3 forward=normalize(b-a);
+    float3 up=float3(0,1,0);
     float3 across=normalize(cross(forward,up));up=normalize(cross(across,forward));
     float3 wp=lerp(a,b,t)+across*dot(p-_BridgeStart.xyz,side)+up*p.y;
     float3 n=UnityObjectToWorldNormal(v.normal),wn=forward*dot(n,direction)+across*dot(n,side)+up*n.y;

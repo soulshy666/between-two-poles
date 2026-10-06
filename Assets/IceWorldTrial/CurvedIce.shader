@@ -9,8 +9,12 @@ Shader "BetweenPoles/CurvedIceTrial" {
  float3 turn(float3 q,float3 axis,float si,float co){return q*co+cross(axis,q)*si+axis*dot(axis,q)*(1-co);}
  float _BridgeEnabled;float4 _BridgeStart,_BridgeEnd,_BridgeIslandA,_BridgeIslandB;
  float3 _BridgeOffsetA,_BridgeOffsetB;
- float3 bridgeWarp(float3 p,float4 anchor,float3 offset){float d=length(anchor.xz);float angle=d/_IceRadius;float3 axis=d>.001?float3(anchor.z,0,-anchor.x)/d:float3(0,0,1);float localAngle=angle*(1-anchor.w);return float3(_IceFocus.x,-_IceRadius,_IceFocus.z)+mul((float3x3)_IceRotation,turn(float3(0,_IceRadius,0),axis,sin(angle),cos(angle))+turn(p-anchor.xyz,axis,sin(localAngle),cos(localAngle)))+offset;}
- float3 bridgeNormal(float3 n,float4 anchor){float d=length(anchor.xz);float a=d/_IceRadius*(1-anchor.w);float3 axis=d>.001?float3(anchor.z,0,-anchor.x)/d:float3(0,0,1);return mul((float3x3)_IceRotation,turn(n,axis,sin(a),cos(a)));}
+ float3 referencePoint(){return float3(0,0,0);}
+ float3 originalFrame(float3 v){return v;}
+ float upperWeight(float3 delta){return smoothstep(0,1,saturate((delta.z-abs(delta.x))/6));}
+ float3 islandOffset(float3 anchor){float3 delta=anchor-_IceFocus.xyz;return _IceDiskUp*(.45*upperWeight(delta)+.25*upperWeight(-delta));}
+ float3 bridgeWarp(float3 p,float4 anchor,float3 offset){float3 relative=anchor.xyz-_IceFocus.xyz+referencePoint();float d=length(relative.xz);float angle=d/_IceRadius;float localAngle=angle*(1-.10*upperWeight(anchor.xyz-_IceFocus.xyz));float3 axis=d>.001?float3(relative.z,0,-relative.x)/d:float3(0,0,1);return _IceFocus.xyz+float3(0,-_IceRadius,0)+originalFrame(turn(float3(0,_IceRadius,0),axis,sin(angle),cos(angle))+turn(p-anchor.xyz,axis,sin(localAngle),cos(localAngle)))+islandOffset(anchor.xyz);}
+ float3 bridgeNormal(float3 n,float4 anchor){float3 relative=anchor.xyz-_IceFocus.xyz+referencePoint();float d=length(relative.xz);float a=d/_IceRadius*(1-.10*upperWeight(anchor.xyz-_IceFocus.xyz));float3 axis=d>.001?float3(relative.z,0,-relative.x)/d:float3(0,0,1);return originalFrame(turn(n,axis,sin(a),cos(a)));}
  void bend(inout appdata_full v,out Input o){
  UNITY_INITIALIZE_OUTPUT(Input,o);
  float3 p=mul(unity_ObjectToWorld,v.vertex).xyz;o.logicalXZ=p.xz;float3 anchor=float3(-3.75,0,0);float best=1e9;
@@ -20,21 +24,22 @@ Shader "BetweenPoles/CurvedIceTrial" {
   float lengthLogical=max(length(_BridgeEnd.xyz-_BridgeStart.xyz),.001);
   float t=dot(p-_BridgeStart.xyz,direction)/lengthLogical;
   float3 a=bridgeWarp(_BridgeStart.xyz,_BridgeIslandA,_BridgeOffsetA),b=bridgeWarp(_BridgeEnd.xyz,_BridgeIslandB,_BridgeOffsetB);
+  if(abs(direction.x)>.5){a.z=b.z=(a.z+b.z)*.5;}else{a.x=b.x=(a.x+b.x)*.5;}
   float3 forward=normalize(b-a);
-  float3 up=normalize(bridgeNormal(float3(0,1,0),_BridgeIslandA)+bridgeNormal(float3(0,1,0),_BridgeIslandB));
+  float3 up=float3(0,1,0);
   float3 across=normalize(cross(forward,up));up=normalize(cross(across,forward));
   float3 wp=lerp(a,b,t)+across*dot(p-_BridgeStart.xyz,side)+up*p.y;
   float3 n=UnityObjectToWorldNormal(v.normal);float3 wn=forward*dot(n,direction)+across*dot(n,side)+up*n.y;
   v.vertex=mul(unity_WorldToObject,float4(displayPoint(wp),1));v.normal=mul((float3x3)unity_WorldToObject,wn);return;
  }
  for(int k=0;k<_IslandCount;k++){float d=dot(p.xz-_IslandAnchors[k].xz,p.xz-_IslandAnchors[k].xz);if(d<best){best=d;anchor=_IslandAnchors[k].xyz;}}
- if(_ExplicitIsland.w>.5)anchor=_ExplicitIsland.xyz;float distance=length(anchor.xz);float angle=distance/_IceRadius;float3 axis=distance>.001?float3(anchor.z,0,-anchor.x)/distance:float3(0,0,1);
- float3 normal=turn(float3(0,1,0),axis,sin(angle),cos(angle));
- float localAngle=angle*(1-_IslandFlatten);float3 q=turn(p-anchor,axis,sin(localAngle),cos(localAngle));
- p=float3(_IceFocus.x,-_IceRadius,_IceFocus.z)+mul((float3x3)_IceRotation,normal*_IceRadius+q)+_IslandViewOffset;
- v.vertex=mul(unity_WorldToObject,float4(displayPoint(p),1));float3 n=turn(UnityObjectToWorldNormal(v.normal),axis,sin(localAngle),cos(localAngle));n=mul((float3x3)_IceRotation,n);v.normal=mul((float3x3)unity_WorldToObject,n);
+ if(_ExplicitIsland.w>.5)anchor=_ExplicitIsland.xyz;
+ float3 result=bridgeWarp(p,float4(anchor,0),float3(0,0,0));
+ v.vertex=mul(unity_WorldToObject,float4(displayPoint(result),1));
+ float3 n=bridgeNormal(UnityObjectToWorldNormal(v.normal),float4(anchor,0));
+ v.normal=mul((float3x3)unity_WorldToObject,n);
  }
 
- void surf(Input i,inout SurfaceOutput o){if(_IceDiskRadius>0){float3 relative=i.worldPos-_IceDiskCenter;float2 disk=float2(dot(relative,_IceDiskRight),dot(relative,_IceDiskUp));clip(_IceDiskRadius*_IceDiskRadius-dot(disk,disk));}float3 col=_Color.rgb;float2 g=abs(frac((i.logicalXZ+.75)/1.5)-.5);float seam=smoothstep(.470,.490,max(g.x,g.y))*_Grid;float up=saturate(i.worldNormal.y);col=lerp(col,lerp(float3(.20,.49,.62),col,smoothstep(.3,.85,up)),_Snow);o.Albedo=col*(1-seam*.38);o.Emission=col*.12*(1-seam*.38);o.Alpha=1;}
+ void surf(Input i,inout SurfaceOutput o){if(_IceDiskRadius>0){float3 relative=i.worldPos-_IceDiskCenter;float2 disk=float2(dot(relative,_IceDiskRight),dot(relative,_IceDiskUp));clip(_IceDiskRadius*_IceDiskRadius-dot(disk,disk));}float3 col=_Color.rgb;float2 g=abs(frac((i.logicalXZ+.75)/1.5)-.5);float seam=smoothstep(.452,.486,max(g.x,g.y))*_Grid;float up=saturate(i.worldNormal.y);col=lerp(col,lerp(float3(.20,.49,.62),col,smoothstep(.3,.85,up)),_Snow);col=lerp(col,float3(.18,.36,.48),seam*.68);o.Albedo=col;o.Emission=col*.10;o.Alpha=1;}
  ENDCG} FallBack "Diffuse" }
 
