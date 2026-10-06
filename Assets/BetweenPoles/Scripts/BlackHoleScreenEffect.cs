@@ -7,6 +7,7 @@ public sealed class BlackHoleScreenEffect : MonoBehaviour {
     Material material;
     BlackHolePackageRenderer package;
     bool flip;
+    Vector2 center=new Vector2(.5f,.5f);
     RenderTexture frame;
     Canvas canvas;
     RawImage image;
@@ -30,13 +31,30 @@ public sealed class BlackHoleScreenEffect : MonoBehaviour {
         if(frame){frame.Release();Destroy(frame);}
         frame=new RenderTexture(width,height,0,RenderTextureFormat.ARGB32){name="Black hole captured view",filterMode=FilterMode.Bilinear};frame.Create();image.texture=frame;
     }
-    void Set(float p){Progress=p;material.SetFloat("_Progress",p);material.SetFloat("_Aspect",(float)Screen.width/Mathf.Max(1,Screen.height));if(package&&frame)image.texture=package.Render(frame,p,flip);}
-    public IEnumerator Absorb(Vector2 center,float seconds){
+    void Set(float p){Progress=p;material.SetFloat("_Progress",p);material.SetFloat("_Aspect",(float)Screen.width/Mathf.Max(1,Screen.height));if(package&&frame)image.texture=package.Render(frame,p,flip,center);}
+    static PixelWorldCamera FindWorld(BlackHolePortal portal){
+        if(!portal)return null;
+        foreach(var root in portal.gameObject.scene.GetRootGameObjects())
+            foreach(var world in root.GetComponentsInChildren<PixelWorldCamera>())return world;
+        return null;
+    }
+    public IEnumerator Absorb(Vector2 center,float seconds,BlackHolePortal portal=null){
         canvas.enabled=false;
         yield return new WaitForEndOfFrame();
-        Allocate();ScreenCapture.CaptureScreenshotIntoRenderTexture(frame);flip=SystemInfo.graphicsUVStartsAtTop;material.SetFloat("_FlipY",flip?1:0);
-        material.SetVector("_Center",new Vector4(center.x,center.y,0,0));group.alpha=1;Set(0);canvas.enabled=true;
-        for(float t=0;t<seconds;t+=Time.unscaledDeltaTime){Set(Mathf.SmoothStep(0,1,t/seconds));yield return null;}
+        Allocate();
+        var world=FindWorld(portal);
+        if(world&&world.Buffer){Graphics.Blit(world.Buffer,frame);flip=false;}
+        else {ScreenCapture.CaptureScreenshotIntoRenderTexture(frame);flip=SystemInfo.graphicsUVStartsAtTop;}
+        material.SetFloat("_FlipY",flip?1:0);
+        this.center=center;material.SetVector("_Center",new Vector4(center.x,center.y,0,0));group.alpha=1;Set(0);canvas.enabled=true;
+        float elapsed=0;
+        while(elapsed<seconds){
+            // Cap the simulation step so a hitch cannot jump straight to a strong warp frame.
+            float step=Mathf.Min(Mathf.Max(0,Time.unscaledDeltaTime),1f/30f);
+            elapsed+=step;
+            Set(Mathf.SmoothStep(0,1,Mathf.Clamp01(elapsed/seconds)));
+            yield return null;
+        }
         Set(1);
     }
     public IEnumerator FadeToNavigation(){
@@ -47,10 +65,16 @@ public sealed class BlackHoleScreenEffect : MonoBehaviour {
     public IEnumerator Emerge(BlackHolePortal portal){
         // Sample the destination's offscreen world buffer under the warped source view.
         yield return new WaitForEndOfFrame();
-        PixelWorldCamera world=null;foreach(var root in portal.gameObject.scene.GetRootGameObjects())foreach(var w in root.GetComponentsInChildren<PixelWorldCamera>())world=w;
+        var world=FindWorld(portal);
         if(!world||!world.Buffer){yield return FadeToNavigation();yield break;}
-        Allocate();Graphics.Blit(world.Buffer,frame);flip=false;material.SetFloat("_FlipY",0);var center=ScreenCenter(portal);material.SetVector("_Center",new Vector4(center.x,center.y,0,0));group.alpha=1;canvas.enabled=true;
-        for(float t=0;t<1.15f;t+=Time.unscaledDeltaTime){Set(1-Mathf.SmoothStep(0,1,t/1.15f));yield return null;}
+        Allocate();Graphics.Blit(world.Buffer,frame);flip=false;material.SetFloat("_FlipY",0);center=ScreenCenter(portal);material.SetVector("_Center",new Vector4(center.x,center.y,0,0));group.alpha=1;canvas.enabled=true;
+        float elapsed=0;
+        while(elapsed<1.65f){
+            float step=Mathf.Min(Mathf.Max(0,Time.unscaledDeltaTime),1f/30f);
+            elapsed+=step;
+            Set(1-Mathf.SmoothStep(0,1,Mathf.Clamp01(elapsed/1.65f)));
+            yield return null;
+        }
         Hide();
     }
     public void Hide(){Set(0);canvas.enabled=false;group.alpha=1;}
