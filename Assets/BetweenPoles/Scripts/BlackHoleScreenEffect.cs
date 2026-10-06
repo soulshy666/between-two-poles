@@ -5,6 +5,8 @@ namespace BetweenPoles {
 // A persistent overlay hides scene loading and warps the complete rendered view.
 public sealed class BlackHoleScreenEffect : MonoBehaviour {
     Material material;
+    BlackHolePackageRenderer package;
+    bool flip;
     RenderTexture frame;
     Canvas canvas;
     RawImage image;
@@ -19,6 +21,8 @@ public sealed class BlackHoleScreenEffect : MonoBehaviour {
         image=panel.GetComponent<RawImage>();image.material=material;image.raycastTarget=true;
         var rect=(RectTransform)panel.transform;rect.anchorMin=Vector2.zero;rect.anchorMax=Vector2.one;rect.offsetMin=rect.offsetMax=Vector2.zero;
         canvas.enabled=false;
+        package=gameObject.AddComponent<BlackHolePackageRenderer>();package.Initialize();
+        image.material=null;
     }
     void Allocate(){
         int width=Mathf.Max(1,Screen.width),height=Mathf.Max(1,Screen.height);
@@ -26,11 +30,11 @@ public sealed class BlackHoleScreenEffect : MonoBehaviour {
         if(frame){frame.Release();Destroy(frame);}
         frame=new RenderTexture(width,height,0,RenderTextureFormat.ARGB32){name="Black hole captured view",filterMode=FilterMode.Bilinear};frame.Create();image.texture=frame;
     }
-    void Set(float p){Progress=p;material.SetFloat("_Progress",p);material.SetFloat("_Aspect",(float)Screen.width/Mathf.Max(1,Screen.height));}
+    void Set(float p){Progress=p;material.SetFloat("_Progress",p);material.SetFloat("_Aspect",(float)Screen.width/Mathf.Max(1,Screen.height));if(package&&frame)image.texture=package.Render(frame,p,flip);}
     public IEnumerator Absorb(Vector2 center,float seconds){
         canvas.enabled=false;
         yield return new WaitForEndOfFrame();
-        Allocate();ScreenCapture.CaptureScreenshotIntoRenderTexture(frame);material.SetFloat("_FlipY",SystemInfo.graphicsUVStartsAtTop?1:0);
+        Allocate();ScreenCapture.CaptureScreenshotIntoRenderTexture(frame);flip=SystemInfo.graphicsUVStartsAtTop;material.SetFloat("_FlipY",flip?1:0);
         material.SetVector("_Center",new Vector4(center.x,center.y,0,0));group.alpha=1;Set(0);canvas.enabled=true;
         for(float t=0;t<seconds;t+=Time.unscaledDeltaTime){Set(Mathf.SmoothStep(0,1,t/seconds));yield return null;}
         Set(1);
@@ -45,7 +49,7 @@ public sealed class BlackHoleScreenEffect : MonoBehaviour {
         yield return new WaitForEndOfFrame();
         PixelWorldCamera world=null;foreach(var root in portal.gameObject.scene.GetRootGameObjects())foreach(var w in root.GetComponentsInChildren<PixelWorldCamera>())world=w;
         if(!world||!world.Buffer){yield return FadeToNavigation();yield break;}
-        Allocate();Graphics.Blit(world.Buffer,frame);material.SetFloat("_FlipY",0);var center=ScreenCenter(portal);material.SetVector("_Center",new Vector4(center.x,center.y,0,0));group.alpha=1;canvas.enabled=true;
+        Allocate();Graphics.Blit(world.Buffer,frame);flip=false;material.SetFloat("_FlipY",0);var center=ScreenCenter(portal);material.SetVector("_Center",new Vector4(center.x,center.y,0,0));group.alpha=1;canvas.enabled=true;
         for(float t=0;t<1.15f;t+=Time.unscaledDeltaTime){Set(1-Mathf.SmoothStep(0,1,t/1.15f));yield return null;}
         Hide();
     }
@@ -55,12 +59,12 @@ public sealed class BlackHoleScreenEffect : MonoBehaviour {
         foreach(var root in portal.gameObject.scene.GetRootGameObjects())foreach(var w in root.GetComponentsInChildren<PixelWorldCamera>())camera=w.GetComponent<Camera>();
         if(!camera||!binding||!binding.center)return new Vector2(.5f,.5f);
         // Match the island shader's logical-to-sphere transform before projection.
-        Vector3 focus=Shader.GetGlobalVector("_IceFocus"),reference=new Vector3(3.75f,0,.75f),anchor=binding.center.position;
+        Vector3 focus=Shader.GetGlobalVector("_IceFocus"),reference=Vector3.zero,anchor=binding.center.position;
         float radius=Mathf.Max(1,Shader.GetGlobalFloat("_IceRadius"));Vector3 relative=anchor-focus+reference;float d=new Vector2(relative.x,relative.z).magnitude;
         Vector3 axis=d>.001f?new Vector3(relative.z,0,-relative.x)/d:Vector3.forward;
         Vector3 delta=anchor-focus;float upper=Mathf.SmoothStep(0,1,Mathf.Clamp01((delta.z-Mathf.Abs(delta.x))/6));float lower=Mathf.SmoothStep(0,1,Mathf.Clamp01((-delta.z-Mathf.Abs(delta.x))/6));
         var turn=Quaternion.AngleAxis(d/radius*Mathf.Rad2Deg,axis);var local=Quaternion.AngleAxis(d/radius*(1-.1f*upper)*Mathf.Rad2Deg,axis);
-        var original=Quaternion.AngleAxis(-reference.magnitude/radius*Mathf.Rad2Deg,new Vector3(reference.z,0,-reference.x).normalized);
+        var original=Quaternion.identity;
         Vector3 point=focus+Vector3.down*radius+original*(turn*(Vector3.up*radius)+local*(portal.transform.position-anchor));
         Vector3 up=Shader.GetGlobalVector("_IceDiskUp");point+=up*(.45f*upper+.25f*lower);point=focus+(point-focus)*Mathf.Max(1,Shader.GetGlobalFloat("_IslandDisplayScale"));
         Vector3 screen=camera.WorldToViewportPoint(point);return new Vector2(Mathf.Clamp(screen.x,.1f,.9f),Mathf.Clamp(screen.y,.1f,.9f));

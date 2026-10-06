@@ -51,6 +51,14 @@ public sealed partial class GridPlayground {
         var from=Cell(player);var support=Piece(from);
         if(support&&support.product==MagnetProduct.Bridge){var side=support.transform.forward;float across=Vector3.Dot(new Vector3(dir.x,0,dir.y),side);float lane=Vector3.Dot(player.position-support.transform.position,side);if(Mathf.Abs(across)>.5f&&across*lane<0)return Reject("桥中央镂空，请沿当前侧梁行走");}
         var next=from+dir;var tile=Tile(next);var m=Piece(next);
+        // A player already on an object may walk across level tops or step down.
+        GridTile sourceTile;Vector3 sourceTop;
+        if(BlackHolePortal.TrySurface(this,from,out sourceTile,out sourceTop)&&SameHeight(player.position.y,sourceTop.y)&&player.position.y>GroundHeight(from)+.01f){
+            GridTile destinationTile;Vector3 destinationTop;
+            if(!BlackHolePortal.TrySurface(this,next,out destinationTile,out destinationTop))return Reject("没有可行走的支撑面");
+            if(destinationTop.y>player.position.y+.01f)return Reject("不能直接走上更高的物体");
+            Busy=true;StartCoroutine(WalkOffObject(next,destinationTop));LastRule="从物体顶面行走";return true;
+        }
         if(tile&&tile.blocked)return Reject("石头挡住了这个格子");
         if(m&&m.product==MagnetProduct.Ring&&SameHeight(player.position.y,m.transform.position.y))
             return BeginPushRing(m,dir,next);
@@ -118,6 +126,14 @@ public sealed partial class GridPlayground {
         if(!Floor(next)&&!(m&&m.walkable))return Reject("没有可行走的支撑面");
         if(!SameHeight(player.position.y,Height(next)))return Reject("高差需要磁流升降装置");
         Busy=true;StartCoroutine(MovePlayer(next));LastRule="行走";return true;
+    }
+    IEnumerator WalkOffObject(Vector2Int cell,Vector3 end){
+        var start=player.position;var direction=new Vector3(cell.x*cellSize-start.x,0,cell.y*cellSize-start.z);
+        if(direction.sqrMagnitude>.001f)player.rotation=Quaternion.LookRotation(direction);
+        var edge=end;edge.y=start.y;
+        yield return Slide(player,edge,stepSeconds);
+        if(!SameHeight(edge.y,end.y))yield return Slide(player,end,Mathf.Clamp(Mathf.Sqrt(Mathf.Abs(edge.y-end.y))*.16f,.12f,.5f));
+        player.position=end;NotifyLanding(cell);Busy=false;
     }
     public static string ProductName(MagnetProduct p){switch(p){case MagnetProduct.WideBar:return "一格宽条";case MagnetProduct.Ring:return "闭合圆环";case MagnetProduct.Cross:return "叠放十字";case MagnetProduct.Lift:return "单层磁流升降台";case MagnetProduct.BridgeHalf:return "两格桥半成品";case MagnetProduct.Bridge:return "两格桥";default:return "基础磁铁";}}
     bool ValidateRollPath(MagnetPiece m,List<MagnetRollStep> path,Vector2Int playerFrom,Vector2Int playerLanding,MagnetPiece vacated,Vector2Int? reserved,out Vector2Int end){

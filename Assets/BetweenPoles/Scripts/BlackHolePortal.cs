@@ -6,6 +6,8 @@ public sealed class BlackHolePortal : MonoBehaviour {
     public GridPlayground board;
     public GridTile tile;
     bool armed;
+    Vector2Int lastOutside;
+    public Vector2Int EntryDirection {get;private set;}
     public string Room { get { var a=tile.GetComponentInParent<IslandSurfaceAnchor>(true);return a&&a.center?a.center.name:""; } }
     void OnEnable(){foreach(var r in GetComponentsInChildren<Renderer>())r.localBounds=new Bounds(Vector3.zero,Vector3.one*300);}
     public Vector2Int Cell {get{return new Vector2Int(Mathf.RoundToInt(tile.transform.position.x/board.cellSize),Mathf.RoundToInt(tile.transform.position.z/board.cellSize));}}
@@ -13,18 +15,21 @@ public sealed class BlackHolePortal : MonoBehaviour {
     public bool TryExit(Vector2Int direction,out GridTile exit){Vector3 landing;return TryExitLanding(direction,out exit,out landing);}
     public bool TryExitLanding(Vector2Int direction,out GridTile exit,out Vector3 landing){
         exit=null;landing=Vector3.zero;if(Mathf.Abs(direction.x)+Mathf.Abs(direction.y)!=1||!CanArrive)return false;
-        var cell=Cell+direction;exit=board.TileAt(cell);
+        return TrySurface(board,Cell+direction,out exit,out landing);
+    }
+    public static bool TrySurface(GridPlayground board,Vector2Int cell,out GridTile exit,out Vector3 landing){
+        exit=board.TileAt(cell);
         landing=new Vector3(cell.x*board.cellSize,exit?exit.surfaceHeight:float.NegativeInfinity,cell.y*board.cellSize);
         bool support=exit&&!exit.blocked;
         if(exit&&exit.blocked){
             var anchor=exit.GetComponentInParent<IslandSurfaceAnchor>(true);
-            if(anchor)support|=FindTop(anchor.transform,cell,ref landing);
+            if(anchor)support|=FindTop(board,anchor.transform,cell,ref landing);
         }
         // Portals can place a player on any magnetic shape, including upright pieces.
-        foreach(var m in board.magnets)if(m&&m.enabled&&m.gameObject.activeSelf&&m.Occupies(cell,board.cellSize))support|=FindTop(m.geometry,cell,ref landing);
+        foreach(var m in board.magnets)if(m&&m.enabled&&m.gameObject.activeSelf&&m.Occupies(cell,board.cellSize))support|=FindTop(board,m.geometry,cell,ref landing);
         return support;
     }
-    bool FindTop(Transform root,Vector2Int cell,ref Vector3 landing){
+    static bool FindTop(GridPlayground board,Transform root,Vector2Int cell,ref Vector3 landing){
         bool found=false;float nearest=float.PositiveInfinity;Vector3 center=new Vector3(cell.x*board.cellSize,0,cell.y*board.cellSize);
         // Renderer bounds are deliberately enlarged for spherical rendering; use real mesh triangles.
         foreach(var filter in root.GetComponentsInChildren<MeshFilter>(true)){
@@ -44,8 +49,10 @@ public sealed class BlackHolePortal : MonoBehaviour {
     void Update(){
         if(!Application.isPlaying||!board||!tile||!board.player)return;
         // A new arrival must leave the cell before it can activate again.
-        if(board.PlayerCell!=Cell){armed=true;return;}
+        if(board.Busy||!board.enabled)return;
+        if(board.PlayerCell!=Cell){lastOutside=board.PlayerCell;armed=true;return;}
         if(!armed||board.Busy||!board.enabled||BlackHoleTravel.Selecting)return;
+        EntryDirection=Cell-lastOutside;
         armed=false;BlackHoleTravel.Begin(this);
     }
     public void Disarm(){armed=false;}

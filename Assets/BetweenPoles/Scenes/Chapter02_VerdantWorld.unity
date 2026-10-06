@@ -29494,7 +29494,7 @@ MonoBehaviour:
   - {fileID: 1556612}
   - {fileID: 1712807095}
   board: {fileID: 1108717419}
-  viewingOffset: {x: 1.5, y: 15, z: -12.5}
+  viewingOffset: {x: 0, y: 19.525, z: 0}
   transitionSeconds: 0.65
 --- !u!114 &2054248351
 MonoBehaviour:

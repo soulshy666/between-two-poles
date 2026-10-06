@@ -9,7 +9,12 @@ namespace BetweenPoles {
   [Min(10),InspectorName("星球半径")] public float planetRadius=10;
   [InspectorName("星球与主岛画面中心对齐")] public bool centeredGlobe;
   public float displayRadius;
+  [Min(1),InspectorName("星球背景显示倍率")] public float globeDisplayScale=1.12f;
+  [InspectorName("星球背景上下偏移")] public float globeVerticalOffset=0f;
   [Range(1,1.5f),InspectorName("岛屿与格子显示倍率")] public float islandDisplayScale=1.2f;
+  [Min(.05f),InspectorName("镜头缩放缓动时间")] public float zoomSmoothTime=.55f;
+  float zoomVelocity;
+  bool zoomInitialized;
   readonly Vector4[] anchors=new Vector4[16];
   void OnEnable(){Apply(editFocus);}
   void LateUpdate(){if(!island)return;Vector3 focus=Application.isPlaying&&island.enabled?transform.position-island.viewingOffset:editFocus;Apply(focus);}
@@ -26,9 +31,10 @@ namespace BetweenPoles {
    for(int i=0;i<count;i++)anchors[i]=centers[i].position;
    Shader.SetGlobalVectorArray("_IslandAnchors",anchors);Shader.SetGlobalInt("_IslandCount",count);
    Quaternion rotation=Quaternion.FromToRotation(SphereNormal(focus,planetRadius),Vector3.up);Shader.SetGlobalMatrix("_IceRotation",Matrix4x4.Rotate(rotation));
-   if(planet){planet.position=centeredGlobe?focus+transform.forward*(planetRadius+1.5f):new Vector3(focus.x,-planetRadius-.15f,focus.z);planet.localScale=Vector3.one*((displayRadius>0?displayRadius:planetRadius)/10);planet.rotation=rotation;
-    if(displayRadius>0)planet.position=focus+transform.forward*(displayRadius+1.5f)-transform.up*1.5f;}
-   Shader.SetGlobalFloat("_IceDiskRadius",displayRadius>0?displayRadius:0);
+   float visibleRadius=displayRadius>0?displayRadius*globeDisplayScale:planetRadius;
+   if(planet){planet.position=centeredGlobe?focus+transform.forward*(planetRadius+1.5f):new Vector3(focus.x,-planetRadius-.15f,focus.z);planet.localScale=Vector3.one*(visibleRadius/10);planet.rotation=rotation;
+    if(displayRadius>0)planet.position=focus+transform.forward*(visibleRadius+1.5f)+transform.up*globeVerticalOffset;}
+   Shader.SetGlobalFloat("_IceDiskRadius",displayRadius>0?visibleRadius:0);
    if(planet)Shader.SetGlobalVector("_IceDiskCenter",planet.position);
    Shader.SetGlobalVector("_IceDiskRight",transform.right);Shader.SetGlobalVector("_IceDiskUp",transform.up);
    var camera=GetComponent<Camera>();if(camera){
@@ -38,10 +44,16 @@ namespace BetweenPoles {
      Vector3 center=anchors[selected];
      foreach(var tile in island.board.tiles){if(!tile||!tile.gameObject.activeInHierarchy)continue;Vector3 p=tile.transform.position;int owner=0;for(int j=1;j<count;j++)if((p-(Vector3)anchors[j]).sqrMagnitude<(p-(Vector3)anchors[owner]).sqrMagnitude)owner=j;var binding=tile.GetComponentInParent<IslandSurfaceAnchor>();if(binding&&binding.center){for(int j=0;j<count;j++)if(centers[j]==binding.center){owner=j;break;}}if(owner!=selected)continue;
       Vector3 delta=(p-center)*islandDisplayScale;float pad=island.board.cellSize*.72f*islandDisplayScale;
-      size=Mathf.Max(size,Mathf.Abs(Vector3.Dot(transform.up,delta))+pad+2.2f,(Mathf.Abs(Vector3.Dot(transform.right,delta))+pad+2.2f)/Mathf.Max(.5f,camera.aspect));
+      size=Mathf.Max(size,Mathf.Abs(Vector3.Dot(transform.up,delta))+pad+2.8f,(Mathf.Abs(Vector3.Dot(transform.right,delta))+pad+2.8f)/Mathf.Max(.5f,camera.aspect));
      }
     }
-    camera.orthographicSize=size;
+    // Start at the correct framing; subsequent island changes ease both ways.
+    if(!Application.isPlaying||!zoomInitialized){
+     camera.orthographicSize=size;zoomVelocity=0;zoomInitialized=Application.isPlaying;
+    }else{
+     camera.orthographicSize=Mathf.SmoothDamp(camera.orthographicSize,size,ref zoomVelocity,
+      Mathf.Max(.05f,zoomSmoothTime),Mathf.Infinity,Mathf.Min(Time.deltaTime,.05f));
+    }
    }
   }
  }

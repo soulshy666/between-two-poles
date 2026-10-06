@@ -10,8 +10,8 @@ Shader "BetweenPoles/PaintedIceTrial" {
  float _BridgeEnabled;float4 _BridgeStart,_BridgeEnd,_BridgeIslandA,_BridgeIslandB;
  float3 _BridgeOffsetA,_BridgeOffsetB;
  // Same spherical rotation as CurvedIceTrial, rebased to the original composition for every island.
- float3 referencePoint(){return float3(3.75,0,.75);}
- float3 originalFrame(float3 v){float3 f=referencePoint();float d=length(f.xz),a=d/_IceRadius;return turn(v,float3(f.z,0,-f.x)/d,-sin(a),cos(a));}
+ float3 referencePoint(){return float3(0,0,0);}
+ float3 originalFrame(float3 v){return v;}
  float upperWeight(float3 delta){return smoothstep(0,1,saturate((delta.z-abs(delta.x))/6));}
  float3 islandOffset(float3 anchor){float3 delta=anchor-_IceFocus.xyz;return _IceDiskUp*(.45*upperWeight(delta)+.25*upperWeight(-delta));}
  float3 bridgeWarp(float3 p,float4 anchor,float3 offset){float3 relative=anchor.xyz-_IceFocus.xyz+referencePoint();float d=length(relative.xz);float angle=d/_IceRadius;float localAngle=angle*(1-.10*upperWeight(anchor.xyz-_IceFocus.xyz));float3 axis=d>.001?float3(relative.z,0,-relative.x)/d:float3(0,0,1);return _IceFocus.xyz+float3(0,-_IceRadius,0)+originalFrame(turn(float3(0,_IceRadius,0),axis,sin(angle),cos(angle))+turn(p-anchor.xyz,axis,sin(localAngle),cos(localAngle)))+islandOffset(anchor.xyz);}
@@ -25,8 +25,9 @@ Shader "BetweenPoles/PaintedIceTrial" {
   float lengthLogical=max(length(_BridgeEnd.xyz-_BridgeStart.xyz),.001);
   float t=dot(p-_BridgeStart.xyz,direction)/lengthLogical;
   float3 a=bridgeWarp(_BridgeStart.xyz,_BridgeIslandA,_BridgeOffsetA),b=bridgeWarp(_BridgeEnd.xyz,_BridgeIslandB,_BridgeOffsetB);
+  if(abs(direction.x)>.5){a.z=b.z=(a.z+b.z)*.5;}else{a.x=b.x=(a.x+b.x)*.5;}
   float3 forward=normalize(b-a);
-  float3 up=normalize(bridgeNormal(float3(0,1,0),_BridgeIslandA)+bridgeNormal(float3(0,1,0),_BridgeIslandB));
+  float3 up=float3(0,1,0);
   float3 across=normalize(cross(forward,up));up=normalize(cross(across,forward));
   float3 wp=lerp(a,b,t)+across*dot(p-_BridgeStart.xyz,side)+up*p.y;
   float3 n=UnityObjectToWorldNormal(v.normal);float3 wn=forward*dot(n,direction)+across*dot(n,side)+up*n.y;

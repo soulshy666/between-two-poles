@@ -7,8 +7,8 @@ public sealed class IslandCamera : MonoBehaviour {
     public Transform player;
     public Transform[] islandCenters;
     public GridPlayground board;
-    public static readonly Vector3 DefaultViewingOffset = new Vector3(1.5f,15,-12.5f);
-    [Tooltip("斜俯视并略偏向侧面，便于辨认竖立磁铁的形状。")]
+    public static readonly Vector3 DefaultViewingOffset = new Vector3(0,17.7f,-8.25f);
+    [Tooltip("正向俯视，不向左右偏转。")]
     public Vector3 viewingOffset = DefaultViewingOffset;
     public float transitionSeconds = .65f;
     Vector3 focus, velocity;
@@ -43,8 +43,10 @@ public sealed class IslandCamera : MonoBehaviour {
         Apply();
     }
     public void ApplyView(Vector3 target){
+        // Migrate the previous overhead preset while keeping yaw and roll at zero.
+        if(Mathf.Abs(viewingOffset.x)<.001f&&Mathf.Abs(viewingOffset.z)<.001f)viewingOffset=DefaultViewingOffset;
         transform.position=target+viewingOffset;
-        transform.rotation=Quaternion.LookRotation(-viewingOffset,Vector3.up);
+        transform.rotation=Quaternion.LookRotation(-viewingOffset,Mathf.Abs(viewingOffset.normalized.y)>.999f?Vector3.forward:Vector3.up);
     }
     void Apply(){ApplyView(focus);}
 }
