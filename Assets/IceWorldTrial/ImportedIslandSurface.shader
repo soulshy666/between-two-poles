@@ -40,6 +40,6 @@ Shader "BetweenPoles/ImportedIslandSurface" {
  v.normal=mul((float3x3)unity_WorldToObject,normal);
  }
 
- void surf(Input i,inout SurfaceOutput o){if(_IceDiskRadius>0){float3 relative=i.worldPos-_IceDiskCenter;float2 disk=float2(dot(relative,_IceDiskRight),dot(relative,_IceDiskUp));clip(_IceDiskRadius*_IceDiskRadius-dot(disk,disk));}float3 col=_Color.rgb*lerp(float3(1,1,1),i.iceTint.rgb,_IceArt);float2 g=abs(frac((i.logicalXZ+.75)/1.5)-.5);float seam=smoothstep(.470,.490,max(g.x,g.y))*_Grid;float up=saturate(i.worldNormal.y);col=lerp(col,lerp(float3(.20,.49,.62),col,smoothstep(.3,.85,up)),_Snow);o.Albedo=col*(1-seam*.38);o.Emission=col*.12*(1-seam*.38);o.Alpha=1;}
+ void surf(Input i,inout SurfaceOutput o){if(_IceDiskRadius>0){float3 relative=i.worldPos-_IceDiskCenter;float2 disk=float2(dot(relative,_IceDiskRight),dot(relative,_IceDiskUp));clip(_IceDiskRadius*_IceDiskRadius-dot(disk,disk));}float3 col=_Color.rgb*lerp(float3(1,1,1),i.iceTint.rgb,_IceArt);float2 g=abs(frac((i.logicalXZ+.75)/1.5)-.5);float seam=smoothstep(.452,.486,max(g.x,g.y))*_Grid;float up=saturate(i.worldNormal.y);col=lerp(col,lerp(float3(.20,.49,.62),col,smoothstep(.3,.85,up)),_Snow);col=lerp(col,float3(.18,.36,.48),seam*.68);o.Albedo=col;o.Emission=col*.10;o.Alpha=1;}
  ENDCG} FallBack "Diffuse" }
 

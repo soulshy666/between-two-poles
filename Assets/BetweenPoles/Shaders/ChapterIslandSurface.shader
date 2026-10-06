@@ -46,19 +46,21 @@ Shader "BetweenPoles/ChapterIslandSurface" {
  float cracks(float2 p){float2 id=floor(p),f=frac(p);float nearest=9,second=9;for(int y=-1;y<=1;y++)for(int x=-1;x<=1;x++){float2 cell=float2(x,y);float2 seed=float2(iceHash(id+cell),iceHash(id+cell+41));float d=length(cell+seed-f);if(d<nearest){second=nearest;nearest=d;}else second=min(second,d);}return 1-smoothstep(.014,.05,second-nearest);}
  void surf(Input i,inout SurfaceOutput o){
  if(_IceDiskRadius>0){float3 relative=i.worldPos-_IceDiskCenter;float2 disk=float2(dot(relative,_IceDiskRight),dot(relative,_IceDiskUp));clip(_IceDiskRadius*_IceDiskRadius-dot(disk,disk));}
- float3 col=_Color.rgb;float2 g=abs(frac((i.logicalXZ+.75)/1.5)-.5);float seam=smoothstep(.470,.490,max(g.x,g.y))*_Grid;
+ float3 col=_Color.rgb;float2 g=abs(frac((i.logicalXZ+.75)/1.5)-.5);float seam=smoothstep(.452,.486,max(g.x,g.y))*_Grid;
  if(_Painted>.5){
   // Stable world-aligned pixel pigments: no scrolling texture or shimmer under the player.
-  float2 p=floor(i.logicalXZ*18)/18;float field=iceField(p*.42+float2(13,6));float band=floor(saturate(field)*5)/4;
-  float3 ice=lerp(float3(.35,.60,.72),float3(.77,.91,.94),saturate(band));
-  float snow=smoothstep(.57,.66,field);ice=lerp(ice,float3(.86,.94,.95),floor(snow*3)/3);
-  float crack=cracks(p*.48)*smoothstep(.42,.62,iceNoise(p*.3+31));
-  ice=lerp(ice,float3(.23,.46,.59),crack*_Cracks);
-  float dust=step(.95,iceHash(floor(p*18)))*.025;ice+=dust;
+  float2 p=floor(i.logicalXZ*18)/18;float broad=iceNoise(floor(i.logicalXZ*3.2)/3.2+float2(13,6));
+  float field=iceField(p*.30+float2(13,6))*.28+broad*.72;float band=floor(saturate(field)*5)/4;
+  float3 ice=lerp(float3(.25,.50,.66),float3(.72,.89,.95),saturate(band));
+  float snow=smoothstep(.56,.72,field);ice=lerp(ice,float3(.90,.97,1),floor(snow*3)/3);
+  float crack=0;
+  ice=lerp(ice,float3(.13,.36,.54),crack*_Cracks);
+  float crystal=step(.91,iceNoise(floor(i.logicalXZ*7.0)/7.0+19));ice+=crystal*float3(.05,.16,.22);
+  float dust=step(.965,iceHash(floor(p*18)))*.018;ice+=dust;
   float top=smoothstep(.45,.93,i.iceSurface.x);
   float strata=floor(saturate(-i.iceSurface.y/.85)*4)/4;
-  float3 side=lerp(float3(.39,.64,.75),float3(.20,.31,.47),strata);
-  side*=.94+.1*step(.48,iceNoise(float2(p.x*3+p.y*2,floor(i.iceSurface.y*18))));
+  float3 side=lerp(float3(.25,.50,.66),float3(.08,.18,.34),strata);
+  side*=.90+.14*step(.48,iceNoise(float2(p.x*3+p.y*2,floor(i.iceSurface.y*18))));
   if(_Theme<1.5){
    ice=lerp(float3(.18,.34,.16),float3(.57,.70,.30),band);
    ice=lerp(ice,float3(.70,.76,.43),step(.68,field)*.55);
@@ -72,8 +74,9 @@ Shader "BetweenPoles/ChapterIslandSurface" {
    float glow=crack*.5;ice=lerp(ice,float3(.98,.36,.07),glow);
    side=lerp(float3(.30,.17,.20),float3(.10,.10,.16),strata);
   }
-  col=lerp(side,ice,top);col*=1-seam*.25*top;
-  o.Albedo=col*.8;o.Emission=col*.23;o.Alpha=1;return;
+  float3 gridColor=_Theme<1.5?float3(.10,.22,.12):(_Theme<2.5?float3(.30,.20,.12):float3(.07,.05,.09));
+  col=lerp(side,ice,top);col=lerp(col,gridColor,seam*.80*top);
+  o.Albedo=col*.88;o.Emission=col*.12+crystal*float3(.015,.05,.08);o.Alpha=1;return;
  }
  float up=saturate(i.worldNormal.y);col=lerp(col,lerp(float3(.20,.49,.62),col,smoothstep(.3,.85,up)),_Snow);o.Albedo=col*(1-seam*.38);o.Emission=col*.12*(1-seam*.38);o.Alpha=1;
  }
