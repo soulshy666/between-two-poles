@@ -92,10 +92,28 @@ public sealed partial class GridPlayground {
         if(initialState==null)return false;
         RecordHistory(SaveWorld());
         var selected=new bool[magnets.Length];
-        for(int i=0;i<magnets.Length;i++)selected[i]=initialState.pieces[i].owner==currentIsland;
-        // A composite is restored with all of its materials, including an imported material.
-        bool changed=true;while(changed){changed=false;for(int i=0;i<magnets.Length;i++)for(int j=0;j<magnets.Length;j++)if(selected[i]&&!selected[j]&&(magnets[j].transform.IsChildOf(magnets[i].transform)||magnets[i].transform.IsChildOf(magnets[j].transform))){selected[j]=true;changed=true;}}
-        RestorePieces(initialState.pieces,selected);
+        // Reset ownership comes from the original ground cell, never the presentation anchor.
+        // A magnet authored in water has no island even when rendered beside one.
+        for(int i=0;i<magnets.Length;i++){
+            var tile=Tile(CellAt(initialState.pieces[i].position));
+            selected[i]=tile&&Owner(tile)==currentIsland;
+        }
+        var restore=(Snapshot[])initialState.pieces.Clone();
+        var affected=(bool[])selected.Clone();
+        // Split mixed-origin assemblies. Foreign materials regain their own geometry
+        // at the assembly location; only this island's materials return to their start.
+        for(int i=0;i<magnets.Length;i++){
+            if(selected[i])continue;
+            var assembly=magnets[i].transform;
+            while(assembly.parent&&assembly.parent.GetComponent<MagnetPiece>())assembly=assembly.parent;
+            bool connected=false;
+            for(int j=0;j<magnets.Length;j++)if(selected[j]&&magnets[j].transform.IsChildOf(assembly)){connected=true;break;}
+            if(!connected)continue;
+            var state=restore[i];state.position=assembly.position;state.parent=assembly.parent;
+            var binding=assembly.GetComponent<IslandSurfaceAnchor>();state.owner=binding?binding.center:Owner(Tile(CellAt(assembly.position)));
+            restore[i]=state;affected[i]=true;
+        }
+        RestorePieces(restore,affected);
         Vector3 spawn=islandEntry;var at=Tile(CellAt(spawn));
         if(!at||at.blocked||Piece(CellAt(spawn))){
             float best=float.PositiveInfinity;
