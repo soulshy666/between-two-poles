@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Linq;
 using System.Collections.Generic;
@@ -15,7 +15,7 @@ public static class WebSketchImporter {
     public class PieceData { public int room;public string kind,pole;public Vector2Int cell;public int angle,vertical,w=1,h=1;public bool upright; }
     public class Layout { public List<RoomData> rooms=new List<RoomData>();public List<PieceData> pieces=new List<PieceData>();public List<string> warnings=new List<string>();public Vector2Int spawn;public int start; }
     static int Int(JToken t,string name){if(t==null||!double.TryParse(t.ToString(),out var n)||double.IsNaN(n)||double.IsInfinity(n)||n!=Math.Round(n)||Math.Abs(n)>100000)throw new Exception(name+" 必须是有效整数");return (int)n;}
-    static string Kind(JObject it){var explicitKind=(string)it["kind"];if(!string.IsNullOrEmpty(explicitKind))return explicitKind;var m=(string)it["magnet"]?["type"];if(m!=null)return m;var n=(string)it["name"]??"";if(n=="石头"||n=="土地")return "rock";if(n=="出生点"||n=="主角")return "player";if(n=="终点")return "goal";if(n.Contains("两格桥"))return "bridge";if(n.Contains("加宽"))return "wide";if(n.Contains("U型")||n.Contains("U 型"))return "u";if(n.Contains("长条"))return "bar";return "unknown";}
+    static string Kind(JObject it){var explicitKind=(string)it["kind"];if(!string.IsNullOrEmpty(explicitKind))return explicitKind;var m=(string)it["magnet"]?["type"];if(m!=null)return m;var n=(string)it["name"]??"";if(n=="石头"||n=="土地")return "rock";if(n=="出生点"||n=="主角")return "player";if(n=="终点")return "goal";if(n.Contains("收藏")||n.Contains("纪念")||n.Contains("宝物")||n.Contains("遗物"))return "collectible";if(n.Contains("两格桥"))return "bridge";if(n.Contains("加宽"))return "wide";if(n.Contains("U型")||n.Contains("U 型"))return "u";if(n.Contains("长条"))return "bar";return "unknown";}
     public static Layout Parse(string json){
         var root=JObject.Parse(json);var input=root["rooms"] as JArray;var items=root["items"] as JArray;var placements=root["placements"] as JObject;
         if(input==null||items==null||placements==null||input.Count==0||input.Count>200)throw new Exception("JSON 需要 rooms、items、placements，房间数量须为 1–200。");
@@ -41,7 +41,8 @@ public static class WebSketchImporter {
         for(int ri=0;ri<data.rooms.Count;ri++){
             var room=data.rooms[ri];var list=placements[room.id] as JArray;if(list==null)continue;
             foreach(JObject p in list){if(!itemMap.TryGetValue((string)p["itemId"]??"",out var it))throw new Exception("摆放引用了不存在的物品");string kind=Kind(it);
-                if(!new[]{"bar","u","wide","bridge","rock","player","goal"}.Contains(kind))throw new Exception("暂不支持物品“"+(string)it["name"]+"”的游戏规则。请先移除其摆放；当前支持石头、长条、U型、加宽条、两格桥、出生点、终点。");
+                if(!new[]{"bar","u","wide","bridge","rock","player","goal","collectible","collection","artifact","display"}.Contains(kind))throw new Exception("暂不支持物品“"+(string)it["name"]+"”的游戏规则。请先移除其摆放；当前支持石头、长条、U型、加宽条、两格桥、出生点、终点和收藏品。");
+                if(kind=="collection"||kind=="artifact"||kind=="display")kind="collectible";
                 string direction=(string)it["magnet"]?["direction"]??"0";
                 int angle=(int.TryParse(direction,out int a)?a:0)+(p["rotation"]==null?0:Int(p["rotation"],"物品旋转"));if(angle%90!=0)throw new Exception("物品方向必须是90度的倍数");angle=(angle%360+360)%360;
                 var piece=new PieceData{room=ri,kind=kind,upright=direction=="upright",pole=(string)it["magnet"]?["pole"]??(((string)it["name"]??"").Contains("S")?"S":"N"),cell=room.offset+new Vector2Int(Int(p["cx"],"物品X"),-Int(p["cy"],"物品Y")),angle=angle};
@@ -50,7 +51,7 @@ public static class WebSketchImporter {
                 piece.vertical=(piece.vertical%360+360)%360;piece.upright=piece.vertical%180!=0;
                 if(kind=="bridge"){piece.w=angle%180==0?2:1;piece.h=angle%180==0?1:2;}
                 for(int dy=0;dy<piece.h;dy++)for(int dx=0;dx<piece.w;dx++){var c=piece.cell+new Vector2Int(dx,-dy);if(!used.Add(c))throw new Exception("物品重叠："+c);}
-                if((kind=="rock"||kind=="player"||kind=="goal")&&!occupied.ContainsKey(piece.cell))throw new Exception("石头、出生点和终点必须放在地块上。");
+                if((kind=="rock"||kind=="player"||kind=="goal"||kind=="collectible")&&!occupied.ContainsKey(piece.cell))throw new Exception("石头、出生点、终点和收藏品必须放在地块上。");
                 if(kind=="player"){players++;data.spawn=piece.cell;data.start=occupied[piece.cell];}if(kind=="goal")goals++;
                 data.pieces.Add(piece);
             }
@@ -102,6 +103,16 @@ public static class WebSketchImporter {
     static GameObject Child(string name,Transform parent){var o=new GameObject(name);o.transform.SetParent(parent,false);Undo.RegisterCreatedObjectUndo(o,"创建关卡对象");return o;}
     static Material Material(string folder,string name,Color color,bool grid=false){var m=new Material(Shader.Find("BetweenPoles/ImportedIslandSurface"));m.color=color;m.SetFloat("_Grid",grid?1:0);m.SetFloat("_IceArt",0);m.SetFloat("_Snow",grid?1:0);AssetDatabase.CreateAsset(m,folder+"/"+name+".mat");return m;}
     static void Box(string name,Transform parent,Vector3 position,Vector3 scale,Material material){var o=GameObject.CreatePrimitive(PrimitiveType.Cube);Undo.RegisterCreatedObjectUndo(o,"创建物品外观");o.name=name;o.transform.SetParent(parent,false);o.transform.localPosition=position;o.transform.localScale=scale;o.GetComponent<Renderer>().sharedMaterial=material;Undo.DestroyObjectImmediate(o.GetComponent<Collider>());}
+    public static Mesh CollectibleMesh(){
+        var vertices=new List<Vector3>();var triangles=new List<int>();
+        Action<Vector3,Vector3,Vector3> face=(a,b,c)=>{int n=vertices.Count;vertices.Add(a);vertices.Add(b);vertices.Add(c);triangles.Add(n);triangles.Add(n+1);triangles.Add(n+2);};
+        var edge=new Vector3[10];for(int i=0;i<10;i++){float a=(90+i*36)*Mathf.Deg2Rad;float r=i%2==0?.48f:.23f;edge[i]=new Vector3(Mathf.Cos(a)*r,Mathf.Sin(a)*r,0);}
+        for(int i=0;i<10;i++){var a=edge[i];var b=edge[(i+1)%10];var back=Vector3.forward*.12f;
+            face(new Vector3(0,0,-.14f),b,a);face(new Vector3(0,0,.18f),a+back,b+back);
+            face(a,b,b+back);face(a,b+back,a+back);
+        }
+        var mesh=new Mesh{name="Faceted collectible star"};mesh.SetVertices(vertices);mesh.SetTriangles(triangles,0);mesh.RecalculateNormals();mesh.RecalculateBounds();return mesh;
+    }
     static Mesh IslandMesh(IEnumerable<Vector2Int> points){return IceIslandArt.Build(points,Cell);}
     [MenuItem("两极之间/网页关卡/更新当前关卡的小岛美术")]
     public static void UpdateIslandArt(){
@@ -205,6 +216,16 @@ public static class WebSketchImporter {
                 var o=Child(p.kind,island);o.transform.position=Pos(p.cell);Box(p.kind,o.transform,new Vector3(0,p.kind=="rock"?.4f:.12f,0),p.kind=="rock"?new Vector3(1,.8f,1):new Vector3(.7f,.24f,.7f),p.kind=="rock"?rock:gold);
                 if(p.kind=="rock")tiles[p.cell].blocked=true;else{tiles[p.cell].goal=true;board.goalLight=o.GetComponentInChildren<Renderer>();board.goalCompleteMaterial=blue;}
                 var binding=Undo.AddComponent<IslandSurfaceAnchor>(o);binding.center=rooms[p.room].center;
+                rooms[p.room].surfaces=rooms[p.room].surfaces.Concat(o.GetComponentsInChildren<Renderer>()).ToArray();continue;
+            }
+            if(p.kind=="collectible"){
+                var o=Child("收藏品 · "+p.cell,island);o.transform.position=Pos(p.cell);
+                var starMaterial=Material(folder,"Collectible-"+p.cell.x+"-"+p.cell.y,new Color(.96f,.78f,.30f));
+                MatchSurface(starMaterial,ice);
+                var mesh=CollectibleMesh();AssetDatabase.CreateAsset(mesh,AssetDatabase.GenerateUniqueAssetPath(folder+"/CollectibleStar.asset"));
+                var model=Child("金色星星",o.transform);model.transform.localPosition=new Vector3(0,.55f,0);
+                model.transform.localRotation=Quaternion.Euler(55,p.angle,0);
+                Undo.AddComponent<MeshFilter>(model).sharedMesh=mesh;Undo.AddComponent<MeshRenderer>(model).sharedMaterial=starMaterial;                var binding=Undo.AddComponent<IslandSurfaceAnchor>(o);binding.center=rooms[p.room].center;
                 rooms[p.room].surfaces=rooms[p.room].surfaces.Concat(o.GetComponentsInChildren<Renderer>()).ToArray();continue;
             }
             if(p.kind=="bar"||p.kind=="u"){
