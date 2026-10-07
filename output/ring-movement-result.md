@@ -1,5 +1,11 @@
-# U 型仅平躺翻面机制回归 · 2026-10-06
+# 圆环移动与边缘悬停回归 · 2026-10-07
 
 Unity 2022.3.60f1c1 Play 模式；隔离运行时测试对象，结束后已清理。
 
-136 ring movement cases: 4 directions x 2 colors; tipping up/down from either axle face, continuous multi-cell rolling, immediate/distant edges, stones, height changes and magnets; floor contact, occupancy, player landing, flat walkability, undo/replay/cancellation. Frames=83; Failures=0
+152 个圆环移动用例通过，0 失败，223 个采样帧。
+
+- 四个推动方向、两种极性，以及地面和 2.25 单位高处。
+- 平躺圆环可以向边缘外推立；竖立圆环可以向边缘外推倒。
+- 沿圆周推动时持续滚动，在边缘外第一格悬停；石头、不同高度地面和其他磁铁仍会阻挡。
+- 离岸后保持原高度，人物仅跟进圆环原来有地面支撑的格子；再次直接推动悬空圆环被拒绝，不新增撤销记录。
+- 占位、平躺通行状态、落点、撤销后重放，以及运动中撤销均正确。

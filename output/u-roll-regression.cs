@@ -18,7 +18,7 @@ System.Func<Transform,Vector2Int,Quaternion,bool,BetweenPoles.MagnetPiece> add=(
     m.geometry.rotation=q;BetweenPoles.MagnetVisuals.Ground(m);return m;
 };
 // 0 normal; 1 stone; 2 height; 3 gap; 4 product; 5 beyond stone; 6 side stone;
-// 7 repulsion; 8 blocked repulsion (gap); 9 legacy upright input.
+// 7 repulsion; 8 repulsion into hovering gap; 9 legacy upright input.
 System.Action<Quaternion,Vector2Int,bool,int> make=(q,d,north,kind)=>{
     int i=boards.Count;var home=new Vector2Int(100+i*8,200);
     var g=new GameObject("Flip case "+i);g.SetActive(false);g.transform.SetParent(root.transform,false);
@@ -40,7 +40,7 @@ System.Action<Quaternion,Vector2Int,bool,int> make=(q,d,north,kind)=>{
     b.magnets=magnets.ToArray();g.SetActive(true);
     check(BetweenPoles.MagnetPiece.FlatU(m.Pose),"case "+i+": initial/legacy U not flat");
     boards.Add(b);homes.Add(home);pushes.Add(d);poses.Add(m.Pose);kinds.Add(kind);
-    bool reject=(kind>=1&&kind<=4)||kind==8;
+    bool reject=kind==1||kind==2||kind==4;
     check(b.TryStep(d)!=reject,"case "+i+": acceptance "+b.LastRule);
     if(reject)check(!b.Busy&&b.UndoCount==0&&cell(m.transform)==home,"case "+i+": rejection changed state");
     else check(!b.TryStep(d),"case "+i+": accepted while busy");
@@ -75,7 +75,7 @@ tick=()=>{
         if(busy)return;
         for(int i=0;i<boards.Count;i++){
             var b=boards[i];var m=b.magnets[0];var home=homes[i];var d=pushes[i];int kind=kinds[i];
-            bool reject=(kind>=1&&kind<=4)||kind==8;
+            bool reject=kind==1||kind==2||kind==4;
             if(reject){check(cell(m.transform)==home&&b.PlayerCell==home-d&&b.UndoCount==0,"case "+i+": blocked state changed");continue;}
             if(phase==1&&kind!=0)continue;
             int steps=phase==1?2:1;
@@ -86,7 +86,7 @@ tick=()=>{
             check(Vector3.Dot(m.Pose*Vector3.forward,opening)>.999f,"case "+i+": opening reflection wrong");
             check(Vector3.Dot(m.Pose*Vector3.up,poses[i]*Vector3.up)*(steps==2?1:-1)>.999f,"case "+i+": face did not flip");
             check(b.UndoCount==steps,"case "+i+": wrong undo count");
-            if(kind==7)check(cell(b.magnets[1].transform)==home+d*2&&BetweenPoles.MagnetPiece.FlatU(b.magnets[1].Pose),"case "+i+": repelled U wrong");
+            if(kind==7||kind==8)check(cell(b.magnets[1].transform)==home+d*2&&BetweenPoles.MagnetPiece.FlatU(b.magnets[1].Pose),"case "+i+": repelled U wrong");
             if(phase==0&&kind==0){check(b.TryStep(d),"case "+i+": second push rejected");continue;}
             check(b.UndoStep(),"case "+i+": undo failed");
             if(steps==2){check(cell(m.transform)==home+d&&BetweenPoles.MagnetPiece.FlatU(m.Pose),"case "+i+": second undo landing");check(b.UndoStep(),"case "+i+": first undo failed");}

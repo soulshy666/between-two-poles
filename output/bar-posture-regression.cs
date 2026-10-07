@@ -47,10 +47,13 @@ for(int direction=0;direction<4;direction++)for(int color=0;color<2;color++)for(
     var m=make(host.transform,home-push,color==0,variants[a]);var r=make(host.transform,home,color!=0,variants[b]);
     board.magnets=new[]{m,r};host.SetActive(true);
     var expected=(a>=2)==(b>=2)?BetweenPoles.MagnetProduct.WideBar:BetweenPoles.MagnetProduct.Cross;
+    if(a>=2&&b<2&&Mathf.Abs(Vector3.Dot(new Vector3(push.x,0,push.y),r.Pose*Vector3.right))>.95f)expected=BetweenPoles.MagnetProduct.WideBar;
     boards.Add(board);inputs.Add(m);receivers.Add(r);inputPoses.Add(m.Pose);receiverPoses.Add(r.Pose);inputStanding.Add(a>=2);receiverStanding.Add(b>=2);
     homes.Add(home);pushes.Add(push);products.Add(expected);lastInput.Add(Vector3.zero);lastReceiver.Add(Vector3.zero);lastInputAxis.Add(Vector3.zero);lastReceiverAxis.Add(Vector3.zero);
     names.Add("push="+direction+", color="+color+", incoming="+a+", receiver="+b);
-    check(BetweenPoles.GridPlayground.Recipe(m,Quaternion.Euler(0,0,90),r,false,push)==expected&&BetweenPoles.GridPlayground.Recipe(m,Quaternion.identity,r,true,push)==expected,names[i]+": recipe depends on rolled arrival/support");
+    var unsupportedExpected=a<2&&b<2&&a!=b?BetweenPoles.MagnetProduct.Cross:expected;
+    if(a>=2&&b<2&&Mathf.Abs(Vector3.Dot(new Vector3(push.x,0,push.y),r.Pose*Vector3.right))>.95f)unsupportedExpected=BetweenPoles.MagnetProduct.WideBar;
+    check(BetweenPoles.GridPlayground.Recipe(m,Quaternion.Euler(0,0,90),r,false,push)==unsupportedExpected&&BetweenPoles.GridPlayground.Recipe(m,Quaternion.identity,r,true,push)==expected,names[i]+": incorrect arrival/support recipe");
     check(board.TryStep(push),names[i]+": rejected "+board.LastRule);
 }
 int phase=0,frames=0;double started=UnityEditor.EditorApplication.timeSinceStartup;
@@ -63,6 +66,10 @@ tick=()=>{
             if(phase==0&&boards[i].Busy&&!r.combined){
                 var ib=bounds(m.geometry,null);var rb=bounds(r.geometry,null);
                 check(ib.min.y>-.005f&&rb.min.y>-.005f,names[i]+": animation penetrated floor");
+                if(inputStanding[i]&&!receiverStanding[i]&&products[i]==BetweenPoles.MagnetProduct.WideBar){
+                    float ox=Mathf.Min(ib.max.x,rb.max.x)-Mathf.Max(ib.min.x,rb.min.x),oy=Mathf.Min(ib.max.y,rb.max.y)-Mathf.Max(ib.min.y,rb.min.y),oz=Mathf.Min(ib.max.z,rb.max.z)-Mathf.Max(ib.min.z,rb.min.z);
+                    check(ox<.002f||oy<.002f||oz<.002f,names[i]+": falling wide bar intersected receiver");
+                }
                 if(!inputStanding[i])check(Mathf.Abs((m.Pose*Vector3.right).y)<.001f,names[i]+": flat incoming tipped upright");
                 if(!receiverStanding[i])check(Quaternion.Angle(r.Pose,receiverPoses[i])<.1f,names[i]+": flat receiver turned");
                 lastInput[i]=ib.center;lastReceiver[i]=rb.center;lastInputAxis[i]=m.Pose*Vector3.right;lastReceiverAxis[i]=r.Pose*Vector3.right;
@@ -92,7 +99,7 @@ tick=()=>{
             }
         }
         if(phase==0){phase=1;return;}
-        var result=boards.Count+" bar combinations: 4 push directions x 2 colors x 4 incoming poses x 4 receiver poses. Equal postures=wide bar; mixed=cross with standing bar on top. Receiver anchor/axis, animation floor contact and flatness, final model continuity, undo/replay. Frames="+frames+"; Failures="+failures.Count;
+        var result=boards.Count+" bar combinations: 4 push directions x 2 colors x 4 incoming poses x 4 receiver poses. Equal postures=wide bar; upright incoming falling parallel to flat receiver=wide bar on land and in void; other mixed postures=cross. Receiver anchor/axis, animation floor contact and flatness, falling rail collision, final model continuity, undo/replay. Frames="+frames+"; Failures="+failures.Count;
         foreach(var failure in failures)result+="\n"+failure;
         UnityEditor.SessionState.SetString("BarPostureRegression",result);UnityEditor.EditorApplication.update-=tick;UnityEngine.Object.Destroy(root);
     }catch(System.Exception e){UnityEditor.SessionState.SetString("BarPostureRegression","ERROR: "+e);UnityEditor.EditorApplication.update-=tick;UnityEngine.Object.Destroy(root);}
