@@ -5,6 +5,31 @@ namespace BetweenPoles {
 public sealed partial class GridPlayground {
     const float PushSampleSeconds=1f/60f;
     bool recordingPush;
+    PushPresentation recordingPresentation;
+    sealed class ContactEvent {
+        public float seconds;public Vector3 point;public MaterialPropertyBlock block;
+    }
+    readonly List<MagnetContactSpark> contactSparks=new List<MagnetContactSpark>();
+    void AssemblyContact(MagnetPiece incoming,MagnetPiece receiver){
+        var a=AssemblyBounds(AssemblyBodies(incoming.geometry));
+        var b=AssemblyBounds(AssemblyBodies(receiver.geometry));
+        var point=(a.ClosestPoint(b.center)+b.ClosestPoint(a.center))*.5f;
+        point.y=Mathf.Max(a.max.y,b.max.y)+.025f;
+        var block=new MaterialPropertyBlock();
+        var reference=receiver.geometry.GetComponentInChildren<Renderer>();
+        if(reference)reference.GetPropertyBlock(block);
+        var contact=new ContactEvent{point=point,block=block};
+        if(recordingPush){
+            if(recordingPresentation!=null){
+                contact.seconds=recordingPresentation.tracks.Count>0?recordingPresentation.tracks[0].frames.Count*PushSampleSeconds:0;
+                recordingPresentation.contacts.Add(contact);
+            }
+        }else PlayContact(contact);
+    }
+    void PlayContact(ContactEvent contact){
+        contactSparks.RemoveAll(effect=>!effect);
+        contactSparks.Add(MagnetContactSpark.Spawn(contact.point,contact.block));
+    }
     sealed class PushFrame {
         public Vector3 position,scale; public Quaternion rotation;
         public PushFrame(Transform t){position=t.position;rotation=t.rotation;scale=t.lossyScale;}
@@ -15,6 +40,7 @@ public sealed partial class GridPlayground {
     }
     sealed class PushPresentation {
         public GameObject root; public Coroutine playback;
+        public readonly List<ContactEvent> contacts=new List<ContactEvent>();
         public readonly List<PushTrack> tracks=new List<PushTrack>();
         public readonly Dictionary<Renderer,bool> hidden=new Dictionary<Renderer,bool>();
     }
@@ -36,6 +62,8 @@ public sealed partial class GridPlayground {
     }
     void ClearPushPresentations(){
         foreach(var presentation in pushPresentations.ToArray())RemovePushPresentation(presentation);
+        foreach(var effect in contactSparks)if(effect){effect.gameObject.SetActive(false);Destroy(effect.gameObject);}
+        contactSparks.Clear();
     }
     bool MagnetStillAnimating(MagnetPiece piece){
         foreach(var presentation in pushPresentations)
@@ -55,13 +83,13 @@ public sealed partial class GridPlayground {
             }
         }
         if(movementPlayback!=null)StopCoroutine(movementPlayback);
-        movementPlayback=null;recordingPush=true;
+        movementPlayback=null;recordingPush=true;recordingPresentation=presentation;
         try{
             while(AdvanceMovement()){
                 foreach(var track in presentation.tracks)
                     track.frames.Add(new PushFrame(track.source.transform));
             }
-        }finally{recordingPush=false;}
+        }finally{recordingPush=false;recordingPresentation=null;}
         var changed=new HashSet<MagnetPiece>();
         foreach(var track in presentation.tracks){
             var first=track.frames[0];
@@ -71,7 +99,7 @@ public sealed partial class GridPlayground {
             if(!track.source.gameObject.activeInHierarchy)changed.Add(track.piece);
         }
         presentation.tracks.RemoveAll(track=>!changed.Contains(track.piece));
-        if(presentation.tracks.Count==0)return;
+        if(presentation.tracks.Count==0){foreach(var contact in presentation.contacts)PlayContact(contact);return;}
         presentation.root=new GameObject("Remaining push animation");
         foreach(var track in presentation.tracks){
             var filter=track.source.GetComponent<MeshFilter>();if(!filter)continue;
@@ -96,11 +124,16 @@ public sealed partial class GridPlayground {
     IEnumerator PlayPushPresentation(PushPresentation presentation){
         float elapsed=0;int count=presentation.tracks[0].frames.Count;
         float duration=Mathf.Max(PushSampleSeconds,(count-1)*PushSampleSeconds);
+        int nextContact=0;
         while(elapsed<duration){
             float sample=elapsed/PushSampleSeconds;int a=Mathf.Min((int)sample,count-1),b=Mathf.Min(a+1,count-1);
             foreach(var track in presentation.tracks)ApplyPushFrame(track,a,b,sample-a);
+            while(nextContact<presentation.contacts.Count&&presentation.contacts[nextContact].seconds<=elapsed)
+                PlayContact(presentation.contacts[nextContact++]);
             yield return null;elapsed+=Time.deltaTime;
         }
+        foreach(var track in presentation.tracks)ApplyPushFrame(track,count-1,count-1,0);
+        while(nextContact<presentation.contacts.Count)PlayContact(presentation.contacts[nextContact++]);
         presentation.playback=null;RemovePushPresentation(presentation);
     }
 }

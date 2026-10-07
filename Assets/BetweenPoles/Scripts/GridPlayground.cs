@@ -7,11 +7,17 @@ public sealed partial class GridPlayground:MonoBehaviour {
     public float cellSize=1.5f;
     public float stepSeconds=.22f;
     [Range(.12f,.3f)] public float walkSeconds=.18f;
+    [Tooltip("Time to turn 90 degrees before walking; a half-turn takes slightly longer.")]
+    [Range(.04f,.16f)] public float turnSeconds=.09f;
     [Tooltip("Short landing pause between automatically repeated walking steps; fresh key presses bypass it.")]
-    [Range(0f,.1f)] public float heldStepPauseSeconds=.04f;
+    [Range(0f,.1f)] public float heldStepPauseSeconds=.015f;
     [Range(.3f,.8f)] public float barPushSeconds=.46f;
     [Range(.2f,2f)] public float uRollSeconds=.7f;
     [Range(.6f,2.5f)] public float joinSeconds=1.35f;
+    [Tooltip("Duration of one cross-magnet hand sweep and clockwise quarter-turn.")]
+    [Range(.3f,1.5f)] public float crossTurnSeconds=.75f;
+    [Tooltip("Opposite-pole assembly playback speed; also drives the player's matching push pose.")]
+    [Range(1f,2f)] public float attractionAnimationSpeed=1.25f;
     public Transform player;
     public Transform playerVisual;
     public GridTile[] tiles;
@@ -27,9 +33,10 @@ public sealed partial class GridPlayground:MonoBehaviour {
     Vector2Int heldDirection;
     float nextHeldStep;
     bool reversibleWalk;
+    bool completingWalkForTurn;
     Vector2Int walkDirection;
     Vector3 walkOrigin,walkDestination;
-    bool interruptiblePush;
+    bool interruptiblePush,pushFeedbackOnly;
     Vector2Int pushDirection;
     WorldState pushUndo;
     readonly Stack<IEnumerator> movementStack=new Stack<IEnumerator>();
@@ -142,7 +149,11 @@ public sealed partial class GridPlayground:MonoBehaviour {
         if(direction==Vector2Int.down)return Input.GetKey(KeyCode.S)||Input.GetKey(KeyCode.DownArrow);
         return false;
     }
-    void ClearMovementInput(){bufferedSteps.Clear();heldDirection=Vector2Int.zero;nextHeldStep=0;}
+    void ClearMovementInput(){
+        bufferedSteps.Clear();heldDirection=Vector2Int.zero;nextHeldStep=0;
+        completingWalkForTurn=false;
+        var pose=player?player.GetComponent<PlayerPushPose>():null;if(pose)pose.EndEdgeBalance();
+    }
     void PauseHeldWalkRepeat(){
         // Gate only automatic repeats, never Busy or the magnet animation clock.
         // New key-downs still go straight through PumpMovementInput / TryStep.
@@ -165,6 +176,20 @@ public sealed partial class GridPlayground:MonoBehaviour {
     void OnApplicationFocus(bool focused){if(!focused)ClearMovementInput();}
     // Non-zero initial speed makes the first frame responsive; the end settles softly.
     static float MovementProgress(float progress){float p=Mathf.Clamp01(progress);return p+p*p-p*p*p;}
+    IEnumerator TurnPlayer(Vector3 direction){
+        direction.y=0;if(direction.sqrMagnitude<.0001f)yield break;
+        var start=player.rotation;var end=Quaternion.LookRotation(direction);
+        float angle=Quaternion.Angle(start,end);
+        if(angle<.1f){player.rotation=end;yield break;}
+        float seconds=Mathf.Max(.01f,turnSeconds)*Mathf.Lerp(.65f,1.35f,angle/180f);
+        // Keep the feet planted until facing the next step. Use the movement
+        // clock so undo and immediate movement finalization still work.
+        for(float elapsed=0;elapsed<seconds;elapsed+=MovementDeltaTime){
+            player.rotation=Quaternion.Slerp(start,end,Mathf.SmoothStep(0,1,elapsed/seconds));
+            yield return null;
+        }
+        player.rotation=end;
+    }
     IEnumerator Slide(Transform target,Vector3 end,float seconds){
         Vector3 start=target.position;float time=0;
         while(time<seconds){Vector3 previous=target.position;time+=MovementDeltaTime;float a=target==player?MovementProgress(time/seconds):Mathf.SmoothStep(0,1,time/seconds);target.position=Vector3.Lerp(start,end,a);if(target==player){var pose=player.GetComponent<PlayerPushPose>();if(pose)pose.AdvanceWalk(Vector3.Distance(previous,target.position));}yield return null;}
@@ -179,15 +204,20 @@ public sealed partial class GridPlayground:MonoBehaviour {
         try{yield return WalkSupported(p);}finally{pose.End();}
     }
     bool TryReverseWalk(Vector2Int direction){
-        if(!reversibleWalk||direction==Vector2Int.zero||direction==walkDirection)return false;
-        bufferedSteps.Clear();FinishMovement();TryStep(direction);
+        if(!reversibleWalk||Mathf.Abs(direction.x)+Mathf.Abs(direction.y)!=1
+            ||(direction==walkDirection&&!completingWalkForTurn))return false;
+        // Remember the latest turn, but visibly finish the current grid segment.
+        // FinishMovement fast-forwards the coroutine and would teleport to its end.
+        completingWalkForTurn=true;
+        bufferedSteps.Clear();
+        bufferedSteps.Enqueue(new BufferedStep{direction=direction,time=Time.unscaledTime});
         return true;
     }
-    void ClearWalkInterrupt(){reversibleWalk=false;}
-    void BeginPushInterrupt(Vector2Int direction){interruptiblePush=true;pushDirection=direction;pushUndo=null;}
-    void EndPushInterrupt(){interruptiblePush=false;pushUndo=null;}
+    void ClearWalkInterrupt(){reversibleWalk=false;completingWalkForTurn=false;}
+    void BeginPushInterrupt(Vector2Int direction,bool feedbackOnly=false){interruptiblePush=true;pushFeedbackOnly=feedbackOnly;pushDirection=direction;pushUndo=null;}
+    void EndPushInterrupt(){interruptiblePush=false;pushFeedbackOnly=false;pushUndo=null;}
     bool CanInterruptPush(Vector2Int direction){
-        return Busy&&interruptiblePush&&pushUndo!=null&&direction!=pushDirection&&Mathf.Abs(direction.x)+Mathf.Abs(direction.y)==1;
+        return Busy&&interruptiblePush&&(pushUndo!=null||pushFeedbackOnly)&&direction!=pushDirection&&Mathf.Abs(direction.x)+Mathf.Abs(direction.y)==1;
     }
     bool InterruptPush(Vector2Int direction){
         bufferedSteps.Clear();FinishPushWithPresentation();TryStep(direction);
@@ -196,19 +226,20 @@ public sealed partial class GridPlayground:MonoBehaviour {
     IEnumerator MovePlayer(Vector2Int p){
         Busy=true;
         var from=Cell(player);
-        // Only ordinary ground walking can reverse. Supported paths and magnet
-        // transactions keep their existing atomic movement and landing rules.
+        // Ordinary ground walking can accelerate to its centre for a queued turn.
+        // Supported paths and magnet transactions keep their existing landing rules.
         if(Floor(from)&&Floor(p)&&!Piece(from)&&!Piece(p)){
+            yield return TurnPlayer(Position(p,Height(p))-player.position);
             var walkPose=PlayerPushPose.BeginWalk(player,cellSize);
             reversibleWalk=true;
             walkOrigin=player.position;walkDestination=Position(p,Height(p));walkDirection=p-from;
-            player.rotation=Quaternion.LookRotation(walkDestination-walkOrigin);
             while(true){
                 Vector3 end=walkDestination;
                 // Travel at a stable speed across grid lines. Per-cell ease-out
                 // made a held direction visibly brake before every new step.
                 var previous=player.position;
-                player.position=Vector3.MoveTowards(player.position,end,cellSize/Mathf.Max(.01f,walkSeconds)*MovementDeltaTime);
+                float speed=cellSize/Mathf.Max(.01f,walkSeconds)*(completingWalkForTurn?1.6f:1f);
+                player.position=Vector3.MoveTowards(player.position,end,speed*MovementDeltaTime);
                 walkPose.AdvanceWalk(Vector3.Distance(previous,player.position));
                 if((player.position-end).sqrMagnitude<.000001f){player.position=end;break;}
                 yield return null;

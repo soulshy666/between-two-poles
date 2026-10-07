@@ -16,14 +16,14 @@ System.Func<Transform,bool?,Bounds> bounds=(geometry,north)=>{
         foreach(var v in f.sharedMesh.vertices){var p=f.transform.TransformPoint(v);if(first){b=new Bounds(p,Vector3.zero);first=false;}else b.Encapsulate(p);}
     }return b;
 };
-for(int direction=0;direction<4;direction++)for(int color=0;color<2;color++)for(int sign=0;sign<2;sign++)for(int level=0;level<2;level++){
+for(int direction=0;direction<4;direction++)for(int color=0;color<2;color++)for(int sign=0;sign<2;sign++)for(int level=0;level<2;level++)for(int support=0;support<2;support++){
     int i=boards.Count;var yaw=Quaternion.Euler(0,direction*90,0);var forward=yaw*Vector3.right;
     var push=new Vector2Int(Mathf.RoundToInt(forward.x),Mathf.RoundToInt(forward.z));var home=new Vector2Int(100+i*8,300);float height=level*2.25f;
     var host=new GameObject("Case "+i);host.transform.SetParent(root.transform,false);host.SetActive(false);
     var board=host.AddComponent<BetweenPoles.GridPlayground>();board.enabled=false;board.stepSeconds=.08f;
     var player=new GameObject("Player");player.transform.SetParent(host.transform,false);player.transform.position=pos(home-push*2,height);board.player=player.transform;
     var tiles=new System.Collections.Generic.List<BetweenPoles.GridTile>();
-    foreach(int n in new[]{-2,-1,1,2}){var g=new GameObject("Floor");g.transform.SetParent(host.transform,false);g.transform.position=pos(home+push*n,height);var t=g.AddComponent<BetweenPoles.GridTile>();t.surfaceHeight=height;tiles.Add(t);}board.tiles=tiles.ToArray();
+    foreach(int n in (support==0?new[]{-2,-1,1,2}:new[]{-2,-1,0,1,2})){var g=new GameObject("Floor");g.transform.SetParent(host.transform,false);g.transform.position=pos(home+push*n,height);var t=g.AddComponent<BetweenPoles.GridTile>();t.surfaceHeight=height;tiles.Add(t);}board.tiles=tiles.ToArray();
     var pieces=new BetweenPoles.MagnetPiece[2];
     for(int j=0;j<2;j++){
         var g=new GameObject(j==0?"Incoming":"Receiver");g.transform.SetParent(host.transform,false);g.transform.position=pos(home-push*(1-j),height);
@@ -62,13 +62,13 @@ tick=()=>{try{
             check((r.transform.position-pos(home,h)).sqrMagnitude<.0001f,i+": receiver anchor changed");
             check(Mathf.Abs(ib.center.y-rb.center.y)<.001f&&Mathf.Abs(ib.min.y-h)<.001f,i+": material stacked instead of parallel");
             check((ib.center-lastI[i]).magnitude<.01f&&(rb.center-lastR[i]).magnitude<.01f,i+": model swap jumped");
-            check(b.TryStep(push),i+": bridge entry failed");
-        }else if(phase==1){check(b.PlayerCell==home,i+": not on bridge");check(b.TryStep(push),i+": bridge exit failed");}
-        else {check(b.PlayerCell==home+push&&Mathf.Abs(b.player.position.y-h)<.001f,i+": did not reach opposite shore");check(b.UndoStep()&&b.UndoStep()&&b.UndoStep(),i+": undo failed");check(m.gameObject.activeSelf&&Quaternion.Angle(m.Pose,originals[i])<.1f&&r.product==BetweenPoles.MagnetProduct.None&&BetweenPoles.MagnetPiece.VerticalBar(r.Pose),i+": undo did not restore materials");}
+            if(i%2==0)check(b.TryStep(push),i+": bridge entry failed");
+        }else if(phase==1){if(i%2==1)continue;check(b.PlayerCell==home,i+": not on bridge");check(b.TryStep(push),i+": bridge exit failed");}
+        else {if(i%2==0)check(b.PlayerCell==home+push&&Mathf.Abs(b.player.position.y-h)<.001f,i+": did not reach opposite shore");check(b.UndoStep()&&(i%2==1||(b.UndoStep()&&b.UndoStep())),i+": undo failed");check(m.gameObject.activeSelf&&Quaternion.Angle(m.Pose,originals[i])<.1f&&r.product==BetweenPoles.MagnetProduct.None&&BetweenPoles.MagnetPiece.VerticalBar(r.Pose),i+": undo did not restore materials");}
     }
     if(phase++<2)return;
-    string result=boards.Count+" flat-to-standing edge bridge cases; animation samples="+samples+"; Failures="+failures.Count;foreach(var f in failures)result+="\n"+f;
-    System.IO.File.WriteAllText("D:/unity/between-two-poles/output/flat-to-standing-edge-result.md",result);UnityEditor.SessionState.SetString("FlatToStandingEdgeRegression",result);UnityEditor.EditorApplication.update-=tick;UnityEngine.Object.Destroy(root);
-}catch(System.Exception e){UnityEditor.SessionState.SetString("FlatToStandingEdgeRegression","ERROR: "+e);UnityEditor.EditorApplication.update-=tick;UnityEngine.Object.Destroy(root);}};
-UnityEditor.SessionState.SetString("FlatToStandingEdgeRegression","Running");UnityEditor.EditorApplication.update+=tick;
+    string result=boards.Count+" flat-to-standing land and edge cases; animation samples="+samples+"; Failures="+failures.Count;foreach(var f in failures)result+="\n"+f;
+    System.IO.File.WriteAllText("D:/unity/between-two-poles/output/flat-to-standing-axial-result.md",result);UnityEditor.SessionState.SetString("FlatToStandingAxialRegression",result);UnityEditor.EditorApplication.update-=tick;UnityEngine.Object.Destroy(root);
+}catch(System.Exception e){UnityEditor.SessionState.SetString("FlatToStandingAxialRegression","ERROR: "+e);UnityEditor.EditorApplication.update-=tick;UnityEngine.Object.Destroy(root);}};
+UnityEditor.SessionState.SetString("FlatToStandingAxialRegression","Running");UnityEditor.EditorApplication.update+=tick;
 return "Started "+boards.Count+" standing edge bar cases";

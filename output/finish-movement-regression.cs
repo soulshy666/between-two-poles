@@ -48,5 +48,20 @@ try{
  check(b.TryStep(Vector2Int.right),"assembly rejected");check(b.TryStep(Vector2Int.left),"assembly redirect rejected");finish.Invoke(b,null);
  check(u.product==BetweenPoles.MagnetProduct.BridgeHalf&&!bar.gameObject.activeSelf,"assembly was not committed");
  check(!b.Busy&&b.UndoCount==2,"assembly completion/history failed");
- return "PASS: independent remaining magnet animation, no visual snap, redirected landing, two-step undo, walk reversal, bridge assembly completion";
+ var contactPresentation=presentations[presentations.Count-1];
+ var contacts=(System.Collections.IList)contactPresentation.GetType().GetField("contacts").GetValue(contactPresentation);
+ check(contacts.Count==1,"expected one delayed contact burst");
+ var sparks=(System.Collections.IList)b.GetType().GetField("contactSparks",privateFlags).GetValue(b);
+ check(sparks.Count==0,"contact burst fired before visual contact");
+ var contact=contacts[0];
+ check((float)contact.GetType().GetField("seconds").GetValue(contact)>0,"missing contact delay");
+ var contactReplay=(System.Collections.IEnumerator)b.GetType().GetMethod("PlayPushPresentation",privateFlags).Invoke(b,new object[]{contactPresentation});
+ int safety=0;while(contactReplay.MoveNext()){if(++safety>10000)throw new System.Exception("replay timeout");}
+ check(sparks.Count==1,"contact burst missing at end of replay");
+ b.ResetPuzzle();check(sparks.Count==0,"reset did not clear sparks");
+ var curve=b.GetType().GetMethod("AttractionProgress",System.Reflection.BindingFlags.Static|System.Reflection.BindingFlags.NonPublic);
+ float last=0,lastDelta=0;
+ for(int i=1;i<=60;i++){float value=(float)curve.Invoke(null,new object[]{i/60f});float delta=value-last;check(delta>lastDelta,"attraction must accelerate until contact");last=value;lastDelta=delta;}
+ check(Mathf.Abs(last-1)<.00001f,"attraction endpoint wrong");
+ return "PASS: independent animation, no snap, redirected landing, undo, bridge assembly, accelerating attraction, delayed spark, reset cleanup";
 }finally{UnityEngine.Object.Destroy(root);}
