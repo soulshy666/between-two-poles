@@ -44,6 +44,11 @@ public sealed partial class GridPlayground {
             if(incomingStanding&&!receiverStanding
                 &&Mathf.Abs(Vector3.Dot(new Vector3(push.x,0,push.y),target.Pose*Vector3.right))>.95f)
                 return MagnetProduct.WideBar;
+            // At the edge, an axial flat rail can dock beside an upright
+            // receiver as that receiver falls forward into the bridge span.
+            if(!receiverSupported&&receiverStanding&&!incomingStanding
+                &&Mathf.Abs(Vector3.Dot(new Vector3(push.x,0,push.y),incoming.Pose*Vector3.right))>.95f)
+                return MagnetProduct.WideBar;
             // Perpendicular flat bars can stack only when the receiving cell is a gap.
             if(!receiverStanding&&!incomingStanding&&!receiverSupported
                 &&Mathf.Abs(Vector3.Dot(incoming.Pose*Vector3.right,target.Pose*Vector3.right))<.05f)
@@ -171,7 +176,8 @@ public sealed partial class GridPlayground {
         var start=player.position;var direction=new Vector3(cell.x*cellSize-start.x,0,cell.y*cellSize-start.z);
         if(direction.sqrMagnitude>.001f)player.rotation=Quaternion.LookRotation(direction);
         var edge=end;edge.y=start.y;
-        yield return Slide(player,edge,stepSeconds);
+        var walkPose=PlayerPushPose.BeginWalk(player,cellSize);
+        try{yield return Slide(player,edge,stepSeconds);}finally{walkPose.End();}
         if(!SameHeight(edge.y,end.y))yield return Slide(player,end,Mathf.Clamp(Mathf.Sqrt(Mathf.Abs(edge.y-end.y))*.16f,.12f,.5f));
         player.position=end;NotifyLanding(cell);Busy=false;
     }
