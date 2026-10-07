@@ -66,11 +66,20 @@ tick=()=>{
                 var rb=bounds(r.geometry,null);var ib=bounds(m.geometry,null);var opening=poses[i]*Vector3.forward;
                 var pushVector=new Vector3(pushes[i].x,0,pushes[i].y);
                 bool axial=Mathf.Abs(Vector3.Dot(opening,pushVector))>.95f&&Mathf.Abs(Vector3.Dot(inputPoses[i]*Vector3.forward,pushVector))>.95f;
+                bool side=Vector3.Dot(inputPoses[i]*Vector3.forward,opening)>.95f&&Mathf.Abs(Vector3.Dot(opening,pushVector))<.05f;
                 bool flipI=axial&&Vector3.Dot(inputPoses[i]*Vector3.forward,pushVector)<0,flipR=axial&&Vector3.Dot(opening,pushVector)>0;
                 if(flipR)opening=-opening;
-                check(flipR||Quaternion.Angle(r.Pose,poses[i])<.1f,names[i]+": receiver rotated during docking");
+                if(side)opening=-pushVector;
+                check(flipR||side||Quaternion.Angle(r.Pose,poses[i])<.1f,names[i]+": receiver rotated during docking");
                 var delta=rb.center-starts[i];delta.y=0;var along=Vector3.Dot(delta,opening);
-                check(along<.005f&&along>-.36f&&(delta-opening*along).magnitude<.01f,names[i]+": receiver moved beyond small backwards settle");
+                check(side?delta.magnitude<.5f:along<.005f&&along>-.36f&&(delta-opening*along).magnitude<.01f,names[i]+": receiver moved beyond small settle");
+                if(side){
+                    float rt=Vector3.SignedAngle(poses[i]*Vector3.forward,r.Pose*Vector3.forward,Vector3.up);
+                    float it=Vector3.SignedAngle(inputPoses[i]*Vector3.forward,m.Pose*Vector3.forward,Vector3.up);
+                    float expected=Vector3.SignedAngle(poses[i]*Vector3.forward,-pushVector,Vector3.up);
+                    check(Mathf.Abs(rt+it)<.1f&&rt*Mathf.Sign(expected)>=-.1f&&Mathf.Abs(rt)<=90.1f,names[i]+": halves did not counter-rotate by quarter turns");
+                    check(Vector3.Dot(r.Pose*Vector3.up,poses[i]*Vector3.up)>.999f,names[i]+": receiver flipped face");
+                }
                 check(ib.min.y>-.005f&&rb.min.y>-.005f,names[i]+": material passed through floor");
                 check(flipI||(Vector3.Dot(m.Pose*Vector3.up,inputPoses[i]*Vector3.up)>.999f&&Mathf.Abs(ib.min.y)<.005f&&ib.size.y<.245f),names[i]+": incoming left the ground plane");
                 var currentOpening=m.Pose*Vector3.forward;
@@ -80,7 +89,7 @@ tick=()=>{
                 check(flipI||(Mathf.Abs(needed)<.1f?Mathf.Abs(clockwise)<.1f:clockwise*Mathf.Sign(needed)>=-.1f),names[i]+": unnecessary/reversed rotation");
                 turnDegrees[i]+=clockwise;previousOpening[i]=currentOpening;
                 lastInPose[i]=m.Pose;lastRecvPose[i]=r.Pose;
-                if(axial){var relative=ib.center-rb.center;relative.y=0;check(Vector3.Cross(relative,pushVector).magnitude<.005f&&Vector3.Dot(relative,pushVector)<0,names[i]+": axial pair detoured or swapped sides");}
+                if(axial||side){var relative=ib.center-rb.center;relative.y=0;check(Vector3.Cross(relative,pushVector).magnitude<.005f&&Vector3.Dot(relative,pushVector)<0,names[i]+": pair detoured or swapped sides");}
                 lastIncoming[i]=ib.center;lastReceiver[i]=rb.center;halfDuration[i]=Time.time-startTime;
             }
         }
@@ -90,8 +99,10 @@ tick=()=>{
             var b=boards[i];var m=incoming[i];var r=receivers[i];var home=homes[i];var push=pushes[i];var opening=poses[i]*Vector3.forward;
             var pushVector=new Vector3(push.x,0,push.y);
             bool axial=Mathf.Abs(Vector3.Dot(opening,pushVector))>.95f&&Mathf.Abs(Vector3.Dot(inputPoses[i]*Vector3.forward,pushVector))>.95f;
+            bool side=Vector3.Dot(inputPoses[i]*Vector3.forward,opening)>.95f&&Mathf.Abs(Vector3.Dot(opening,pushVector))<.05f;
             bool flipI=axial&&Vector3.Dot(inputPoses[i]*Vector3.forward,pushVector)<0,flipR=axial&&Vector3.Dot(opening,pushVector)>0;
             if(flipR)opening=-opening;
+            if(side)opening=-pushVector;
             var rb=bounds(r.geometry,r.north);var ib=bounds(r.geometry,m.north);
             check(r.product==BetweenPoles.MagnetProduct.Ring&&r.walkable,names[i]+": product is not walkable ring");
             check((r.transform.position-position(home)).sqrMagnitude<.0001f,names[i]+": receiver anchor moved");

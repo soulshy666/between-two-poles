@@ -70,6 +70,10 @@ public sealed partial class GridPlayground {
         foreach(var bridge in FindObjectsOfType<PrejoinedTestBridges>())if(bridge.board==this&&bridge.isActiveAndEnabled)bridge.Refresh();
     }
     void RestoreWorld(WorldState s){
+        EndPushInterrupt();interruptedWalkStart=null;
+        var pushPose=player.GetComponent<PlayerPushPose>();if(pushPose)pushPose.End();
+        ClearWalkInterrupt();
+        ClearMovementInput();
         StopAllCoroutines();EndRecoilFlight();Busy=false;RestorePieces(s.pieces);
         player.SetPositionAndRotation(s.playerPosition,s.playerRotation);currentIsland=s.island;islandEntry=s.entryPosition;islandEntryRotation=s.entryRotation;
         ReachedGoal=s.goal;if(goalLight)goalLight.sharedMaterial=s.goalMaterial;RefreshRestoredIsland();
@@ -80,6 +84,7 @@ public sealed partial class GridPlayground {
         RestoreWorld(state);ReleaseUnusedGeometry();LastRule="已撤销上一步";return true;
     }
     public bool ResetCurrentIsland(){
+        ClearMovementInput();
         if(Busy)return Reject("请等待当前动作结束后重置小岛");
         if(initialState==null)return false;
         RecordHistory(SaveWorld());

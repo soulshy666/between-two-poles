@@ -1,6 +1,6 @@
-# U 型沿推动轴翻面对接回归 · 2026-10-06
+# U 型圆环组合路径碰撞回归 · 2026-10-07
 
-只翻开口背向对方的材料：双方背对背则双方翻面；推动方背向、接收方已经朝向推动方，则仅推动方翻面。材料保持原来两侧，接收方只在最后靠拢时稍后移。
+路径采样已加入并排同向 U 型的反向 90° 平面转动。转动时保留间距，开口相对后直线靠拢，双方不绕行换位、不翻面。沿推动轴的必要翻面和其他原有路径同时回归。
 
 256 paths sampled at 121 fixed times each; 30976 samples; mesh rectangle SAT checks, no extra rotation in aligned cases, straight direct docking, only misaligned axial halves flip; unchanged halves retain pose; flip-stage bounds separated; continuous floor contact; final mesh seam depth=0.03157, maximum extra penetration=0.00000; Failures=0
 

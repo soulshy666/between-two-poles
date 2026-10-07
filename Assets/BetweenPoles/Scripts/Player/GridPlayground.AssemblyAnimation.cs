@@ -48,12 +48,25 @@ public sealed partial class GridPlayground {
         Quaternion incomingEnd=product==MagnetProduct.Cross?yaw*Quaternion.Euler(0,90,0):yaw;
         Quaternion receiverEnd=receiverStanding?yaw:receiverPose;
         bool bothStanding=incomingStanding&&receiverStanding;
+        bool parallelRail=product==MagnetProduct.WideBar&&incomingStanding&&!receiverStanding;
+        Bounds railStart=startIncoming;
+        var railSide=Vector3.Cross(Vector3.up,push);
+        railStart.center+=railSide*Vector3.Dot(endIncoming.center-startIncoming.center,railSide);
         Bounds stagedIncoming=startIncoming;
         stagedIncoming.center=startReceiver.center+(endIncoming.center-endReceiver.center);
         Vector3 sideFirst=startIncoming.center+(endIncoming.center-endReceiver.center);
         float seconds=Mathf.Max(joinSeconds,(incomingStanding||receiverStanding)?1.6f:1.35f);
         for(float elapsed=0;elapsed<seconds;elapsed+=Time.deltaTime){
             float p=Mathf.Clamp01(elapsed/seconds);
+            if(parallelRail){
+                // Establish parallel lanes before lowering the upright rail, so
+                // it falls beside the receiver without intersecting its body.
+                float lane=AssemblyPhase(p,0,.20f);
+                if(p<.20f)PlaceAssemblyBody(incoming,incomingPose,incomingScale,Vector3.Lerp(startIncoming.center,railStart.center,lane));
+                else PlaceDockingBar(incoming,incomingPose,incomingEnd,incomingScale,railStart,endIncoming,push,AssemblyPhase(p,.20f,.94f));
+                PlaceAssemblyBody(receiver,receiverPose,receiverScale,Vector3.Lerp(startReceiver.center,endReceiver.center,lane));
+                yield return null;continue;
+            }
             if(bothStanding){
                 // Move into parallel lanes while upright, then fall together.
                 // Sideways clearance comes before approaching the receiver.
@@ -76,13 +89,49 @@ public sealed partial class GridPlayground {
             PlaceDockingBar(receiver,receiverPose,receiverEnd,receiverScale,startReceiver,endReceiver,push,recvProgress);
             yield return null;
         }
-        PlaceDockingBar(incoming,incomingPose,incomingEnd,incomingScale,bothStanding?stagedIncoming:startIncoming,endIncoming,push,1);
+        PlaceDockingBar(incoming,incomingPose,incomingEnd,incomingScale,bothStanding?stagedIncoming:parallelRail?railStart:startIncoming,endIncoming,push,1);
         PlaceDockingBar(receiver,receiverPose,receiverEnd,receiverScale,startReceiver,endReceiver,push,1);
         yield return null;
     }
     static bool AxialRingDock(Quaternion incoming,Quaternion receiver,Vector2Int direction){
         var push=new Vector3(direction.x,0,direction.y);
         return Mathf.Abs(Vector3.Dot(incoming*Vector3.forward,push))>.95f&&Mathf.Abs(Vector3.Dot(receiver*Vector3.forward,push))>.95f;
+    }
+    static bool SideBySideRingDock(Quaternion incoming,Quaternion receiver,Vector2Int direction){
+        var push=new Vector3(direction.x,0,direction.y);
+        return Vector3.Dot(incoming*Vector3.forward,receiver*Vector3.forward)>.95f
+            &&Mathf.Abs(Vector3.Dot(receiver*Vector3.forward,push))<.05f;
+    }
+    static void SampleSideBySideRingDock(float progress,float alignEnd,Quaternion incomingPose,Quaternion receiverPose,Vector3 push,
+        Vector3 startIncoming,Vector3 startReceiver,Vector3 endIncoming,Vector3 endReceiver,
+        out Quaternion inPose,out Quaternion recvPose,out Vector3 inCenter,out Vector3 recvCenter){
+        // Adjacent, equally oriented halves meet by opposite quarter-turns.
+        // Keep clearance during the turn, then close without orbiting or swapping sides.
+        float turn=AssemblyPhase(progress,0,alignEnd),close=AssemblyPhase(progress,alignEnd,1);
+        inPose=Quaternion.AngleAxis(DockTurn(incomingPose*Vector3.forward,push)*turn,Vector3.up)*incomingPose;
+        recvPose=Quaternion.AngleAxis(DockTurn(receiverPose*Vector3.forward,-push)*turn,Vector3.up)*receiverPose;
+        inCenter=Vector3.Lerp(startIncoming,endIncoming,close);
+        recvCenter=Vector3.Lerp(startReceiver,endReceiver,close);
+    }
+    IEnumerator AnimateSideBySideRingDock(MagnetPiece incoming,MagnetPiece receiver,Vector2Int direction,
+        Quaternion incomingPose,Quaternion receiverPose,Vector3 incomingScale,Vector3 receiverScale,
+        Bounds startIncoming,Bounds startReceiver,Bounds endIncoming,Bounds endReceiver){
+        var push=new Vector3(direction.x,0,direction.y);
+        float alignSeconds=Mathf.Max(.65f,uRollSeconds),seconds=alignSeconds+Mathf.Max(1.1f,joinSeconds);
+        float alignEnd=alignSeconds/seconds;
+        for(float elapsed=0;elapsed<seconds;elapsed+=Time.deltaTime){
+            Quaternion inPose,recvPose;Vector3 inCenter,recvCenter;
+            SampleSideBySideRingDock(elapsed/seconds,alignEnd,incomingPose,receiverPose,push,
+                startIncoming.center,startReceiver.center,endIncoming.center,endReceiver.center,
+                out inPose,out recvPose,out inCenter,out recvCenter);
+            PlaceAssemblyBody(incoming,inPose,incomingScale,inCenter);
+            PlaceAssemblyBody(receiver,recvPose,receiverScale,recvCenter);
+            yield return null;
+        }
+        var yaw=Quaternion.LookRotation(-push,Vector3.up);
+        PlaceAssemblyBody(incoming,MagnetPiece.UDockPose(yaw*Quaternion.Euler(0,180,0),incomingPose),incomingScale,endIncoming.center);
+        PlaceAssemblyBody(receiver,MagnetPiece.UDockPose(yaw,receiverPose),receiverScale,endReceiver.center);
+        yield return null;
     }
     static void SampleAxialRingDock(float progress,float flipEnd,Vector3 axis,bool flipIncoming,bool flipReceiver,Quaternion incomingPose,Quaternion receiverPose,
         Vector3 startIncoming,Vector3 startReceiver,Vector3 endIncoming,Vector3 endReceiver,
@@ -226,6 +275,11 @@ public sealed partial class GridPlayground {
         var forward=new Vector3(direction.x,0,direction.y);var lateral=Vector3.Cross(Vector3.up,forward);
         if(product==MagnetProduct.Ring){
             var push=new Vector3(direction.x,0,direction.y);
+            if(SideBySideRingDock(poseIncoming,poseReceiver,direction)){
+                yield return AnimateSideBySideRingDock(incoming,receiver,direction,poseIncoming,poseReceiver,
+                    scaleIncoming,scaleReceiver,startIncoming,startReceiver,endIncoming,endReceiver);
+                yield break;
+            }
             if(AxialRingDock(poseIncoming,poseReceiver,direction)
                 &&(Vector3.Dot(poseIncoming*Vector3.forward,push)<0||Vector3.Dot(poseReceiver*Vector3.forward,push)>0)){
                 yield return AnimateAxialRingDock(incoming,receiver,direction,poseIncoming,poseReceiver,
