@@ -1,4 +1,4 @@
-﻿using System.Collections;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
@@ -89,11 +89,10 @@ public sealed partial class GridPlayground {
                             ||!ValidateRollPath(m,nearPath,from,next,far,farEnd,out nearEnd))return false;
                         Busy=true;StartCoroutine(Repel(m,far,nearPath,farPath,next));LastRule="同极排斥：各翻滚一格";return true;
                     }
-                    var back=from-dir;
-                    if(beyondTile&&beyondTile.blocked&&Floor(back)&&!Piece(back)&&SameHeight(GroundHeight(back),player.position.y)){
-                        Busy=true;StartCoroutine(Recoil(back));LastRule="远端受石头阻挡：主角反冲";return true;
+                    if(beyondTile&&beyondTile.blocked){
+                        Busy=true;StartCoroutine(Recoil(m,dir,from));LastRule="远端受石头阻挡：磁铁弹回撞击主角，一起反冲";return true;
                     }
-                    return Reject("远端没有落脚位，无法推动；反冲需要石头阻挡与安全后退格");
+                    return Reject("远端没有落脚位，无法推动；反冲需要远端石头阻挡");
                 }
                 bool receiverSupported=land&&!land.blocked&&SameHeight(land.surfaceHeight,far.transform.position.y);
                 var result=Recipe(m,arrival,far,receiverSupported,dir);
@@ -124,7 +123,16 @@ public sealed partial class GridPlayground {
             Busy=true;StartCoroutine(RollThenWalk(m,dir,target,next,path));LastRule=m.shape==MagnetShape.Horseshoe?"U 型翻面一格，保持平躺":"翻滚推动一格";return true;
         }
         if(!Floor(next)&&!(m&&m.walkable))return Reject("没有可行走的支撑面");
-        if(!SameHeight(player.position.y,Height(next)))return Reject("高差需要磁流升降装置");
+        // A combined bar can be entered from base level only over a gap.
+        // On an island it is a fixed raised obstacle; equal-height top access still works.
+        if(m&&m.product==MagnetProduct.WideBar&&tile&&player.position.y<Height(next)-.01f)
+            return Reject("岛上的合成条有高度，不能从地面直接踩上，也不能推动");
+        bool deckEntry=m&&m.walkable&&(m.product==MagnetProduct.WideBar||m.product==MagnetProduct.Bridge||m.product==MagnetProduct.None)
+            &&(m.product!=MagnetProduct.WideBar||!tile)
+            &&SameHeight(player.position.y,m.transform.position.y);
+        bool deckExit=support&&support.walkable&&(support.product==MagnetProduct.WideBar||support.product==MagnetProduct.Bridge||support.product==MagnetProduct.None)
+            &&SameHeight(player.position.y,Height(from))&&SameHeight(Height(next),support.transform.position.y);
+        if(!SameHeight(player.position.y,Height(next))&&!deckEntry&&!deckExit)return Reject("高差需要磁流升降装置");
         Busy=true;StartCoroutine(MovePlayer(next));LastRule="行走";return true;
     }
     IEnumerator WalkOffObject(Vector2Int cell,Vector3 end){
@@ -186,7 +194,39 @@ public sealed partial class GridPlayground {
         Busy=false;
     }
     IEnumerator Repel(MagnetPiece near,MagnetPiece far,List<MagnetRollStep> nearPath,List<MagnetRollStep> farPath,Vector2Int next){yield return RollAlongPath(far,farPath);yield return RollAlongPath(near,nearPath);yield return Walk(next);Busy=false;}
-    IEnumerator Recoil(Vector2Int back){var start=player.position;var end=Position(back,GroundHeight(back));float duration=stepSeconds*2;for(float t=0;t<duration;t+=Time.deltaTime){float a=t/duration;player.position=Vector3.Lerp(start,end,a)+Vector3.up*Mathf.Sin(a*Mathf.PI)*.6f;yield return null;}player.position=end;NotifyLanding(back);Busy=false;}
+    IEnumerator Recoil(MagnetPiece incoming,Vector2Int dir,Vector2Int from){
+        var magnetStart=incoming.transform.position;var playerStart=player.position;
+        var forward=new Vector3(dir.x,0,dir.y);var axis=new Vector3(dir.y,0,-dir.x);
+        var facing=Quaternion.LookRotation(forward);
+        var approach=magnetStart+forward*(cellSize*.28f);
+        var braced=playerStart+forward*(cellSize*.08f);
+        // Contact first, then launch both bodies. The far magnet stays pinned by the stone.
+        float playerFront=0,magnetRear=0;
+        var absolute=new Vector3(Mathf.Abs(forward.x),0,Mathf.Abs(forward.z));
+        foreach(var r in player.GetComponentsInChildren<Renderer>())if(r.enabled){
+            playerFront=Mathf.Max(playerFront,Vector3.Dot(r.bounds.center-playerStart,forward)+Vector3.Dot(r.bounds.extents,absolute));
+        }
+        foreach(var r in incoming.geometry.GetComponentsInChildren<Renderer>())if(r.enabled){
+            magnetRear=Mathf.Min(magnetRear,Vector3.Dot(r.bounds.center-magnetStart,forward)-Vector3.Dot(r.bounds.extents,absolute));
+        }
+        var impact=braced+forward*Mathf.Clamp(playerFront-magnetRear,cellSize*.12f,cellSize*.9f);
+        float approachSeconds=Mathf.Max(.42f,stepSeconds*1.9f);
+        for(float t=0;t<approachSeconds;t+=Time.deltaTime){
+            float a=Mathf.SmoothStep(0,1,t/approachSeconds);
+            incoming.transform.position=Vector3.Lerp(magnetStart,approach,a);
+            player.position=Vector3.Lerp(playerStart,braced,a);
+            player.rotation=Quaternion.AngleAxis(9*a,axis)*facing;yield return null;
+        }
+        incoming.transform.position=approach;player.position=braced;
+        float returnSeconds=Mathf.Max(.20f,stepSeconds);
+        for(float t=0;t<returnSeconds;t+=Time.deltaTime){
+            float a=t/returnSeconds;
+            incoming.transform.position=Vector3.Lerp(approach,impact,a*a);
+            yield return null;
+        }
+        incoming.transform.position=impact;
+        yield return RecoilAcrossIslands(incoming,from,-dir,braced,impact,facing,axis);
+    }
     IEnumerator Assemble(MagnetPiece incoming,MagnetPiece target,Vector2Int dir,Quaternion arrival,MagnetProduct product,Vector2Int next,Vector2Int bridgeDir){
         Vector3 start=incoming.transform.position;Quaternion old=incoming.Pose;float degrees;MagnetPiece.Rolled(incoming.shape,old,dir,out degrees);
         bool uNorth=target.product==MagnetProduct.BridgeHalf?target.baseNorth:incoming.shape==MagnetShape.Horseshoe?incoming.north:target.north;

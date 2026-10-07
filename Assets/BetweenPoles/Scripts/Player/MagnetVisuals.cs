@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 namespace BetweenPoles {
 // Small runtime meshes use the same bent-world material as the imported islands.
 public static class MagnetVisuals {
@@ -11,7 +11,7 @@ public static class MagnetVisuals {
         if(north)red=m;else blue=m;return m;
     }
     static Transform Group(Transform parent,string name){var g=new GameObject(name);g.transform.SetParent(parent,false);return g.transform;}
-    static void Box(Transform parent,Vector3 p,Vector3 size,Material material,string name){var g=GameObject.CreatePrimitive(PrimitiveType.Cube);g.name=name;g.transform.SetParent(parent,false);g.transform.localPosition=p;g.transform.localScale=size;Object.Destroy(g.GetComponent<Collider>());g.GetComponent<Renderer>().sharedMaterial=material;}
+    static void Box(Transform parent,Vector3 p,Vector3 size,Material material,string name){var g=GameObject.CreatePrimitive(PrimitiveType.Cube);g.name=name;g.transform.SetParent(parent,false);g.transform.localPosition=p;g.transform.localScale=size;if(Application.isPlaying)Object.Destroy(g.GetComponent<Collider>());else Object.DestroyImmediate(g.GetComponent<Collider>());g.GetComponent<Renderer>().sharedMaterial=material;}
     static void Box(Transform parent,Vector3 p,Vector3 size,bool north){Box(parent,p,size,Color(north),north?"N 极实体":"S 极实体");}
     static Material LinkMaterial() {
         if(link)return link;

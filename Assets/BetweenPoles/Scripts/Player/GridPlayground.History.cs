@@ -67,10 +67,10 @@ public sealed partial class GridPlayground {
         if(!landing||Owner(landing)!=currentIsland)foreach(var t in tiles)if(t&&Owner(t)==currentIsland){landing=t;break;}
         if(landing)Landed?.Invoke(landing);
         var window=GetComponent<FiveIslandWindow>();if(window)window.RefreshLayout();
-        foreach(var bridge in FindObjectsOfType<PrejoinedTestBridges>())if(bridge.board==this)bridge.Refresh();
+        foreach(var bridge in FindObjectsOfType<PrejoinedTestBridges>())if(bridge.board==this&&bridge.isActiveAndEnabled)bridge.Refresh();
     }
     void RestoreWorld(WorldState s){
-        StopAllCoroutines();Busy=false;RestorePieces(s.pieces);
+        StopAllCoroutines();EndRecoilFlight();Busy=false;RestorePieces(s.pieces);
         player.SetPositionAndRotation(s.playerPosition,s.playerRotation);currentIsland=s.island;islandEntry=s.entryPosition;islandEntryRotation=s.entryRotation;
         ReachedGoal=s.goal;if(goalLight)goalLight.sharedMaterial=s.goalMaterial;RefreshRestoredIsland();
     }

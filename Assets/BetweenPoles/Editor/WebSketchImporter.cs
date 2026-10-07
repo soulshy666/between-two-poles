@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using System.Linq;
 using System.Collections.Generic;
@@ -10,10 +10,9 @@ using UnityEngine.SceneManagement;
 
 namespace BetweenPoles.Authoring {
 public static class WebSketchImporter {
-    const string Template="Assets/BetweenPoles/Scenes/Chapter01_IceWorld.unity";
     const float Cell=1.5f;
-    public class RoomData { public string id,name;public List<Vector2Int> cells=new List<Vector2Int>();public Vector2Int offset;public int[] neighbors=new int[4]{-1,-1,-1,-1}; }
-    public class PieceData { public int room;public string kind,pole;public Vector2Int cell;public int angle,w=1,h=1;public bool upright; }
+    public class RoomData { public string id,name;public List<Vector2Int> cells=new List<Vector2Int>();public Vector2Int offset;public int[] neighbors=new int[0]; }
+    public class PieceData { public int room;public string kind,pole;public Vector2Int cell;public int angle,vertical,w=1,h=1;public bool upright; }
     public class Layout { public List<RoomData> rooms=new List<RoomData>();public List<PieceData> pieces=new List<PieceData>();public List<string> warnings=new List<string>();public Vector2Int spawn;public int start; }
     static int Int(JToken t,string name){if(t==null||!double.TryParse(t.ToString(),out var n)||double.IsNaN(n)||double.IsInfinity(n)||n!=Math.Round(n)||Math.Abs(n)>100000)throw new Exception(name+" 必须是有效整数");return (int)n;}
     static string Kind(JObject it){var explicitKind=(string)it["kind"];if(!string.IsNullOrEmpty(explicitKind))return explicitKind;var m=(string)it["magnet"]?["type"];if(m!=null)return m;var n=(string)it["name"]??"";if(n=="石头"||n=="土地")return "rock";if(n=="出生点"||n=="主角")return "player";if(n=="终点")return "goal";if(n.Contains("两格桥"))return "bridge";if(n.Contains("加宽"))return "wide";if(n.Contains("U型")||n.Contains("U 型"))return "u";if(n.Contains("长条"))return "bar";return "unknown";}
@@ -46,6 +45,9 @@ public static class WebSketchImporter {
                 string direction=(string)it["magnet"]?["direction"]??"0";
                 int angle=(int.TryParse(direction,out int a)?a:0)+(p["rotation"]==null?0:Int(p["rotation"],"物品旋转"));if(angle%90!=0)throw new Exception("物品方向必须是90度的倍数");angle=(angle%360+360)%360;
                 var piece=new PieceData{room=ri,kind=kind,upright=direction=="upright",pole=(string)it["magnet"]?["pole"]??(((string)it["name"]??"").Contains("S")?"S":"N"),cell=room.offset+new Vector2Int(Int(p["cx"],"物品X"),-Int(p["cy"],"物品Y")),angle=angle};
+                piece.vertical=(direction=="upright"?90:0)+(p["vertical"]==null?0:Int(p["vertical"],"物品竖直旋转"));
+                if(piece.vertical%90!=0)throw new Exception("竖直旋转必须是90度的倍数");
+                piece.vertical=(piece.vertical%360+360)%360;piece.upright=piece.vertical%180!=0;
                 if(kind=="bridge"){piece.w=angle%180==0?2:1;piece.h=angle%180==0?1:2;}
                 for(int dy=0;dy<piece.h;dy++)for(int dx=0;dx<piece.w;dx++){var c=piece.cell+new Vector2Int(dx,-dy);if(!used.Add(c))throw new Exception("物品重叠："+c);}
                 if((kind=="rock"||kind=="player"||kind=="goal")&&!occupied.ContainsKey(piece.cell))throw new Exception("石头、出生点和终点必须放在地块上。");
@@ -56,28 +58,50 @@ public static class WebSketchImporter {
         if(players>1||goals>1)throw new Exception("只允许一个出生点和一个终点");
         if(players==0){int ri=data.rooms.FindIndex(r=>r.id==(string)root["originId"]);data.start=Mathf.Max(0,ri);var available=data.rooms[data.start].cells.Where(c=>!used.Contains(c)).ToList();if(available.Count==0)throw new Exception("原点房间没有空地，请放置出生点");data.spawn=available[0];data.warnings.Add("未设置出生点：使用原点房间第一块空地。");}
         if(goals==0)data.warnings.Add("未设置终点：可游玩测试，但没有通关目标。");
-        if(data.pieces.Any(p=>p.kind=="bridge"))data.warnings.Add("两格桥按已拼接、不可推动的可通行桥导入；不模拟其合成过程。");
-        // Neighbor candidates share a grid row/column with no intervening island tile.
-        var distance=new int[data.rooms.Count,4];for(int i=0;i<data.rooms.Count;i++)for(int d=0;d<4;d++)distance[i,d]=int.MaxValue;
-        Action<Vector2Int,Vector2Int,int,int> connect=(a,b,da,db)=>{int ra=occupied[a],rb=occupied[b];if(ra==rb)return;int gap=Math.Abs(a.x-b.x)+Math.Abs(a.y-b.y);if(gap<distance[ra,da]){distance[ra,da]=gap;data.rooms[ra].neighbors[da]=rb;}if(gap<distance[rb,db]){distance[rb,db]=gap;data.rooms[rb].neighbors[db]=ra;}};
-        foreach(var row in occupied.Keys.GroupBy(c=>c.y)){var order=row.OrderBy(c=>c.x).ToArray();for(int i=1;i<order.Length;i++)connect(order[i-1],order[i],1,3);}
-        foreach(var col in occupied.Keys.GroupBy(c=>c.x)){var order=col.OrderBy(c=>c.y).ToArray();for(int i=1;i<order.Length;i++)connect(order[i-1],order[i],0,2);}
+
+        BuildNeighbors(data,occupied);
         return data;
     }
-    [MenuItem("两极之间/网页关卡/导入 JSON 为新场景")]
+    // A shared missing cell connects offset shorelines too; proximity alone is not a link.
+    static void BuildNeighbors(Layout data,Dictionary<Vector2Int,int> occupied){
+        var links=Enumerable.Range(0,data.rooms.Count).Select(_=>new HashSet<int>()).ToArray();
+        var directions=new[]{Vector2Int.right,Vector2Int.up,Vector2Int.left,Vector2Int.down};
+        Action<int,int> connect=(a,b)=>{if(a!=b){links[a].Add(b);links[b].Add(a);}};
+        var gaps=new Dictionary<Vector2Int,HashSet<int>>();
+        foreach(var tile in occupied)foreach(var d in directions){
+            var next=tile.Key+d;
+            if(occupied.TryGetValue(next,out var owner)){connect(tile.Value,owner);continue;}
+            if(!gaps.TryGetValue(next,out var shores))gaps[next]=shores=new HashSet<int>();
+            foreach(int other in shores)connect(tile.Value,other);
+            shores.Add(tile.Value);
+        }
+        var spans=new Dictionary<Vector2Int,int>();
+        foreach(var p in data.pieces){
+            if(p.upright||!(p.kind=="bar"||p.kind=="wide"||p.kind=="bridge"))continue;
+            int axis=p.angle%180==0?1:2;
+            for(int y=0;y<p.h;y++)for(int x=0;x<p.w;x++)spans[p.cell+new Vector2Int(x,-y)]=axis;
+        }
+        foreach(var tile in occupied)foreach(var d in directions){
+            var pos=tile.Key+d;int axis=d.x!=0?1:2,steps=0;
+            while(!occupied.ContainsKey(pos)&&spans.TryGetValue(pos,out int spanAxis)&&spanAxis==axis){pos+=d;steps++;}
+            if(steps>0&&occupied.TryGetValue(pos,out var owner))connect(tile.Value,owner);
+        }
+        for(int i=0;i<data.rooms.Count;i++)data.rooms[i].neighbors=links[i].OrderBy(n=>n).ToArray();
+    }
+    [MenuItem("两极之间/网页关卡/导入 JSON 到当前世界")]
     public static void ImportMenu(){
         if(EditorApplication.isPlaying){EditorUtility.DisplayDialog("先停止运行","请先退出播放模式再导入。","知道了");return;}
         string path=EditorUtility.OpenFilePanel("选择网页导出的关卡 JSON","","json");if(string.IsNullOrEmpty(path))return;
-        try{var data=Parse(File.ReadAllText(path));if(data.warnings.Count>0&&!EditorUtility.DisplayDialog("导入提示",string.Join("\n",data.warnings)+"\n\n继续生成独立场景？","继续","取消"))return;
-            if(!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo())return;
-            string result=Build(data,path);EditorUtility.DisplayDialog("导入完成","已生成："+result+"\n点击 Play 测试。最多显示当前岛与四向相邻岛。","知道了");
+        try{var data=Parse(File.ReadAllText(path));ValidateTarget(SceneManager.GetActiveScene());
+            if(!EditorUtility.DisplayDialog("更新当前世界的小岛",SceneManager.GetActiveScene().name+"\n将用 JSON 替换当前小岛布局。旧布局会停用保留，支持撤销；星球、背景和镜头设置保留。\n"+string.Join("\n",data.warnings),"导入到此世界","取消"))return;
+            string result=Build(data,path);EditorUtility.DisplayDialog("导入完成","已更新当前世界："+result+"\n请保存场景。显示当前岛与直接相连的边缘岛，不显示边缘岛的下一圈。","知道了");
         }catch(Exception e){Debug.LogException(e);EditorUtility.DisplayDialog("未能导入",e.Message,"知道了");}
     }
     static Vector3 Pos(Vector2Int p){return new Vector3(p.x*Cell,0,p.y*Cell);}
-    static T Find<T>(Scene scene) where T:Component {return scene.GetRootGameObjects().SelectMany(r=>r.GetComponentsInChildren<T>(true)).FirstOrDefault();}
-    static GameObject Child(string name,Transform parent){var o=new GameObject(name);o.transform.SetParent(parent,false);return o;}
+    static T Find<T>(Scene scene) where T:Component {return scene.GetRootGameObjects().SelectMany(r=>r.GetComponentsInChildren<T>(true)).FirstOrDefault(c=>c.gameObject.activeInHierarchy);}
+    static GameObject Child(string name,Transform parent){var o=new GameObject(name);o.transform.SetParent(parent,false);Undo.RegisterCreatedObjectUndo(o,"创建关卡对象");return o;}
     static Material Material(string folder,string name,Color color,bool grid=false){var m=new Material(Shader.Find("BetweenPoles/ImportedIslandSurface"));m.color=color;m.SetFloat("_Grid",grid?1:0);m.SetFloat("_IceArt",0);m.SetFloat("_Snow",grid?1:0);AssetDatabase.CreateAsset(m,folder+"/"+name+".mat");return m;}
-    static void Box(string name,Transform parent,Vector3 position,Vector3 scale,Material material){var o=GameObject.CreatePrimitive(PrimitiveType.Cube);o.name=name;o.transform.SetParent(parent,false);o.transform.localPosition=position;o.transform.localScale=scale;o.GetComponent<Renderer>().sharedMaterial=material;UnityEngine.Object.DestroyImmediate(o.GetComponent<Collider>());}
+    static void Box(string name,Transform parent,Vector3 position,Vector3 scale,Material material){var o=GameObject.CreatePrimitive(PrimitiveType.Cube);Undo.RegisterCreatedObjectUndo(o,"创建物品外观");o.name=name;o.transform.SetParent(parent,false);o.transform.localPosition=position;o.transform.localScale=scale;o.GetComponent<Renderer>().sharedMaterial=material;Undo.DestroyObjectImmediate(o.GetComponent<Collider>());}
     static Mesh IslandMesh(IEnumerable<Vector2Int> points){return IceIslandArt.Build(points,Cell);}
     [MenuItem("两极之间/网页关卡/更新当前关卡的小岛美术")]
     public static void UpdateIslandArt(){
@@ -110,32 +134,68 @@ public static class WebSketchImporter {
         AssetDatabase.SaveAssets();EditorSceneManager.MarkSceneDirty(scene);SceneView.RepaintAll();EditorApplication.QueuePlayerLoopUpdate();
         Debug.Log("小岛美术已更新：像素冰面、冰层高光和原版石头。请保存场景。");
     }
-    public static string Build(Layout data,string source){
+    public static void ValidateTarget(Scene scene){
         if(EditorApplication.isPlaying)throw new Exception("请退出播放模式");
-        string baseFolder="Assets/BetweenPoles/ImportedLevels";if(!AssetDatabase.IsValidFolder(baseFolder))AssetDatabase.CreateFolder("Assets/BetweenPoles","ImportedLevels");
-        string folder=AssetDatabase.GenerateUniqueAssetPath(baseFolder+"/"+Path.GetFileNameWithoutExtension(source));AssetDatabase.CreateFolder(baseFolder,Path.GetFileName(folder));
-        string sceneFolder="Assets/BetweenPoles/Scenes";
-        if(!AssetDatabase.IsValidFolder(sceneFolder))AssetDatabase.CreateFolder("Assets/BetweenPoles","Scenes");
-        string scenePath=AssetDatabase.GenerateUniqueAssetPath(sceneFolder+"/"+Path.GetFileName(folder)+".unity");if(!AssetDatabase.CopyAsset(Template,scenePath))throw new Exception("无法复制环境模板");
-        var scene=EditorSceneManager.OpenScene(scenePath,OpenSceneMode.Single);
+        if(!scene.IsValid()||!scene.isLoaded||string.IsNullOrEmpty(scene.path))throw new Exception("请先打开并保存要修改的世界场景。");
+        if(scene.name.Contains("测试"))throw new Exception("当前是磁铁测试场景，请打开要导入的星球世界，测试画布不会被替换。");
         var board=Find<GridPlayground>(scene);var camera=Find<IslandCamera>(scene);var curved=Find<CurvedTrialCamera>(scene);
-        camera.viewingOffset=IslandCamera.DefaultViewingOffset;
-        var playerCopy=UnityEngine.Object.Instantiate(board.player.gameObject);playerCopy.name="Player";
-        var keep=new HashSet<GameObject>{board.gameObject.transform.root.gameObject,camera.transform.root.gameObject,curved.planet.root.gameObject};
-        foreach(var r in scene.GetRootGameObjects())if(r.GetComponentInChildren<Light>(true)||r.GetComponentInChildren<BetweenPoles.Generators.GeneratedBackgroundFollower>(true))keep.Add(r);
-        keep.Add(playerCopy);board.tiles=new GridTile[0];board.magnets=new MagnetPiece[0];
-        foreach(var r in scene.GetRootGameObjects())if(!keep.Contains(r)){r.SetActive(false);UnityEngine.Object.DestroyImmediate(r);}
-        board.player=playerCopy.transform;board.playerVisual=playerCopy.transform;board.goalLight=null;board.cellSize=Cell;
-        var root=Child("网页关卡 · 生成内容",null);var rooms=new List<FiveIslandWindow.Room>();var tiles=new Dictionary<Vector2Int,GridTile>();var magnets=new List<MagnetPiece>();
-        var ice=Material(folder,"Ice",new Color(.76f,.88f,.94f),true);var rock=Material(folder,"Stone",new Color(.29f,.53f,.63f));var red=Material(folder,"N",new Color(.92f,.23f,.32f));var blue=Material(folder,"S",new Color(.18f,.48f,.73f));var gold=Material(folder,"Goal",new Color(.95f,.84f,.43f));
+        if(!board||!board.player||!camera||!curved||!curved.planet)throw new Exception("当前场景不是可导入的小岛世界：缺少棋盘、人物或星球镜头。");
+    }
+    static Material CopySurface(Scene scene,string folder){
+        var material=scene.GetRootGameObjects().SelectMany(r=>r.GetComponentsInChildren<Renderer>())
+            .Where(r=>r.gameObject.activeInHierarchy&&r.enabled).SelectMany(r=>r.sharedMaterials)
+            .Where(m=>m&&m.HasProperty("_Grid")&&m.GetFloat("_Grid")>.5f)
+            .OrderByDescending(m=>m.shader.name=="BetweenPoles/ChapterIslandSurface"?3:m.shader.name=="BetweenPoles/PaintedIceTrial"?2:m.shader.name=="BetweenPoles/ImportedIslandSurface"?1:0)
+            .FirstOrDefault();
+        if(!material)throw new Exception("当前世界没有可复用的小岛地面材质，已停止导入。");
+        var copy=new Material(material);AssetDatabase.CreateAsset(copy,folder+"/WorldSurface.mat");return copy;
+    }
+    static void MatchSurface(Material material,Material surface){
+        var color=material.color;material.shader=surface.shader;material.CopyPropertiesFromMaterial(surface);material.color=color;
+        if(material.HasProperty("_Grid"))material.SetFloat("_Grid",0);
+        if(material.HasProperty("_Painted"))material.SetFloat("_Painted",0);
+        if(material.HasProperty("_Snow"))material.SetFloat("_Snow",0);
+    }
+    public static string Build(Layout data,string source){
+        var scene=SceneManager.GetActiveScene();ValidateTarget(scene);
+        if(data==null||data.rooms.Count==0||!File.Exists(source))throw new Exception("布局或 JSON 来源无效。");
+        string scenePath=scene.path;
+        string baseFolder="Assets/BetweenPoles/ImportedLevels";if(!AssetDatabase.IsValidFolder(baseFolder))AssetDatabase.CreateFolder("Assets/BetweenPoles","ImportedLevels");
+        string folder=AssetDatabase.GenerateUniqueAssetPath(baseFolder+"/"+scene.name+"-"+Path.GetFileNameWithoutExtension(source));AssetDatabase.CreateFolder(baseFolder,Path.GetFileName(folder));
+        var ice=CopySurface(scene,folder);
+        var board=Find<GridPlayground>(scene);var camera=Find<IslandCamera>(scene);var curved=Find<CurvedTrialCamera>(scene);
+        var existingWindow=Find<FiveIslandWindow>(scene);
+        var oldObjects=scene.GetRootGameObjects().SelectMany(r=>r.GetComponentsInChildren<IslandSurfaceAnchor>())
+            .Where(a=>a.gameObject.activeInHierarchy&&!a.transform.IsChildOf(board.player)&&!board.transform.IsChildOf(a.transform)&&!camera.transform.IsChildOf(a.transform)&&!curved.planet.IsChildOf(a.transform))
+            .Select(a=>a.gameObject).Concat(board.tiles.Where(t=>t).Select(t=>t.gameObject)).Concat(board.magnets.Where(m=>m).Select(m=>m.gameObject)).Distinct().ToArray();
+        // Legacy rocks and the goal live together under SET DRESSING rather than under GridTile.
+        // Archive complete gameplay roots only when they contain none of the preserved systems.
+        var roots=oldObjects.Select(o=>o.transform.root.gameObject).Concat(board.goalLight?new[]{board.goalLight.transform.root.gameObject}:new GameObject[0])
+            .Where(o=>!board.transform.IsChildOf(o.transform)&&!camera.transform.IsChildOf(o.transform)&&!curved.planet.IsChildOf(o.transform)&&!board.player.IsChildOf(o.transform));
+        oldObjects=oldObjects.Concat(roots).Distinct().ToArray();
+        var helpers=scene.GetRootGameObjects().SelectMany(r=>r.GetComponentsInChildren<IslandGroundCenters>()).ToArray();
+        Undo.IncrementCurrentGroup();int undo=Undo.GetCurrentGroup();Undo.SetCurrentGroupName("导入 JSON 到当前世界");
+        try{
+        Undo.RecordObjects(new UnityEngine.Object[]{board,camera,curved,camera.transform,board.player},"更新世界布局");
+        if(existingWindow)Undo.RecordObject(existingWindow,"更新相邻岛屿");
+        foreach(var helper in helpers)Undo.RecordObject(helper,"更新镜头岛屿");
+        // Preserve the live player and environment. Old authored objects remain recoverable via Undo.
+        Undo.SetTransformParent(board.player,null,"保留人物");
+        foreach(var helper in scene.GetRootGameObjects().SelectMany(r=>r.GetComponentsInChildren<PrejoinedTestBridges>()).ToArray()){Undo.RecordObject(helper,"停用旧桥显示");helper.enabled=false;}
+        foreach(var old in oldObjects){Undo.RecordObject(old,"保留旧布局（停用）");old.SetActive(false);}
+        var playerCopy=board.player.gameObject;
+        board.tiles=new GridTile[0];board.magnets=new MagnetPiece[0];board.goalLight=null;board.cellSize=Cell;
+        var root=Child("网页关卡 · 生成内容",null);SceneManager.MoveGameObjectToScene(root,scene);var rooms=new List<FiveIslandWindow.Room>();var tiles=new Dictionary<Vector2Int,GridTile>();var magnets=new List<MagnetPiece>();
+        var rock=Material(folder,"Stone",ice.color*.65f);var red=Material(folder,"N",new Color(.92f,.23f,.32f));var blue=Material(folder,"S",new Color(.18f,.48f,.73f));var gold=Material(folder,"Goal",new Color(.95f,.84f,.43f));
+        foreach(var material in new[]{rock,red,blue,gold})MatchSurface(material,ice);
         // Rebase the map to the initial island; logical relative positions remain exact.
         var startCells=data.rooms[data.start].cells;var shift=new Vector2Int(Mathf.RoundToInt((startCells.Min(c=>c.x)+startCells.Max(c=>c.x))*.5f),Mathf.RoundToInt((startCells.Min(c=>c.y)+startCells.Max(c=>c.y))*.5f));
         foreach(var r in data.rooms){for(int i=0;i<r.cells.Count;i++)r.cells[i]-=shift;}foreach(var p in data.pieces)p.cell-=shift;data.spawn-=shift;
         foreach(var r in data.rooms){
-            var island=Child(r.name,root.transform);var center=Child("岛屿中心",island.transform).transform;center.position=Pos(new Vector2Int(0,0))+new Vector3((r.cells.Min(c=>c.x)+r.cells.Max(c=>c.x))*Cell*.5f,0,(r.cells.Min(c=>c.y)+r.cells.Max(c=>c.y))*Cell*.5f);
-            var anchor=island.AddComponent<IslandSurfaceAnchor>();anchor.center=center;anchor.flatten=0;
-            var surface=Child("冰面及外侧壁",island.transform);var mesh=IslandMesh(r.cells);AssetDatabase.CreateAsset(mesh,folder+"/Island-"+rooms.Count+".asset");surface.AddComponent<MeshFilter>().sharedMesh=mesh;surface.AddComponent<MeshRenderer>().sharedMaterial=ice;
-            foreach(var c in r.cells){var tile=Child("Cell "+c,island.transform).AddComponent<GridTile>();tile.transform.position=Pos(c);tiles.Add(c,tile);}
+            var island=Child(r.name,root.transform);var center=Child(r.id,island.transform).transform;center.position=Pos(new Vector2Int(0,0))+new Vector3((r.cells.Min(c=>c.x)+r.cells.Max(c=>c.x))*Cell*.5f,0,(r.cells.Min(c=>c.y)+r.cells.Max(c=>c.y))*Cell*.5f);
+            var anchor=Undo.AddComponent<IslandSurfaceAnchor>(island);anchor.center=center;anchor.flatten=0;
+            var surface=Child("冰面及外侧壁",island.transform);var mesh=IslandMesh(r.cells);AssetDatabase.CreateAsset(mesh,folder+"/Island-"+rooms.Count+".asset");Undo.AddComponent<MeshFilter>(surface).sharedMesh=mesh;Undo.AddComponent<MeshRenderer>(surface).sharedMaterial=ice;
+            foreach(var c in r.cells){var tile=Undo.AddComponent<GridTile>(Child("Cell "+c,island.transform));tile.transform.position=Pos(c);tiles.Add(c,tile);}
             anchor.enabled=false;anchor.enabled=true;
             rooms.Add(new FiveIslandWindow.Room{id=r.id,center=center,surfaces=new[]{surface.GetComponent<Renderer>()},neighbors=r.neighbors});
         }
@@ -144,30 +204,45 @@ public static class WebSketchImporter {
             if(p.kind=="rock"||p.kind=="goal"){
                 var o=Child(p.kind,island);o.transform.position=Pos(p.cell);Box(p.kind,o.transform,new Vector3(0,p.kind=="rock"?.4f:.12f,0),p.kind=="rock"?new Vector3(1,.8f,1):new Vector3(.7f,.24f,.7f),p.kind=="rock"?rock:gold);
                 if(p.kind=="rock")tiles[p.cell].blocked=true;else{tiles[p.cell].goal=true;board.goalLight=o.GetComponentInChildren<Renderer>();board.goalCompleteMaterial=blue;}
-                var binding=o.AddComponent<IslandSurfaceAnchor>();binding.center=rooms[p.room].center;
+                var binding=Undo.AddComponent<IslandSurfaceAnchor>(o);binding.center=rooms[p.room].center;
                 rooms[p.room].surfaces=rooms[p.room].surfaces.Concat(o.GetComponentsInChildren<Renderer>()).ToArray();continue;
             }
             if(p.kind=="bar"||p.kind=="u"){
                 string prefab="Assets/BetweenPoles/Prefabs/"+(p.kind=="bar"?"Bar ":"U ")+(p.pole=="S"?"S":"N")+".prefab";
-                var o=(GameObject)PrefabUtility.InstantiatePrefab(AssetDatabase.LoadAssetAtPath<GameObject>(prefab),scene);o.transform.SetParent(root.transform);o.transform.position=Pos(p.cell);o.transform.rotation=Quaternion.Euler(0,p.angle,0);
+                var o=(GameObject)PrefabUtility.InstantiatePrefab(AssetDatabase.LoadAssetAtPath<GameObject>(prefab),scene);Undo.RegisterCreatedObjectUndo(o,"创建磁铁");o.transform.SetParent(root.transform);o.transform.position=Pos(p.cell);o.transform.rotation=Quaternion.Euler(0,p.angle,0);
                 foreach(var renderer in o.GetComponentsInChildren<Renderer>())renderer.sharedMaterial=p.pole=="S"?blue:red;
-                var piece=o.GetComponent<MagnetPiece>();if(p.upright&&piece.shape==MagnetShape.Bar){piece.geometry.localRotation=Quaternion.Euler(0,0,90);MagnetVisuals.Ground(piece);}
-                var binding=o.AddComponent<IslandSurfaceAnchor>();binding.center=rooms[p.room].center;magnets.Add(piece);
+                var piece=o.GetComponent<MagnetPiece>();if(p.vertical!=0){piece.geometry.localRotation=Quaternion.Euler(0,0,p.vertical);MagnetVisuals.Ground(piece);}
+                var binding=Undo.AddComponent<IslandSurfaceAnchor>(o);binding.center=rooms[p.room].center;magnets.Add(piece);
             }else{
-                // Occupancy is explicit for both cells of a prejoined bridge.
-                for(int dy=0;dy<p.h;dy++)for(int dx=0;dx<p.w;dx++){
-                    var o=Child(p.kind+" · 已拼接",root.transform);o.transform.position=Pos(p.cell+new Vector2Int(dx,-dy));o.transform.rotation=Quaternion.Euler(0,p.angle,0);
-                    var geo=Child("Geometry",o.transform);Box("N",geo.transform,new Vector3(0,.12f,-.12f),new Vector3(Cell,.24f,.24f),red);Box("S",geo.transform,new Vector3(0,.12f,.12f),new Vector3(Cell,.24f,.24f),blue);
-                    var m=o.AddComponent<MagnetPiece>();m.shape=MagnetShape.Bar;m.combined=true;m.walkable=true;m.geometry=geo.transform;magnets.Add(m);
-                    var binding=o.AddComponent<IslandSurfaceAnchor>();binding.center=rooms[p.room].center;
+                // Use the same product geometry and occupancy as the test scene and live assembly.
+                var yaw=Quaternion.Euler(0,p.angle,0);var axis=yaw*Vector3.right;
+                var dir=new Vector2Int(Mathf.RoundToInt(axis.x),Mathf.RoundToInt(axis.z));
+                var home=p.cell;if(p.kind=="bridge"){if(dir.x<0)home.x++;if(dir.y>0)home.y--;}
+                var o=Child(p.kind+" · 已拼接",root.transform);o.transform.position=Pos(home);
+                var m=Undo.AddComponent<MagnetPiece>(o);m.shape=MagnetShape.Bar;m.north=p.pole!="S";m.bridgeDirection=dir;
+                m.geometry=Child("初始姿态",o.transform).transform;
+                var binding=Undo.AddComponent<IslandSurfaceAnchor>(o);binding.center=rooms[p.room].center;
+                MagnetVisuals.Product(m,p.kind=="bridge"?MagnetProduct.Bridge:MagnetProduct.WideBar,Cell,yaw,m.north);
+                Undo.RegisterCreatedObjectUndo(m.geometry.gameObject,"创建共用磁铁模型");
+                // Runtime factories share transient materials; persist copies for a saved scene.
+                var savedMaterials=new Dictionary<Material,Material>();
+                foreach(var renderer in m.geometry.GetComponentsInChildren<Renderer>()){
+                    var sourceMaterial=renderer.sharedMaterial;if(!sourceMaterial)continue;
+                    if(!savedMaterials.TryGetValue(sourceMaterial,out var saved)){
+                        saved=new Material(sourceMaterial);
+                        AssetDatabase.CreateAsset(saved,AssetDatabase.GenerateUniqueAssetPath(folder+"/MagnetProduct.mat"));savedMaterials[sourceMaterial]=saved;
+                    }
+                    renderer.sharedMaterial=saved;
                 }
+                magnets.Add(m);
+
             }
         }
         board.tiles=tiles.Values.ToArray();board.magnets=magnets.ToArray();board.player.position=Pos(data.spawn);camera.player=board.player;camera.board=board;camera.islandCenters=rooms.Select(r=>r.center).ToArray();
-        var playerBinding=playerCopy.GetComponent<IslandSurfaceAnchor>()??playerCopy.AddComponent<IslandSurfaceAnchor>();playerBinding.center=rooms[data.start].center;playerBinding.ground=board;
-        foreach(var renderer in playerCopy.GetComponentsInChildren<Renderer>()){var mat=new Material(renderer.sharedMaterial);mat.shader=ice.shader;AssetDatabase.CreateAsset(mat,AssetDatabase.GenerateUniqueAssetPath(folder+"/Player.mat"));renderer.sharedMaterial=mat;}
-        var window=board.gameObject.AddComponent<FiveIslandWindow>();window.board=board;window.view=camera;window.rooms=rooms.ToArray();window.initialRoom=data.start;window.Show(data.start);
-        var bridgeView=root.AddComponent<PrejoinedTestBridges>();bridgeView.board=board;var links=new List<PrejoinedTestBridges.Link>();
+        var playerBinding=playerCopy.GetComponent<IslandSurfaceAnchor>();if(playerBinding)Undo.RecordObject(playerBinding,"更新人物所属岛屿");else playerBinding=Undo.AddComponent<IslandSurfaceAnchor>(playerCopy);playerBinding.center=rooms[data.start].center;playerBinding.ground=board;
+        foreach(var renderer in playerCopy.GetComponentsInChildren<Renderer>()){var mat=new Material(renderer.sharedMaterial);MatchSurface(mat,ice);Undo.RecordObject(renderer,"更新人物投影材质");AssetDatabase.CreateAsset(mat,AssetDatabase.GenerateUniqueAssetPath(folder+"/Player.mat"));renderer.sharedMaterial=mat;}
+        var window=existingWindow?existingWindow:Undo.AddComponent<FiveIslandWindow>(board.gameObject);window.enabled=false;window.board=board;window.view=camera;window.rooms=rooms.ToArray();window.initialRoom=data.start;window.enabled=true;window.RefreshLayout();window.Show(data.start);
+        var bridgeView=Undo.AddComponent<PrejoinedTestBridges>(root);bridgeView.board=board;var links=new List<PrejoinedTestBridges.Link>();
         foreach(var m in magnets.Where(m=>m.walkable)){
             var p=new Vector2Int(Mathf.RoundToInt(m.transform.position.x/Cell),Mathf.RoundToInt(m.transform.position.z/Cell));var right=m.transform.right;var dir=new Vector2Int(Mathf.RoundToInt(right.x),Mathf.RoundToInt(right.z));
             GridTile a=null,b=null;
@@ -177,10 +252,12 @@ public static class WebSketchImporter {
         }
         bridgeView.links=links.ToArray();window.bridges=bridgeView;window.Show(data.start);bridgeView.Refresh();
         curved.editFocus=rooms[data.start].center.position;camera.transform.position=curved.editFocus+camera.viewingOffset;camera.transform.LookAt(curved.editFocus);curved.Apply(curved.editFocus);
-        foreach(var helper in scene.GetRootGameObjects().SelectMany(r=>r.GetComponentsInChildren<IslandGroundCenters>(true))){helper.view=curved;helper.editIsland=rooms[data.start].center;}
+        foreach(var helper in helpers){helper.view=curved;helper.editIsland=rooms[data.start].center;}
         File.Copy(source,folder+"/SourceLayout.json");File.WriteAllText(folder+"/ImportReport.txt","房间："+rooms.Count+"，地块："+tiles.Count+"\n"+string.Join("\n",data.warnings));
-        ImportedLevelArt.Apply(scene,folder);
-        EditorSceneManager.SaveScene(scene,scenePath);AssetDatabase.SaveAssets();AssetDatabase.Refresh();return scenePath;
+        // Keep the world's own materials, lighting, pixel finish and planet; never apply the ice template here.
+        EditorSceneManager.MarkSceneDirty(scene);AssetDatabase.SaveAssets();Undo.CollapseUndoOperations(undo);SceneView.RepaintAll();return scenePath;
+        }catch{Undo.RevertAllDownToGroup(undo);throw;}
+
     }
 }
 }

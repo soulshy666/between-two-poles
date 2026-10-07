@@ -7,6 +7,7 @@ namespace BetweenPoles {
   public Mesh quad;public Material material;
   [Range(1,16),InspectorName("常驻陨石数量")] public int count=7;
   MaterialPropertyBlock block;
+  bool layoutReady;Vector2 skyCenter;float skyRadius,skyAspect;
   static bool ClipAxis(float origin,float direction,float min,float max,ref float lo,ref float hi){
    if(Mathf.Abs(direction)<.0001f)return origin>=min&&origin<=max;
    float a=(min-origin)/direction,b=(max-origin)/direction;if(a>b){float swap=a;a=b;b=swap;}lo=Mathf.Max(lo,a);hi=Mathf.Min(hi,b);return hi>lo;
@@ -23,12 +24,18 @@ namespace BetweenPoles {
     start=origin+direction*lo;end=origin+direction*hi;return true;
    }return false;
   }
-  void OnEnable(){block=new MaterialPropertyBlock();Camera.onPreCull+=Render;}
+  void OnEnable(){block=new MaterialPropertyBlock();layoutReady=false;Camera.onPreCull+=Render;}
   void OnDisable(){Camera.onPreCull-=Render;}
   void Render(Camera camera){
    if(!background||camera!=background.targetCamera||!asteroidStyle||!quad||!material)return;
-   float clock=background.environment.phase,aspect=camera.aspect;Vector2 center=new Vector2(.5f*aspect,.5f);float radius=0;
-   if(world&&world.planet){var p=camera.WorldToViewportPoint(world.planet.position);center=new Vector2(p.x*aspect,p.y);radius=Vector2.Distance(camera.WorldToViewportPoint(world.planet.position+camera.transform.up*world.displayRadius),p);}
+   // Anchor trajectories to the persistent sky, not the moving gameplay planet.
+   // Re-solving planet clearance every frame made recoil/camera motion reroute every asteroid.
+   if(!layoutReady){
+    skyAspect=camera.aspect;skyCenter=new Vector2(.5f*skyAspect,.5f);skyRadius=0;
+    if(world&&world.planet){var p=camera.WorldToViewportPoint(world.planet.position);skyCenter=new Vector2(p.x*skyAspect,p.y);skyRadius=Vector2.Distance(camera.WorldToViewportPoint(world.planet.position+camera.transform.up*world.displayRadius),p);}
+    layoutReady=true;
+   }
+   float clock=background.environment.phase,aspect=skyAspect;Vector2 center=skyCenter;float radius=skyRadius;
    float depth=Mathf.Min(camera.farClipPlane*.7f,150),height=camera.orthographic?camera.orthographicSize*2:2*depth*Mathf.Tan(camera.fieldOfView*Mathf.Deg2Rad*.5f);
    var random=new System.Random(asteroidStyle.seed);
    for(int i=0;i<count;i++){

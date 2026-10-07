@@ -1154,7 +1154,7 @@ MonoBehaviour:
   duration: 8
   columns: 8
   margin: 0
-  phase: 578.43146
+  phase: 582.43976
 --- !u!4 &228872
 Transform:
   m_ObjectHideFlags: 0
@@ -3375,7 +3375,7 @@ MonoBehaviour:
   duration: 8
   columns: 8
   margin: 0
-  phase: 578.4349
+  phase: 582.4431
 --- !u!4 &443578283
 Transform:
   m_ObjectHideFlags: 0
@@ -6173,7 +6173,7 @@ MonoBehaviour:
   duration: 8
   columns: 8
   margin: 0
-  phase: 578.41815
+  phase: 582.4264
 --- !u!4 &802105671
 Transform:
   m_ObjectHideFlags: 0
@@ -8148,7 +8148,7 @@ MonoBehaviour:
   duration: 8
   columns: 8
   margin: 0
-  phase: 4607.252
+  phase: 4640.62
 --- !u!4 &1038643533
 Transform:
   m_ObjectHideFlags: 0
@@ -9572,7 +9572,7 @@ MonoBehaviour:
   duration: 8
   columns: 8
   margin: 0
-  phase: 578.4261
+  phase: 582.4343
 --- !u!4 &1157613678
 Transform:
   m_ObjectHideFlags: 0
@@ -11724,114 +11724,8 @@ MonoBehaviour:
       - {x: 5, y: 0}
       - {x: 0, y: 6}
       - {x: 0, y: -5}
-      neighbors: 01000000020000000300000004000000
+      neighbors: 
       spawn: {x: 3.75, y: 0, z: 0.75}
-    - id: Planet A center
-      hasBlackHole: 0
-      blackHoleCell: {x: 0, y: 0}
-      position: {x: 0.24, y: 0.4935294}
-      cells:
-      - {x: -2, y: -1}
-      - {x: -2, y: 0}
-      - {x: -2, y: 1}
-      - {x: -1, y: -2}
-      - {x: -1, y: -1}
-      - {x: -1, y: 0}
-      - {x: -1, y: 1}
-      - {x: -1, y: 2}
-      - {x: 0, y: -2}
-      - {x: 0, y: -1}
-      - {x: 0, y: 0}
-      - {x: 0, y: 1}
-      - {x: 0, y: 2}
-      - {x: 1, y: -2}
-      - {x: 1, y: -1}
-      - {x: 1, y: 0}
-      - {x: 1, y: 1}
-      rocks:
-      - {x: -2, y: 1}
-      - {x: 0, y: -2}
-      magnets: []
-      neighbors: 00000000
-      spawn: {x: -6.75, y: 0, z: 1.5}
-    - id: "\u955C\u5934\u7126\u70B9 (11.25, 0.00, 0.00)"
-      hasBlackHole: 0
-      blackHoleCell: {x: 0, y: 0}
-      position: {x: 0.76, y: 0.4935294}
-      cells:
-      - {x: -2, y: -1}
-      - {x: -2, y: 0}
-      - {x: -2, y: 1}
-      - {x: -2, y: 2}
-      - {x: -1, y: -2}
-      - {x: -1, y: -1}
-      - {x: -1, y: 0}
-      - {x: -1, y: 1}
-      - {x: -1, y: 2}
-      - {x: 0, y: -2}
-      - {x: 0, y: -1}
-      - {x: 0, y: 0}
-      - {x: 0, y: 1}
-      - {x: 0, y: 2}
-      - {x: 1, y: -1}
-      - {x: 1, y: 0}
-      - {x: 1, y: 1}
-      rocks: []
-      magnets: []
-      neighbors: 00000000
-      spawn: {x: 14.25, y: 0, z: 1.5}
-    - id: "\u955C\u5934\u7126\u70B9 (3.75, 0.00, 9.00)"
-      hasBlackHole: 0
-      blackHoleCell: {x: 0, y: 0}
-      position: {x: 0.5, y: 0.71}
-      cells:
-      - {x: -1, y: -1}
-      - {x: -1, y: 0}
-      - {x: -1, y: 1}
-      - {x: -1, y: 2}
-      - {x: 0, y: -2}
-      - {x: 0, y: -1}
-      - {x: 0, y: 0}
-      - {x: 0, y: 1}
-      - {x: 0, y: 2}
-      - {x: 1, y: -2}
-      - {x: 1, y: -1}
-      - {x: 1, y: 0}
-      - {x: 1, y: 1}
-      - {x: 1, y: 2}
-      - {x: 2, y: -1}
-      - {x: 2, y: 0}
-      - {x: 2, y: 1}
-      rocks: []
-      magnets: []
-      neighbors: 00000000
-      spawn: {x: 3.75, y: 0, z: 13.5}
-    - id: "\u955C\u5934\u7126\u70B9 (3.75, 0.00, -9.00)"
-      hasBlackHole: 0
-      blackHoleCell: {x: 0, y: 0}
-      position: {x: 0.5, y: 0.25}
-      cells:
-      - {x: -1, y: -1}
-      - {x: -1, y: 0}
-      - {x: -1, y: 1}
-      - {x: -1, y: 2}
-      - {x: 0, y: -2}
-      - {x: 0, y: -1}
-      - {x: 0, y: 0}
-      - {x: 0, y: 1}
-      - {x: 0, y: 2}
-      - {x: 1, y: -2}
-      - {x: 1, y: -1}
-      - {x: 1, y: 0}
-      - {x: 1, y: 1}
-      - {x: 1, y: 2}
-      - {x: 2, y: -1}
-      - {x: 2, y: 0}
-      - {x: 2, y: 1}
-      rocks: []
-      magnets: []
-      neighbors: 00000000
-      spawn: {x: 3.75, y: 0, z: -12}
   - title: "\u661F\u73AF\u4E16\u754C"
     scene: Assets/BetweenPoles/Scenes/Chapter03_RingWorld.unity
     planet: {fileID: 443578283}
@@ -14015,7 +13909,7 @@ MonoBehaviour:
   duration: 8
   columns: 8
   margin: 0
-  phase: 578.42474
+  phase: 582.433
 --- !u!4 &1753397141
 Transform:
   m_ObjectHideFlags: 0
@@ -15149,7 +15043,7 @@ MonoBehaviour:
   duration: 8
   columns: 8
   margin: 0
-  phase: 578.4175
+  phase: 582.4257
 --- !u!4 &1793889573
 Transform:
   m_ObjectHideFlags: 0

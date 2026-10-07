@@ -14,18 +14,34 @@ Shader "BetweenPoles/BridgeEnergyGlass" {
 
   fixed4 _Color;
   half _Smoothness,_EdgeGlow;
-  struct Input {float3 worldNormal;float3 viewDir;};
+  struct Input {float3 worldPos;float3 worldNormal;float3 viewDir;};
 
   float4 _IceFocus,_ExplicitIsland,_BridgeStart,_BridgeEnd,_BridgeIslandA,_BridgeIslandB;
   float _IceRadius,_IslandDisplayScale,_BridgeEnabled;
-  float3 _IceDiskUp,_BridgeOffsetA,_BridgeOffsetB;
+  float3 _IceDiskUp,_IceDiskRight,_IceDiskCenter,_BridgeOffsetA,_BridgeOffsetB;float _IceDiskRadius;
 
-  float3 displayPoint(float3 p){return _IceFocus.xyz+(p-_IceFocus.xyz)*max(1,_IslandDisplayScale);}
+  // Connected gameplay uses one common frame; never stretch a bridge between warped shores.
+ float _IslandRigidLayout,_RecoilFlying;
+ float3 displayPoint(float3 p){return _IceFocus.xyz+(p-_IceFocus.xyz)*max(1,_IslandDisplayScale);}
   float3 turn(float3 q,float3 axis,float si,float co){return q*co+cross(axis,q)*si+axis*dot(axis,q)*(1-co);}
   float3 referencePoint(){return float3(0,0,0);}
   float3 originalFrame(float3 v){return v;}
   float upperWeight(float3 delta){return smoothstep(0,1,saturate((delta.z-abs(delta.x))/6));}
-  float3 islandOffset(float3 anchor){float3 delta=anchor-_IceFocus.xyz;return _IceDiskUp*(.45*upperWeight(delta)+.25*upperWeight(-delta));}
+  float _IslandEdgeLayout;
+ float3 islandOffset(float3 anchor){
+  float3 delta=anchor-_IceFocus.xyz;
+  float3 offset=_IceDiskUp*(.45*upperWeight(delta)+.25*upperWeight(-delta));
+  float d=length(delta.xz);
+  if(_IslandEdgeLayout>.001 && _IceDiskRadius>0 && d>.001){
+   float angle=d/_IceRadius;
+   float3 center=float3(delta.x/d*sin(angle)*_IceRadius,(cos(angle)-1)*_IceRadius,delta.z/d*sin(angle)*_IceRadius)+offset;
+   float2 screen=float2(dot(center,_IceDiskRight),dot(center,_IceDiskUp));
+   float extent=length(screen);
+   float push=max(0,_IceDiskRadius*.96/max(1,_IslandDisplayScale)-extent)*smoothstep(0,6,d)*_IslandEdgeLayout;
+   offset+=(_IceDiskRight*screen.x+_IceDiskUp*screen.y)/max(.001,extent)*push;
+  }
+  return offset;
+ }
   float3 bridgeWarp(float3 p,float4 anchor){
    float3 relative=anchor.xyz-_IceFocus.xyz+referencePoint();float d=length(relative.xz),angle=d/_IceRadius;
    float localAngle=angle*(1-.10*upperWeight(anchor.xyz-_IceFocus.xyz));float3 axis=d>.001?float3(relative.z,0,-relative.x)/d:float3(0,0,1);
@@ -37,6 +53,10 @@ Shader "BetweenPoles/BridgeEnergyGlass" {
   }
   void bend(inout appdata_full v){
    float3 p=mul(unity_ObjectToWorld,v.vertex).xyz;
+ if(_IslandRigidLayout>.5){
+  v.vertex=mul(unity_WorldToObject,float4(displayPoint(p),1));
+  return;
+ }
    if(_BridgeEnabled>.5){
     float3 direction=normalize(_BridgeEnd.xyz-_BridgeStart.xyz),side=cross(direction,float3(0,1,0));
     float t=dot(p-_BridgeStart.xyz,direction)/max(length(_BridgeEnd.xyz-_BridgeStart.xyz),.001);
@@ -54,6 +74,7 @@ Shader "BetweenPoles/BridgeEnergyGlass" {
    v.normal=mul((float3x3)unity_WorldToObject,bridgeNormal(UnityObjectToWorldNormal(v.normal),anchor));
   }
   void surf(Input i,inout SurfaceOutputStandard o){
+   if(_IceDiskRadius>0 && _RecoilFlying<.5){float3 relative=i.worldPos-_IceDiskCenter;float2 disk=float2(dot(relative,_IceDiskRight),dot(relative,_IceDiskUp));clip(_IceDiskRadius*_IceDiskRadius-dot(disk,disk));}
    half fresnel=pow(1-saturate(dot(normalize(i.viewDir),normalize(i.worldNormal))),3);
    o.Albedo=_Color.rgb*.48;o.Emission=_Color.rgb*(.16+fresnel*_EdgeGlow);
    o.Metallic=.08;o.Smoothness=_Smoothness;o.Alpha=saturate(_Color.a+fresnel*.22);

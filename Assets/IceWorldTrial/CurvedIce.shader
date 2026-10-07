@@ -5,6 +5,7 @@ Shader "BetweenPoles/CurvedIceTrial" {
  #include "UnityCG.cginc"
  fixed4 _Color;float _Grid,_Snow;struct Input{float3 worldPos;float3 worldNormal;float2 logicalXZ;};
  float4 _IceFocus,_IslandAnchors[16],_ExplicitIsland;int _IslandCount;float _IceRadius,_IslandFlatten;float3 _IslandViewOffset;float _IceDiskRadius;float3 _IceDiskCenter,_IceDiskRight,_IceDiskUp;float4x4 _IceRotation;float _IslandDisplayScale;
+ float _IslandRigidLayout,_RecoilFlying;
  float3 displayPoint(float3 p){return _IceFocus.xyz+(p-_IceFocus.xyz)*max(1,_IslandDisplayScale);}
  float3 turn(float3 q,float3 axis,float si,float co){return q*co+cross(axis,q)*si+axis*dot(axis,q)*(1-co);}
  float _BridgeEnabled;float4 _BridgeStart,_BridgeEnd,_BridgeIslandA,_BridgeIslandB;
@@ -18,6 +19,7 @@ Shader "BetweenPoles/CurvedIceTrial" {
  void bend(inout appdata_full v,out Input o){
  UNITY_INITIALIZE_OUTPUT(Input,o);
  float3 p=mul(unity_ObjectToWorld,v.vertex).xyz;o.logicalXZ=p.xz;float3 anchor=float3(-3.75,0,0);float best=1e9;
+ if(_IslandRigidLayout>.5){v.vertex=mul(unity_WorldToObject,float4(displayPoint(p),1));return;}
  if(_BridgeEnabled>.5){
   // A single straight span between the two shoreline edges, not a curved blend.
   float3 direction=normalize(_BridgeEnd.xyz-_BridgeStart.xyz);float3 side=cross(direction,float3(0,1,0));
@@ -40,6 +42,6 @@ Shader "BetweenPoles/CurvedIceTrial" {
  v.normal=mul((float3x3)unity_WorldToObject,n);
  }
 
- void surf(Input i,inout SurfaceOutput o){if(_IceDiskRadius>0){float3 relative=i.worldPos-_IceDiskCenter;float2 disk=float2(dot(relative,_IceDiskRight),dot(relative,_IceDiskUp));clip(_IceDiskRadius*_IceDiskRadius-dot(disk,disk));}float3 col=_Color.rgb;float2 g=abs(frac((i.logicalXZ+.75)/1.5)-.5);float seam=smoothstep(.452,.486,max(g.x,g.y))*_Grid;float up=saturate(i.worldNormal.y);col=lerp(col,lerp(float3(.20,.49,.62),col,smoothstep(.3,.85,up)),_Snow);col=lerp(col,float3(.18,.36,.48),seam*.68);o.Albedo=col;o.Emission=col*.10;o.Alpha=1;}
+ void surf(Input i,inout SurfaceOutput o){if(_IceDiskRadius>0 && _RecoilFlying<.5){float3 relative=i.worldPos-_IceDiskCenter;float2 disk=float2(dot(relative,_IceDiskRight),dot(relative,_IceDiskUp));clip(_IceDiskRadius*_IceDiskRadius-dot(disk,disk));}float3 col=_Color.rgb;float2 g=abs(frac((i.logicalXZ+.75)/1.5)-.5);float seam=smoothstep(.452,.486,max(g.x,g.y))*_Grid;float up=saturate(i.worldNormal.y);col=lerp(col,lerp(float3(.20,.49,.62),col,smoothstep(.3,.85,up)),_Snow);col=lerp(col,float3(.18,.36,.48),seam*.68);o.Albedo=col;o.Emission=col*.10;o.Alpha=1;}
  ENDCG} FallBack "Diffuse" }
 
