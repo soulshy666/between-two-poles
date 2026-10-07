@@ -50,9 +50,35 @@ public sealed partial class GridPlayground:MonoBehaviour {
         currentIsland=Owner(Tile(Cell(player)));islandEntry=player.position;islandEntryRotation=player.rotation;
         history.Clear();initialState=SaveWorld();ReleaseUnusedGeometry();
     }
+    public bool JumpTestRoom(int direction){
+        if(Busy||ChapterRecoilTravel.Active||BlackHoleTravel.InTransit||BlackHoleTravel.Selecting)return false;
+        if(direction!=1&&direction!=-1)return false;
+        IslandCamera view=null;
+        foreach(var candidate in FindObjectsOfType<IslandCamera>())if(candidate.enabled&&candidate.board==this){view=candidate;break;}
+        if(!view||view.islandCenters==null)return Reject("当前场景没有可切换的房间");
+        var centers=new List<Transform>();
+        foreach(var center in view.islandCenters)if(center&&center.gameObject.activeInHierarchy&&!centers.Contains(center))centers.Add(center);
+        int current=centers.IndexOf(currentIsland);if(current<0)current=centers.IndexOf(Owner(Tile(Cell(player))));
+        int next=current+direction;
+        if(current<0||next<0||next>=centers.Count)return Reject(direction>0?"已经是最后一个房间":"已经是第一个房间");
+        GridTile landing=null;float closest=float.PositiveInfinity;
+        foreach(var tile in tiles){
+            if(!tile||!tile.gameObject.activeInHierarchy||tile.blocked||tile.goal||Owner(tile)!=centers[next]||Piece(Cell(tile.transform))||tile.GetComponentInChildren<BlackHolePortal>(true))continue;
+            float distance=(tile.transform.position-centers[next].position).sqrMagnitude;
+            if(distance<closest){closest=distance;landing=tile;}
+        }
+        if(!landing)return Reject("目标房间没有安全的空地");
+        ClearMovementInput();history.Clear();ReleaseUnusedGeometry();
+        player.position=Position(Cell(landing.transform),landing.surfaceHeight);
+        NotifyLanding(Cell(landing.transform));
+        var anchor=player.GetComponent<IslandSurfaceAnchor>();if(anchor){anchor.center=centers[next];anchor.Apply();}
+        LastRule="测试跳转：房间 "+(next+1)+" / "+centers.Count;return true;
+    }
     void Update(){
         var panel=GetComponent<MagnetDebugPanel>();
         if((panel&&panel.enabled&&panel.IsOpen)||Time.timeScale<=0){ClearMovementInput();return;}
+        if(Input.GetKeyDown(KeyCode.Alpha1)||Input.GetKeyDown(KeyCode.Keypad1)){JumpTestRoom(1);return;}
+        if(Input.GetKeyDown(KeyCode.Alpha2)||Input.GetKeyDown(KeyCode.Keypad2)){JumpTestRoom(-1);return;}
         if(Input.GetKeyDown(KeyCode.Z)){ClearMovementInput();UndoStep();return;}
         if(Input.GetKeyDown(KeyCode.R)){ClearMovementInput();ResetCurrentIsland();return;}
         Vector2Int direction=Vector2Int.zero;
