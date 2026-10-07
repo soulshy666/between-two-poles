@@ -12,9 +12,15 @@ public sealed partial class GridPlayground {
     float GroundHeight(Vector2Int p){var t=Tile(p);return t?t.surfaceHeight:0;}
     // Only absorb floating-point drift; this is not an automatic step-up allowance.
     bool SameHeight(float a,float b){return Mathf.Abs(a-b)<.01f;}
+    bool CanReachMagnet(MagnetPiece magnet){
+        if(SameHeight(player.position.y,magnet.transform.position.y))return true;
+        var from=Cell(player);var cell=Cell(magnet.transform);float contact;
+        return TravelSurface(from,player.position.y,cell,magnet,out contact)
+            &&SameHeight(contact,magnet.transform.position.y);
+    }
     Vector2Int PushLanding(Vector2Int vacated,Vector2Int from){
-        // A hovering single is material for a future bridge, not a foothold.
-        return Floor(vacated)&&SameHeight(GroundHeight(vacated),player.position.y)?vacated:from;
+        var moving=Piece(vacated);var deck=Deck(vacated,moving);float height;
+        return (Floor(vacated)||deck)&&TravelSurface(from,player.position.y,vacated,moving,out height)?vacated:from;
     }
     Quaternion Yaw(Vector3 axis){axis.y=0;if(axis.sqrMagnitude<.01f)axis=Vector3.right;return Quaternion.FromToRotation(Vector3.right,axis.normalized);}
     Vector2Int Direction(Vector3 v){return Mathf.Abs(v.x)>Mathf.Abs(v.z)?new Vector2Int(v.x>=0?1:-1,0):new Vector2Int(0,v.z>=0?1:-1);}
@@ -58,17 +64,19 @@ public sealed partial class GridPlayground {
         if(Busy||Mathf.Abs(dir.x)+Mathf.Abs(dir.y)!=1)return false;
         var before=SaveWorld();
         bool accepted=TryStepCore(dir);
-        if(accepted){RecordHistory(before);if(reversibleWalk)walkUndo=before;if(interruptiblePush)pushUndo=before;}
+        if(accepted){RecordHistory(before);if(interruptiblePush)pushUndo=before;}
         return accepted;
     }
     bool TryStepCore(Vector2Int dir) {
         if(Busy||Mathf.Abs(dir.x)+Mathf.Abs(dir.y)!=1)return false;
-        var from=Cell(player);var support=Piece(from);
+        var from=Cell(player);var support=Deck(from);
         if(support&&support.product==MagnetProduct.Bridge){var side=support.transform.forward;float across=Vector3.Dot(new Vector3(dir.x,0,dir.y),side);float lane=Vector3.Dot(player.position-support.transform.position,side);if(Mathf.Abs(across)>.5f&&across*lane<0)return Reject("桥中央镂空，请沿当前侧梁行走");}
         var next=from+dir;var tile=Tile(next);var m=Piece(next);
+        if(m&&MagnetStillAnimating(m))return Reject("磁铁正在完成上一次推动，请稍候再接触");
+        if(!BridgePassage(from,next))return Reject("宽条桥必须沿长边两端接通，只能从两端通过");
         // A player already on an object may walk across level tops or step down.
         GridTile sourceTile;Vector3 sourceTop;
-        if(BlackHolePortal.TrySurface(this,from,out sourceTile,out sourceTop)&&SameHeight(player.position.y,sourceTop.y)&&player.position.y>GroundHeight(from)+.01f){
+        if(!(m&&m.CanBePushed&&CanReachMagnet(m))&&BlackHolePortal.TrySurface(this,from,out sourceTile,out sourceTop)&&SameHeight(player.position.y,sourceTop.y)&&player.position.y>GroundHeight(from)+.01f){
             if(m&&!m.walkable)return Reject("该磁铁不能作为通路行走，十字只能从侧面推动旋转");
             GridTile destinationTile;Vector3 destinationTop;
             if(!BlackHolePortal.TrySurface(this,next,out destinationTile,out destinationTop))return Reject("没有可行走的支撑面");
@@ -76,7 +84,7 @@ public sealed partial class GridPlayground {
             Busy=true;StartCoroutine(WalkOffObject(next,destinationTop));LastRule="从物体顶面行走";return true;
         }
         if(tile&&tile.blocked)return Reject("石头挡住了这个格子");
-        if(m&&m.product==MagnetProduct.Ring&&SameHeight(player.position.y,m.transform.position.y))
+        if(m&&m.product==MagnetProduct.Ring&&CanReachMagnet(m))
             return BeginPushRing(m,dir,next);
         if(m&&m.product==MagnetProduct.Cross){
             if(RotorActive(m))return BeginLift(m,2,dir);
@@ -86,37 +94,40 @@ public sealed partial class GridPlayground {
         if(m&&m.product==MagnetProduct.Lift)return BeginLift(m,1,dir);
         if(m&&!m.walkable) {
             if(!m.CanBePushed)return Reject("只有单个磁铁可以推动；合成后固定在原格");
-            if(!SameHeight(player.position.y,m.transform.position.y))return Reject("需要站在同一层推动");
+            if(!CanReachMagnet(m))return Reject("需要站在同一层推动");
             // A single already beyond the shore is out of the player's reach.
             // It can still receive another material pushed from a supported cell.
-            if(!tile||!SameHeight(tile.surfaceHeight,m.transform.position.y))return Reject("边缘外的磁铁无法直接推动，请推来另一块磁铁与它组合");
-            var target=next+dir;var far=Piece(target,m);var land=Tile(target);
+            if(!Supported(m))return Reject("边缘外的磁铁无法直接推动，请推来另一块磁铁与它组合");
+            var target=next+dir;var far=TransportObstacle(target,m);var land=Tile(target);float targetHeight;
+            if(far&&MagnetStillAnimating(far))return Reject("目标磁铁正在完成上一次推动");
             if(land&&land.blocked)return Reject("目标格被石头占据");
-            if(land&&!SameHeight(land.surfaceHeight,m.transform.position.y))return Reject("不能将磁铁推上高台");
+            if(!BridgePassage(next,target,m))return Reject("宽条桥必须沿长边两端接通，只能从两端通过");
+            if(!TravelSurface(next,m.transform.position.y,target,m,out targetHeight))return Reject("不能将磁铁推上高台");
             float degrees;var arrival=MagnetPiece.Rolled(m.shape,m.Pose,dir,out degrees);
             if(far){
-                if(!SameHeight(far.transform.position.y,m.transform.position.y))return Reject("磁铁高度不一致");
+                if(!SameHeight(far.transform.position.y,targetHeight))return Reject("磁铁高度不一致");
                 // A bridge's second socket belongs to its U base, not the first rail.
                 if(far.product!=MagnetProduct.BridgeHalf&&far.product!=MagnetProduct.None)return Reject("合成体不能被单块磁铁继续合成或排斥；圆环需由主角直接推动");
                 if(far.product!=MagnetProduct.BridgeHalf&&far.north==m.north){
                     // A hovering same-pole piece blocks the shore material; it
                     // cannot be repelled farther out or trigger a stone recoil.
-                    if(!land)return Reject("边缘外已有同极磁铁，无法继续向外推动");
+                    if(!Supported(far))return Reject("边缘外已有同极磁铁，无法继续向外推动");
                     var beyond=target+dir;var beyondTile=Tile(beyond);
-                    if((!beyondTile||(!beyondTile.blocked&&SameHeight(beyondTile.surfaceHeight,far.transform.position.y)))&&!Piece(beyond)){
+                    float beyondHeight;
+                    if(TravelSurface(target,far.transform.position.y,beyond,far,out beyondHeight)&&!TransportObstacle(beyond,far)){
                         var farPath=MagnetPiece.RollPath(far.shape,far.Pose,dir);
                         var nearPath=MagnetPiece.RollPath(m.shape,m.Pose,dir);
                         Vector2Int farEnd,nearEnd;
                         if(!ValidateRollPath(far,farPath,from,next,null,null,out farEnd)
                             ||!ValidateRollPath(m,nearPath,from,next,far,farEnd,out nearEnd))return false;
-                        Busy=true;StartCoroutine(Repel(m,far,nearPath,farPath,PushLanding(next,from)));LastRule="同极排斥：各翻滚一格，空格中保持悬停";return true;
+                        Busy=true;StartMovement(Repel(m,far,nearPath,farPath,PushLanding(next,from)));LastRule="同极排斥：各翻滚一格，空格中保持悬停";return true;
                     }
                     if(beyondTile&&beyondTile.blocked){
                         Busy=true;StartCoroutine(Recoil(m,dir,from));LastRule="远端受石头阻挡：磁铁弹回撞击主角，一起反冲";return true;
                     }
                     return Reject("远端没有落脚位，无法推动；反冲需要远端石头阻挡");
                 }
-                bool receiverSupported=land&&!land.blocked&&SameHeight(land.surfaceHeight,far.transform.position.y);
+                bool receiverSupported=Supported(far);
                 var result=Recipe(m,arrival,far,receiverSupported,dir);
                 if(result==MagnetProduct.None)return Reject("磁铁姿态不符合配方，保留原状态");
                 var bridgeDir=far.bridgeDirection;
@@ -129,7 +140,7 @@ public sealed partial class GridPlayground {
                 var playerLanding=PushLanding(next,from);
                 if(result==MagnetProduct.BridgeHalf||result==MagnetProduct.Bridge){
                     var second=Cell(far.transform)+bridgeDir;
-                    var occupant=Piece(second,far);
+                    var occupant=TransportObstacle(second,far);
                     var ground=Tile(second);
                     // The incoming material is consumed by this assembly, so its
                     // cell may become the second bridge cell. Keep the player at
@@ -137,11 +148,11 @@ public sealed partial class GridPlayground {
                     if((ground&&(ground.blocked||!SameHeight(ground.surfaceHeight,far.transform.position.y)))||(occupant&&occupant!=m)||second==from)return Reject("两格桥可位于普通同高地面，但不能覆盖石头、高差、其他材料或主角");
                     if(second==next)playerLanding=from;
                 }
-                Busy=true;StartCoroutine(Assemble(m,far,dir,arrival,result,playerLanding,bridgeDir));LastRule="合成："+ProductName(result);return true;
+                Busy=true;StartMovement(Assemble(m,far,dir,arrival,result,playerLanding,bridgeDir));LastRule="合成："+ProductName(result);return true;
             }
             var path=MagnetPiece.RollPath(m.shape,m.Pose,dir);Vector2Int end;
             if(!ValidateRollPath(m,path,from,next,null,null,out end))return false;
-            Busy=true;StartCoroutine(RollThenWalk(m,dir,target,PushLanding(next,from),path));LastRule=!land?"磁铁推出边缘一格，在原高度悬停，等待后续组合":m.shape==MagnetShape.Horseshoe?"U 型翻面一格，保持平躺":"翻滚推动一格";return true;
+            Busy=true;StartMovement(RollThenWalk(m,dir,target,PushLanding(next,from),path));LastRule=Deck(target,m)?"沿桥面推动磁铁":!land?"磁铁推出边缘一格，在原高度悬停，等待后续组合":m.shape==MagnetShape.Horseshoe?"U 型翻面一格，保持平躺":"翻滚推动一格";return true;
         }
         if(!Floor(next)&&!(m&&m.walkable))return Reject("没有可行走的支撑面");
         // A combined bar can be entered from base level only over a gap.
@@ -154,7 +165,7 @@ public sealed partial class GridPlayground {
         bool deckExit=support&&support.walkable&&(support.product==MagnetProduct.WideBar||support.product==MagnetProduct.Bridge||support.product==MagnetProduct.None)
             &&SameHeight(player.position.y,Height(from))&&SameHeight(Height(next),support.transform.position.y);
         if(!SameHeight(player.position.y,Height(next))&&!deckEntry&&!deckExit)return Reject("高差需要磁流升降装置");
-        Busy=true;StartCoroutine(MovePlayer(next));LastRule="行走";return true;
+        Busy=true;StartMovement(MovePlayer(next));LastRule="行走";return true;
     }
     IEnumerator WalkOffObject(Vector2Int cell,Vector3 end){
         var start=player.position;var direction=new Vector3(cell.x*cellSize-start.x,0,cell.y*cellSize-start.z);
@@ -166,20 +177,21 @@ public sealed partial class GridPlayground {
     }
     public static string ProductName(MagnetProduct p){switch(p){case MagnetProduct.WideBar:return "一格宽条";case MagnetProduct.Ring:return "闭合圆环";case MagnetProduct.Cross:return "叠放十字";case MagnetProduct.Lift:return "单层磁流升降台";case MagnetProduct.BridgeHalf:return "两格桥半成品";case MagnetProduct.Bridge:return "两格桥";default:return "基础磁铁";}}
     bool ValidateRollPath(MagnetPiece m,List<MagnetRollStep> path,Vector2Int playerFrom,Vector2Int playerLanding,MagnetPiece vacated,Vector2Int? reserved,out Vector2Int end){
-        end=Cell(m.transform);
+        end=Cell(m.transform);float height=m.transform.position.y;
         foreach(var step in path){
-            end+=step.direction;
-            var ground=Tile(end);var occupant=Piece(end,m);
-            if(ground&&(ground.blocked||!SameHeight(ground.surfaceHeight,m.transform.position.y)))return Reject("磁铁不能进入石头或不同高度的地面格");
+            var source=end;end+=step.direction;
+            var occupant=TransportObstacle(end,m);float landing;
+            if(!TravelSurface(source,height,end,m,out landing))return Reject("磁铁不能进入石头或不同高度的地面格");
             if((occupant&&occupant!=vacated)||(reserved.HasValue&&end==reserved.Value)||end==playerFrom||end==playerLanding)
                 return Reject("滚动路径被磁铁或主角占据，整次推动保持原状");
+            height=landing;
         }
         return m.shape!=MagnetShape.Horseshoe||MagnetPiece.FlatU(path[path.Count-1].pose)||Reject("单个 U 型翻面后必须平躺");
     }
     IEnumerator RollPiece(MagnetPiece m,MagnetRollStep step,Vector2Int to,System.Action<float> follow=null){
-        Vector3 start=m.transform.position,end=Position(to,m.transform.position.y);Quaternion pose=m.Pose;var axis=new Vector3(step.direction.y,0,-step.direction.x);
+        Vector3 start=m.transform.position,end=Position(to,TransportHeight(m,to));Quaternion pose=m.Pose;var axis=new Vector3(step.direction.y,0,-step.direction.x);
         float duration=m.shape==MagnetShape.Horseshoe?uRollSeconds:stepSeconds;
-        for(float t=0;t<duration;t+=Time.deltaTime){float a=Mathf.SmoothStep(0,1,t/duration);m.transform.position=Vector3.Lerp(start,end,a);m.geometry.rotation=Quaternion.AngleAxis(step.degrees*a,axis)*pose;MagnetVisuals.Ground(m);follow?.Invoke(a);yield return null;}
+        for(float t=0;t<duration;t+=MovementDeltaTime){float a=Mathf.SmoothStep(0,1,t/duration);m.transform.position=Vector3.Lerp(start,end,a);m.geometry.rotation=Quaternion.AngleAxis(step.degrees*a,axis)*pose;MagnetVisuals.Ground(m);follow?.Invoke(a);yield return null;}
         m.transform.position=end;m.geometry.rotation=step.pose;MagnetVisuals.Ground(m);follow?.Invoke(1);
     }
     IEnumerator RollAlongPath(MagnetPiece m,List<MagnetRollStep> path){
@@ -187,16 +199,16 @@ public sealed partial class GridPlayground {
         foreach(var step in path){cell+=step.direction;yield return RollPiece(m,step,cell);}
     }
     IEnumerator PushSingleBar(MagnetPiece m,Vector2Int dir,Vector2Int target,Vector2Int next){
-        Vector3 start=m.transform.position,end=Position(target,m.transform.position.y);
-        Vector3 playerStart=player.position,playerEnd=Position(next,player.position.y);
+        Vector3 start=m.transform.position,end=Position(target,TransportHeight(m,target));
+        Vector3 playerStart=player.position,playerEnd=PushPlayerEnd(next,m);
         Vector3 forward=new Vector3(dir.x,0,dir.y),axis=new Vector3(dir.y,0,-dir.x);
         Quaternion facing=Quaternion.LookRotation(forward),pose=m.Pose;
         float degrees;Quaternion final=MagnetPiece.Rolled(m.shape,pose,dir,out degrees);
         // Share the movement curve so the hands and magnet advance together.
         float duration=Mathf.Max(.01f,barPushSeconds);
         var pushPose=PlayerPushPose.Begin(player);
-        for(float elapsed=0;elapsed<duration;elapsed+=Time.deltaTime){
-            float p=Mathf.Clamp01((elapsed+Time.deltaTime)/duration);
+        for(float elapsed=0;elapsed<duration;elapsed+=MovementDeltaTime){
+            float p=Mathf.Clamp01((elapsed+MovementDeltaTime)/duration);
             float drive=MovementProgress(p);
             pushPose.Sample(p);
             player.rotation=facing;
@@ -213,7 +225,7 @@ public sealed partial class GridPlayground {
         BeginPushInterrupt(dir);
         if(m.shape==MagnetShape.Bar)yield return PushSingleBar(m,dir,target,next);
         else {
-            Vector3 start=player.position,end=Position(next,player.position.y);
+            Vector3 start=player.position,end=PushPlayerEnd(next,m);
             player.rotation=Quaternion.LookRotation(new Vector3(dir.x,0,dir.y));
             var pushPose=PlayerPushPose.Begin(player);var cell=Cell(m.transform);
             for(int i=0;i<path.Count;i++){
@@ -244,7 +256,7 @@ public sealed partial class GridPlayground {
         }
         var impact=braced+forward*Mathf.Clamp(playerFront-magnetRear,cellSize*.12f,cellSize*.9f);
         float approachSeconds=Mathf.Max(.42f,stepSeconds*1.9f);
-        for(float t=0;t<approachSeconds;t+=Time.deltaTime){
+        for(float t=0;t<approachSeconds;t+=MovementDeltaTime){
             float a=Mathf.SmoothStep(0,1,t/approachSeconds);
             incoming.transform.position=Vector3.Lerp(magnetStart,approach,a);
             player.position=Vector3.Lerp(playerStart,braced,a);
@@ -252,7 +264,7 @@ public sealed partial class GridPlayground {
         }
         incoming.transform.position=approach;player.position=braced;
         float returnSeconds=Mathf.Max(.20f,stepSeconds);
-        for(float t=0;t<returnSeconds;t+=Time.deltaTime){
+        for(float t=0;t<returnSeconds;t+=MovementDeltaTime){
             float a=t/returnSeconds;
             incoming.transform.position=Vector3.Lerp(approach,impact,a*a);
             yield return null;
@@ -282,7 +294,7 @@ public sealed partial class GridPlayground {
         if(product==MagnetProduct.WideBar&&Vector3.Dot(start-target.transform.position,yaw*Vector3.forward)<-.01f)
             yaw=Quaternion.AngleAxis(180,Vector3.up)*yaw;
         bool pushTogether=product==MagnetProduct.BridgeHalf||product==MagnetProduct.Bridge||product==MagnetProduct.Lift;
-        Vector3 playerStart=player.position,playerEnd=Position(next,next==Cell(player)?player.position.y:GroundHeight(next));
+        Vector3 playerStart=player.position,playerEnd=PushPlayerEnd(next,incoming);
         System.Action<float> follow=null;
         PlayerPushPose pushPose=null;
         if(pushTogether){
@@ -302,7 +314,7 @@ public sealed partial class GridPlayground {
         Busy=false;
     }
     Vector3 Support(Vector2Int cell,Vector3 from){
-        var m=Piece(cell);var p=Position(cell,Height(cell));
+        var m=Deck(cell);var p=Position(cell,Height(cell));
         if(m&&(m.product==MagnetProduct.Bridge||m.product==MagnetProduct.Ring)){
             var side=m.transform.forward;float sign=Vector3.Dot(from-m.transform.position,side)>=0?1:-1;p+=side*(m.product==MagnetProduct.Ring?.48f:.48f)*sign;
         }
@@ -344,7 +356,7 @@ public sealed partial class GridPlayground {
             moves.Add(piece);destinations.Add(end);
         }
         var rotation=cross.geometry.localRotation;var starts=moves.Select(m=>m.transform.position).ToArray();
-        for(float t=0;t<joinSeconds;t+=Time.deltaTime){float a=Mathf.SmoothStep(0,1,t/joinSeconds);float angle=blocked?Mathf.Sin(a*Mathf.PI)*12:90*a;cross.geometry.localRotation=Quaternion.AngleAxis(angle,Vector3.up)*rotation;if(!blocked)for(int i=0;i<moves.Count;i++)moves[i].transform.position=Vector3.Lerp(starts[i],Position(destinations[i],GroundHeight(destinations[i])),a);yield return null;}
+        for(float t=0;t<joinSeconds;t+=MovementDeltaTime){float a=Mathf.SmoothStep(0,1,t/joinSeconds);float angle=blocked?Mathf.Sin(a*Mathf.PI)*12:90*a;cross.geometry.localRotation=Quaternion.AngleAxis(angle,Vector3.up)*rotation;if(!blocked)for(int i=0;i<moves.Count;i++)moves[i].transform.position=Vector3.Lerp(starts[i],Position(destinations[i],GroundHeight(destinations[i])),a);yield return null;}
         cross.geometry.localRotation=blocked?rotation:Quaternion.AngleAxis(90,Vector3.up)*rotation;
         if(!blocked)for(int i=0;i<moves.Count;i++)moves[i].transform.position=Position(destinations[i],GroundHeight(destinations[i]));
         LastRule=blocked?"十字受阻回位，物件保持原位":"十字旋转，竖直轻型长条向外移一格";Busy=false;
@@ -368,7 +380,7 @@ public sealed partial class GridPlayground {
             bool active=m.product==MagnetProduct.Lift||(m.product==MagnetProduct.Cross&&RotorActive(m));
             var flow=m.GetComponent<MagnetFlow>();if(active&&!flow)flow=m.gameObject.AddComponent<MagnetFlow>();
             if(flow){flow.height=cellSize*(m.product==MagnetProduct.Cross?2:1);flow.active=active;}
-            if(active&&m.product==MagnetProduct.Cross&&!Busy)m.geometry.Rotate(Vector3.up,Time.deltaTime*60,Space.World);
+            if(active&&m.product==MagnetProduct.Cross&&!Busy)m.geometry.Rotate(Vector3.up,MovementDeltaTime*60,Space.World);
         }
     }
 }

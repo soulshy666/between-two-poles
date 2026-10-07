@@ -70,7 +70,9 @@ public sealed partial class GridPlayground {
         foreach(var bridge in FindObjectsOfType<PrejoinedTestBridges>())if(bridge.board==this&&bridge.isActiveAndEnabled)bridge.Refresh();
     }
     void RestoreWorld(WorldState s){
-        EndPushInterrupt();interruptedWalkStart=null;
+        ClearPushPresentations();
+        movementStack.Clear();movementPlayback=null;
+        EndPushInterrupt();
         var pushPose=player.GetComponent<PlayerPushPose>();if(pushPose)pushPose.End();
         ClearWalkInterrupt();
         ClearMovementInput();
@@ -86,6 +88,7 @@ public sealed partial class GridPlayground {
     public bool ResetCurrentIsland(){
         ClearMovementInput();
         if(Busy)return Reject("请等待当前动作结束后重置小岛");
+        ClearPushPresentations();
         if(initialState==null)return false;
         RecordHistory(SaveWorld());
         var selected=new bool[magnets.Length];

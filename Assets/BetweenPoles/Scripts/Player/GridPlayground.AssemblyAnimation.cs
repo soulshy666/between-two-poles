@@ -56,7 +56,7 @@ public sealed partial class GridPlayground {
         stagedIncoming.center=startReceiver.center+(endIncoming.center-endReceiver.center);
         Vector3 sideFirst=startIncoming.center+(endIncoming.center-endReceiver.center);
         float seconds=Mathf.Max(joinSeconds,(incomingStanding||receiverStanding)?1.6f:1.35f);
-        for(float elapsed=0;elapsed<seconds;elapsed+=Time.deltaTime){
+        for(float elapsed=0;elapsed<seconds;elapsed+=MovementDeltaTime){
             float p=Mathf.Clamp01(elapsed/seconds);
             if(parallelRail){
                 // Establish parallel lanes before lowering the upright rail, so
@@ -119,7 +119,7 @@ public sealed partial class GridPlayground {
         var push=new Vector3(direction.x,0,direction.y);
         float alignSeconds=Mathf.Max(.65f,uRollSeconds),seconds=alignSeconds+Mathf.Max(1.1f,joinSeconds);
         float alignEnd=alignSeconds/seconds;
-        for(float elapsed=0;elapsed<seconds;elapsed+=Time.deltaTime){
+        for(float elapsed=0;elapsed<seconds;elapsed+=MovementDeltaTime){
             Quaternion inPose,recvPose;Vector3 inCenter,recvCenter;
             SampleSideBySideRingDock(elapsed/seconds,alignEnd,incomingPose,receiverPose,push,
                 startIncoming.center,startReceiver.center,endIncoming.center,endReceiver.center,
@@ -157,7 +157,7 @@ public sealed partial class GridPlayground {
         bool flipReceiver=Vector3.Dot(receiverPose*Vector3.forward,push)>0;
         float flipSeconds=Mathf.Max(.65f,uRollSeconds),flipSpan=flipIncoming&&flipReceiver?1.25f:1;
         float seconds=flipSeconds*flipSpan+Mathf.Max(.8f,joinSeconds*.7f),flipEnd=flipSeconds/seconds;
-        for(float elapsed=0;elapsed<seconds;elapsed+=Time.deltaTime){
+        for(float elapsed=0;elapsed<seconds;elapsed+=MovementDeltaTime){
             float p=Mathf.Clamp01(elapsed/seconds);Quaternion inPose,recvPose;Vector3 inCenter,recvCenter;
             SampleAxialRingDock(p,flipEnd,axis,flipIncoming,flipReceiver,incomingPose,receiverPose,
                 startIncoming.center,startReceiver.center,endIncoming.center,endReceiver.center,
@@ -210,7 +210,7 @@ public sealed partial class GridPlayground {
         float alignSeconds=Mathf.Max(Mathf.Abs(turn)/90*.65f,Mathf.Abs(approachTurn)/90*.85f);
         float seconds=alignSeconds+Mathf.Max(1.1f,joinSeconds);
         float alignEnd=alignSeconds/seconds;
-        for(float elapsed=0;elapsed<seconds;elapsed+=Time.deltaTime){
+        for(float elapsed=0;elapsed<seconds;elapsed+=MovementDeltaTime){
             Quaternion pose;Vector3 inCenter,recvCenter;
             SampleRingDock(Mathf.Clamp01(elapsed/seconds),alignEnd,incomingPose,turn,
                 startIncoming.center,startReceiver.center,endIncoming.center,endReceiver.center,
@@ -299,7 +299,7 @@ public sealed partial class GridPlayground {
         float seconds=Mathf.Max(1.1f,joinSeconds);
         // Mixed recipes slide without a preparatory roll or standing-bar fall.
         if(slideDocking)seconds*=.70f;
-        for(float elapsed=0;elapsed<seconds;elapsed+=Time.deltaTime){
+        for(float elapsed=0;elapsed<seconds;elapsed+=MovementDeltaTime){
             float p=Mathf.Clamp01(elapsed/seconds),roll=AssemblyPhase(p,0,.48f),align=AssemblyPhase(p,.38f,.70f),travel=AssemblyPhase(p,.48f,.94f);
             Quaternion inPose=Quaternion.Slerp(Quaternion.AngleAxis(rollDegrees*roll,rollAxis)*poseIncoming,endPoseIncoming,align);
             if(slideDocking)inPose=Quaternion.Slerp(poseIncoming,endPoseIncoming,AssemblyPhase(p,0,.94f));

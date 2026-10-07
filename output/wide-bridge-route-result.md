@@ -1,0 +1,1 @@
+432 wide-bridge route cases: 4 directions, 2 heights, wide/authored bars, walking/bar/ring pushing, correct axis, sideways, missing/high/blocked end, side entry, aligned/misaligned/open chain, undo. Failures=0
