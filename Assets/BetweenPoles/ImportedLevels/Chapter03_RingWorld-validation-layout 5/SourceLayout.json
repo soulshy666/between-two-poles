@@ -1,0 +1,51 @@
+{
+  "rooms": [
+    {
+      "id": "a",
+      "x": 0,
+      "y": 0,
+      "w": 5,
+      "h": 5
+    },
+    {
+      "id": "b",
+      "x": 280,
+      "y": 0,
+      "w": 5,
+      "h": 5
+    },
+    {
+      "id": "far",
+      "x": 1600,
+      "y": 0,
+      "w": 3,
+      "h": 3
+    }
+  ],
+  "items": [
+    {
+      "id": "bridge",
+      "magnet": {
+        "type": "bridge"
+      }
+    },
+    {
+      "id": "p",
+      "kind": "player"
+    }
+  ],
+  "placements": {
+    "a": [
+      {
+        "itemId": "p",
+        "cx": 2,
+        "cy": 2
+      },
+      {
+        "itemId": "bridge",
+        "cx": 5,
+        "cy": 2
+      }
+    ]
+  }
+}

@@ -5,6 +5,9 @@ Shader "BetweenPoles/PaintedIceTrial" {
  #include "UnityCG.cginc"
  fixed4 _Color;float _Grid,_Snow,_IceArt,_Painted,_Cracks;struct Input{float3 worldPos;float3 worldNormal;float2 logicalXZ;float4 iceTint;float2 iceSurface;};
  float4 _IceFocus,_IslandAnchors[16],_ExplicitIsland;int _IslandCount;float _IceRadius,_IslandFlatten;float3 _IslandViewOffset;float _IceDiskRadius;float3 _IceDiskCenter,_IceDiskRight,_IceDiskUp;float4x4 _IceRotation;float _IslandDisplayScale;
+ float _IslandWindowClipEnabled;float4 _IslandWindowBounds;
+ // Connected gameplay uses one common frame; never stretch a bridge between warped shores.
+ float _IslandRigidLayout,_RecoilFlying;
  float3 displayPoint(float3 p){return _IceFocus.xyz+(p-_IceFocus.xyz)*max(1,_IslandDisplayScale);}
  float3 turn(float3 q,float3 axis,float si,float co){return q*co+cross(axis,q)*si+axis*dot(axis,q)*(1-co);}
  float _BridgeEnabled;float4 _BridgeStart,_BridgeEnd,_BridgeIslandA,_BridgeIslandB;
@@ -13,12 +16,30 @@ Shader "BetweenPoles/PaintedIceTrial" {
  float3 referencePoint(){return float3(0,0,0);}
  float3 originalFrame(float3 v){return v;}
  float upperWeight(float3 delta){return smoothstep(0,1,saturate((delta.z-abs(delta.x))/6));}
- float3 islandOffset(float3 anchor){float3 delta=anchor-_IceFocus.xyz;return _IceDiskUp*(.45*upperWeight(delta)+.25*upperWeight(-delta));}
+ float _IslandEdgeLayout;
+ float3 islandOffset(float3 anchor){
+  float3 delta=anchor-_IceFocus.xyz;
+  float3 offset=_IceDiskUp*(.45*upperWeight(delta)+.25*upperWeight(-delta));
+  float d=length(delta.xz);
+  if(_IslandEdgeLayout>.001 && _IceDiskRadius>0 && d>.001){
+   float angle=d/_IceRadius;
+   float3 center=float3(delta.x/d*sin(angle)*_IceRadius,(cos(angle)-1)*_IceRadius,delta.z/d*sin(angle)*_IceRadius)+offset;
+   float2 screen=float2(dot(center,_IceDiskRight),dot(center,_IceDiskUp));
+   float extent=length(screen);
+   float push=max(0,_IceDiskRadius*.96/max(1,_IslandDisplayScale)-extent)*smoothstep(0,6,d)*_IslandEdgeLayout;
+   offset+=(_IceDiskRight*screen.x+_IceDiskUp*screen.y)/max(.001,extent)*push;
+  }
+  return offset;
+ }
  float3 bridgeWarp(float3 p,float4 anchor,float3 offset){float3 relative=anchor.xyz-_IceFocus.xyz+referencePoint();float d=length(relative.xz);float angle=d/_IceRadius;float localAngle=angle*(1-.10*upperWeight(anchor.xyz-_IceFocus.xyz));float3 axis=d>.001?float3(relative.z,0,-relative.x)/d:float3(0,0,1);return _IceFocus.xyz+float3(0,-_IceRadius,0)+originalFrame(turn(float3(0,_IceRadius,0),axis,sin(angle),cos(angle))+turn(p-anchor.xyz,axis,sin(localAngle),cos(localAngle)))+islandOffset(anchor.xyz);}
  float3 bridgeNormal(float3 n,float4 anchor){float3 relative=anchor.xyz-_IceFocus.xyz+referencePoint();float d=length(relative.xz);float a=d/_IceRadius*(1-.10*upperWeight(anchor.xyz-_IceFocus.xyz));float3 axis=d>.001?float3(relative.z,0,-relative.x)/d:float3(0,0,1);return originalFrame(turn(n,axis,sin(a),cos(a)));}
  void bend(inout appdata_full v,out Input o){
  UNITY_INITIALIZE_OUTPUT(Input,o);o.iceTint=v.color;
  float3 p=mul(unity_ObjectToWorld,v.vertex).xyz;o.logicalXZ=p.xz;o.iceSurface=float2(v.normal.y,p.y);
+ if(_IslandRigidLayout>.5){
+  v.vertex=mul(unity_WorldToObject,float4(displayPoint(p),1));
+  return;
+ }
  if(_BridgeEnabled>.5){
   // A single straight span between the two shoreline edges, not a curved blend.
   float3 direction=normalize(_BridgeEnd.xyz-_BridgeStart.xyz);float3 side=cross(direction,float3(0,1,0));
@@ -45,7 +66,8 @@ Shader "BetweenPoles/PaintedIceTrial" {
  float iceField(float2 p){return iceNoise(p)*.65+iceNoise(p*2.03+7)*.25+iceNoise(p*4.1)*.1;}
  float cracks(float2 p){float2 id=floor(p),f=frac(p);float nearest=9,second=9;for(int y=-1;y<=1;y++)for(int x=-1;x<=1;x++){float2 cell=float2(x,y);float2 seed=float2(iceHash(id+cell),iceHash(id+cell+41));float d=length(cell+seed-f);if(d<nearest){second=nearest;nearest=d;}else second=min(second,d);}return 1-smoothstep(.014,.05,second-nearest);}
  void surf(Input i,inout SurfaceOutput o){
- if(_IceDiskRadius>0){float3 relative=i.worldPos-_IceDiskCenter;float2 disk=float2(dot(relative,_IceDiskRight),dot(relative,_IceDiskUp));clip(_IceDiskRadius*_IceDiskRadius-dot(disk,disk));}
+ if(_IslandWindowClipEnabled>.5){float2 edge=min(i.logicalXZ-_IslandWindowBounds.xy,_IslandWindowBounds.zw-i.logicalXZ);clip(min(edge.x,edge.y));}
+ if(_IceDiskRadius>0 && _RecoilFlying<.5){float3 relative=i.worldPos-_IceDiskCenter;float2 disk=float2(dot(relative,_IceDiskRight),dot(relative,_IceDiskUp));clip(_IceDiskRadius*_IceDiskRadius-dot(disk,disk));}
  float3 col=_Color.rgb;float2 g=abs(frac((i.logicalXZ+.75)/1.5)-.5);float seam=smoothstep(.452,.486,max(g.x,g.y))*_Grid;
  if(_Painted>.5){
   // Stable world-aligned pixel pigments: no scrolling texture or shimmer under the player.

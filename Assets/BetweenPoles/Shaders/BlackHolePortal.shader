@@ -6,6 +6,8 @@ Shader "BetweenPoles/BlackHolePortal" {
  #include "UnityCG.cginc"
  fixed4 _Color;float _Grid,_Snow,_IceArt,_Painted,_Cracks;struct Input{float2 portalUV;float3 worldPos;float3 worldNormal;float2 logicalXZ;float4 iceTint;float2 iceSurface;};
  float4 _IceFocus,_IslandAnchors[16],_ExplicitIsland;int _IslandCount;float _IceRadius,_IslandFlatten;float3 _IslandViewOffset;float _IceDiskRadius;float3 _IceDiskCenter,_IceDiskRight,_IceDiskUp;float4x4 _IceRotation;float _IslandDisplayScale;
+ // Connected gameplay uses one common frame; never stretch a bridge between warped shores.
+ float _IslandRigidLayout,_RecoilFlying;
  float3 displayPoint(float3 p){return _IceFocus.xyz+(p-_IceFocus.xyz)*max(1,_IslandDisplayScale);}
  float3 turn(float3 q,float3 axis,float si,float co){return q*co+cross(axis,q)*si+axis*dot(axis,q)*(1-co);}
  float _BridgeEnabled;float4 _BridgeStart,_BridgeEnd,_BridgeIslandA,_BridgeIslandB;
@@ -14,12 +16,30 @@ Shader "BetweenPoles/BlackHolePortal" {
  float3 referencePoint(){return float3(0,0,0);}
  float3 originalFrame(float3 v){return v;}
  float upperWeight(float3 delta){return smoothstep(0,1,saturate((delta.z-abs(delta.x))/6));}
- float3 islandOffset(float3 anchor){float3 delta=anchor-_IceFocus.xyz;return _IceDiskUp*(.45*upperWeight(delta)+.25*upperWeight(-delta));}
+ float _IslandEdgeLayout;
+ float3 islandOffset(float3 anchor){
+  float3 delta=anchor-_IceFocus.xyz;
+  float3 offset=_IceDiskUp*(.45*upperWeight(delta)+.25*upperWeight(-delta));
+  float d=length(delta.xz);
+  if(_IslandEdgeLayout>.001 && _IceDiskRadius>0 && d>.001){
+   float angle=d/_IceRadius;
+   float3 center=float3(delta.x/d*sin(angle)*_IceRadius,(cos(angle)-1)*_IceRadius,delta.z/d*sin(angle)*_IceRadius)+offset;
+   float2 screen=float2(dot(center,_IceDiskRight),dot(center,_IceDiskUp));
+   float extent=length(screen);
+   float push=max(0,_IceDiskRadius*.96/max(1,_IslandDisplayScale)-extent)*smoothstep(0,6,d)*_IslandEdgeLayout;
+   offset+=(_IceDiskRight*screen.x+_IceDiskUp*screen.y)/max(.001,extent)*push;
+  }
+  return offset;
+ }
  float3 bridgeWarp(float3 p,float4 anchor,float3 offset){float3 relative=anchor.xyz-_IceFocus.xyz+referencePoint();float d=length(relative.xz);float angle=d/_IceRadius;float localAngle=angle*(1-.10*upperWeight(anchor.xyz-_IceFocus.xyz));float3 axis=d>.001?float3(relative.z,0,-relative.x)/d:float3(0,0,1);return _IceFocus.xyz+float3(0,-_IceRadius,0)+originalFrame(turn(float3(0,_IceRadius,0),axis,sin(angle),cos(angle))+turn(p-anchor.xyz,axis,sin(localAngle),cos(localAngle)))+islandOffset(anchor.xyz);}
  float3 bridgeNormal(float3 n,float4 anchor){float3 relative=anchor.xyz-_IceFocus.xyz+referencePoint();float d=length(relative.xz);float a=d/_IceRadius*(1-.10*upperWeight(anchor.xyz-_IceFocus.xyz));float3 axis=d>.001?float3(relative.z,0,-relative.x)/d:float3(0,0,1);return originalFrame(turn(n,axis,sin(a),cos(a)));}
  void bend(inout appdata_full v,out Input o){
  UNITY_INITIALIZE_OUTPUT(Input,o);o.iceTint=v.color;o.portalUV=v.texcoord.xy;
  float3 p=mul(unity_ObjectToWorld,v.vertex).xyz;o.logicalXZ=p.xz;o.iceSurface=float2(v.normal.y,p.y);
+ if(_IslandRigidLayout>.5){
+  v.vertex=mul(unity_WorldToObject,float4(displayPoint(p),1));
+  return;
+ }
  if(_BridgeEnabled>.5){
   // A single straight span between the two shoreline edges, not a curved blend.
   float3 direction=normalize(_BridgeEnd.xyz-_BridgeStart.xyz);float3 side=cross(direction,float3(0,1,0));
