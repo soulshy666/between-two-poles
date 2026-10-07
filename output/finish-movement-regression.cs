@@ -1,0 +1,52 @@
+if(!UnityEditor.EditorApplication.isPlaying)throw new System.Exception("Play mode required");
+var root=new GameObject("Finish movement regression");root.SetActive(false);
+try{
+ var b=root.AddComponent<BetweenPoles.GridPlayground>();b.enabled=false;
+ var p=new GameObject("player");p.transform.SetParent(root.transform,false);b.player=p.transform;
+ var tiles=new System.Collections.Generic.List<BetweenPoles.GridTile>();
+ for(int x=-2;x<=4;x++)for(int z=-1;z<=1;z++){
+  var g=new GameObject("tile");g.transform.SetParent(root.transform,false);g.transform.position=new Vector3(x*1.5f,0,z*1.5f);
+  tiles.Add(g.AddComponent<BetweenPoles.GridTile>());
+ }
+ b.tiles=tiles.ToArray();
+ var barGo=new GameObject("bar");barGo.transform.SetParent(root.transform,false);barGo.transform.position=Vector3.right*1.5f;
+ var bar=barGo.AddComponent<BetweenPoles.MagnetPiece>();bar.shape=BetweenPoles.MagnetShape.Bar;bar.north=true;
+ bar.geometry=BetweenPoles.MagnetVisuals.Build(bar.transform,bar.shape,true,BetweenPoles.MagnetProduct.None,1.5f,true,Vector2Int.right);
+ b.magnets=new[]{bar};root.SetActive(true);b.CaptureInitialState();
+ var finish=typeof(BetweenPoles.GridPlayground).GetMethod("FinishMovement",System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic);
+ System.Action<bool,string> check=(ok,msg)=>{if(!ok)throw new System.Exception(msg);};
+ check(b.TryStep(Vector2Int.right),"push rejected");
+ check(b.TryStep(Vector2Int.up),"redirect rejected");
+ var privateFlags=System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic;
+ var presentations=(System.Collections.IList)b.GetType().GetField("pushPresentations",privateFlags).GetValue(b);
+ check(presentations.Count==1,"missing independent magnet animation");
+ var presentation=presentations[0];
+ var tracks=(System.Collections.IList)presentation.GetType().GetField("tracks").GetValue(presentation);
+ var track=tracks[0];var frames=(System.Collections.IList)track.GetType().GetField("frames").GetValue(track);
+ check(frames.Count>10,"remaining animation collapsed");
+ var display=(Renderer)track.GetType().GetField("display").GetValue(track);
+ var first=frames[0];var rotation=(Quaternion)first.GetType().GetField("rotation").GetValue(first);
+ check(Quaternion.Angle(display.transform.rotation,rotation)<.01f,"visual snapped to final pose");
+ check(bar.geometry.GetComponentInChildren<Renderer>().forceRenderingOff,"duplicate committed geometry visible");
+ var playerAfterRedirect=b.player.position;
+ var replay=(System.Collections.IEnumerator)b.GetType().GetMethod("PlayPushPresentation",privateFlags).Invoke(b,new object[]{presentation});
+ replay.MoveNext();replay.MoveNext();replay.MoveNext();
+ check(b.player.position==playerAfterRedirect,"magnet replay changed player position");
+ finish.Invoke(b,null);
+ check((bar.transform.position-Vector3.right*3).sqrMagnitude<.00001f,"push rolled back");
+ check((b.player.position-new Vector3(1.5f,0,1.5f)).sqrMagnitude<.00001f,"redirect from wrong cell");
+ check(b.UndoCount==2,"history must retain push and walk");
+ b.UndoStep();check((bar.transform.position-Vector3.right*3).sqrMagnitude<.00001f,"first undo lost push");
+ b.UndoStep();check((bar.transform.position-Vector3.right*1.5f).sqrMagnitude<.00001f,"second undo failed");
+ check(b.TryStep(Vector2Int.left),"walk rejected");check(b.TryStep(Vector2Int.right),"reverse rejected");finish.Invoke(b,null);
+ check(b.player.position.sqrMagnitude<.00001f&&b.UndoCount==2,"walk reversal must commit two steps");
+ b.ResetPuzzle();
+ var ug=new GameObject("U");ug.transform.SetParent(root.transform,false);ug.transform.position=Vector3.right*3;
+ var u=ug.AddComponent<BetweenPoles.MagnetPiece>();u.shape=BetweenPoles.MagnetShape.Horseshoe;u.north=false;
+ u.geometry=BetweenPoles.MagnetVisuals.Build(u.transform,u.shape,false,BetweenPoles.MagnetProduct.None,1.5f,false,Vector2Int.right);
+ b.magnets=new[]{bar,u};b.CaptureInitialState();
+ check(b.TryStep(Vector2Int.right),"assembly rejected");check(b.TryStep(Vector2Int.left),"assembly redirect rejected");finish.Invoke(b,null);
+ check(u.product==BetweenPoles.MagnetProduct.BridgeHalf&&!bar.gameObject.activeSelf,"assembly was not committed");
+ check(!b.Busy&&b.UndoCount==2,"assembly completion/history failed");
+ return "PASS: independent remaining magnet animation, no visual snap, redirected landing, two-step undo, walk reversal, bridge assembly completion";
+}finally{UnityEngine.Object.Destroy(root);}
