@@ -49,15 +49,32 @@ public sealed partial class GridPlayground {
         Quaternion receiverEnd=receiverStanding?yaw:receiverPose;
         bool bothStanding=incomingStanding&&receiverStanding;
         bool parallelRail=product==MagnetProduct.WideBar&&incomingStanding&&!receiverStanding;
+        bool fallingReceiverRail=product==MagnetProduct.WideBar&&receiverStanding&&!incomingStanding;
         Bounds railStart=startIncoming;
         var railSide=Vector3.Cross(Vector3.up,push);
         railStart.center+=railSide*Vector3.Dot(endIncoming.center-startIncoming.center,railSide);
+        Bounds receiverRailStart=startReceiver;
+        receiverRailStart.center+=railSide*Vector3.Dot(endReceiver.center-startReceiver.center,railSide);
         Bounds stagedIncoming=startIncoming;
         stagedIncoming.center=startReceiver.center+(endIncoming.center-endReceiver.center);
         Vector3 sideFirst=startIncoming.center+(endIncoming.center-endReceiver.center);
         float seconds=Mathf.Max(joinSeconds,(incomingStanding||receiverStanding)?1.6f:1.35f);
         for(float elapsed=0;elapsed<seconds;elapsed+=MovementDeltaTime){
             float p=Mathf.Clamp01(elapsed/seconds);
+            if(fallingReceiverRail){
+                // Separate the rail lanes before approaching or tipping the
+                // receiver; neither body sweeps through the other rail.
+                if(p<.20f){
+                    float lane=AssemblyPhase(p,0,.20f);
+                    PlaceAssemblyBody(incoming,incomingPose,incomingScale,Vector3.Lerp(startIncoming.center,railStart.center,lane));
+                    PlaceAssemblyBody(receiver,receiverPose,receiverScale,Vector3.Lerp(startReceiver.center,receiverRailStart.center,lane));
+                }else{
+                    float dock=AssemblyPhase(p,.20f,.94f);
+                    PlaceDockingBar(incoming,incomingPose,incomingEnd,incomingScale,railStart,endIncoming,push,dock);
+                    PlaceDockingBar(receiver,receiverPose,receiverEnd,receiverScale,receiverRailStart,endReceiver,push,dock);
+                }
+                yield return null;continue;
+            }
             if(parallelRail){
                 // Establish parallel lanes before lowering the upright rail, so
                 // it falls beside the receiver without intersecting its body.
@@ -89,8 +106,8 @@ public sealed partial class GridPlayground {
             PlaceDockingBar(receiver,receiverPose,receiverEnd,receiverScale,startReceiver,endReceiver,push,recvProgress);
             yield return null;
         }
-        PlaceDockingBar(incoming,incomingPose,incomingEnd,incomingScale,bothStanding?stagedIncoming:parallelRail?railStart:startIncoming,endIncoming,push,1);
-        PlaceDockingBar(receiver,receiverPose,receiverEnd,receiverScale,startReceiver,endReceiver,push,1);
+        PlaceDockingBar(incoming,incomingPose,incomingEnd,incomingScale,bothStanding?stagedIncoming:(parallelRail||fallingReceiverRail)?railStart:startIncoming,endIncoming,push,1);
+        PlaceDockingBar(receiver,receiverPose,receiverEnd,receiverScale,fallingReceiverRail?receiverRailStart:startReceiver,endReceiver,push,1);
         yield return null;
     }
     static bool AxialRingDock(Quaternion incoming,Quaternion receiver,Vector2Int direction){
