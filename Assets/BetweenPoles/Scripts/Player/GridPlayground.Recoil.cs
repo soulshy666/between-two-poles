@@ -8,6 +8,21 @@ public sealed partial class GridPlayground {
     public Vector3 RecoilCameraFocus {get{return RecoilOrigin+(player.position-RecoilOrigin)*Mathf.Max(1,Shader.GetGlobalFloat("_IslandDisplayScale"));}}
     Renderer[] recoilRenderers;
     MaterialPropertyBlock recoilBlock;
+    Vector3 playerFlightOffset,magnetFlightOffset;
+    static Vector3 SurfaceOffset(Vector3 p){
+        Vector3 origin=Shader.GetGlobalVector("_IceFocus"),center=Shader.GetGlobalVector("_IceCurveFocus");
+        float scale=Mathf.Max(1,Shader.GetGlobalFloat("_IslandDisplayScale"));
+        Vector3 q=(p-center)*scale;float d=new Vector2(q.x,q.z).magnitude;
+        float radius=Mathf.Max(12,Shader.GetGlobalFloat("_IceRadius")*1.65f),a=Mathf.Min(d/radius,1.15f),extra=Mathf.Max(0,d-radius*1.15f);
+        float radial=radius*Mathf.Sin(a)+extra*Mathf.Cos(a),drop=radius*(Mathf.Cos(a)-1)-extra*Mathf.Sin(a);
+        Vector3 up=d>.0001f?new Vector3(q.x/d*Mathf.Sin(a),Mathf.Cos(a),q.z/d*Mathf.Sin(a)):Vector3.up;
+        Vector3 bent=origin+(center-origin)*scale+new Vector3(d>.0001f?q.x/d*radial:0,drop,d>.0001f?q.z/d*radial:0)+up*q.y;
+        return bent-(origin+(p-origin)*scale);
+    }
+    void FlightOffset(Transform actor,Vector3 offset){
+        if(recoilBlock==null)recoilBlock=new MaterialPropertyBlock();
+        foreach(var r in actor.GetComponentsInChildren<Renderer>()){r.GetPropertyBlock(recoilBlock);recoilBlock.SetVector("_RecoilDisplayOffset",offset);r.SetPropertyBlock(recoilBlock);}
+    }
     // Search logical cells, including islands currently hidden by the presentation window.
     // The first foreign shore holds the magnet; the next cell inward holds the player.
     public bool FindRecoilLanding(Vector2Int from,Vector2Int travel,out Vector2Int shore,out Vector3 magnetEnd,out Vector3 playerEnd,out int exitDistance){
@@ -30,11 +45,14 @@ public sealed partial class GridPlayground {
         }
         return nearest!=int.MaxValue;
     }
-    void BeginRecoilFlight(MagnetPiece magnet,Vector3 origin,Transform destination){
+    void BeginRecoilFlight(MagnetPiece magnet,Vector3 origin,Transform destination,bool preserveOffsets=false){
         RecoilOrigin=origin;RecoilFlying=true;RecoilMagnet=magnet;
         var list=new System.Collections.Generic.List<Renderer>(player.GetComponentsInChildren<Renderer>());list.AddRange(magnet.GetComponentsInChildren<Renderer>());recoilRenderers=list.ToArray();
         if(recoilBlock==null)recoilBlock=new MaterialPropertyBlock();
-        foreach(var r in recoilRenderers){r.GetPropertyBlock(recoilBlock);recoilBlock.SetFloat("_RecoilFlying",1);r.SetPropertyBlock(recoilBlock);}
+        // Shader motion is outside the source mesh bounds. Keep the same conservative
+        // bounds used by island surfaces, including after this actor lands in a new frame.
+        foreach(var r in recoilRenderers){var bounds=r.localBounds;bounds.Encapsulate(new Bounds(Vector3.zero,Vector3.one*300));r.localBounds=bounds;r.GetPropertyBlock(recoilBlock);recoilBlock.SetFloat("_RecoilFlying",1);r.SetPropertyBlock(recoilBlock);}
+        if(!preserveOffsets){playerFlightOffset=SurfaceOffset(player.position);magnetFlightOffset=SurfaceOffset(magnet.transform.position);FlightOffset(player,playerFlightOffset);FlightOffset(magnet.transform,magnetFlightOffset);}
         var window=GetComponent<FiveIslandWindow>();if(window)window.PreviewRecoilTarget(destination);
     }
     void EndRecoilFlight(){
@@ -52,16 +70,14 @@ public sealed partial class GridPlayground {
         var focus=Shader.GetGlobalVector("_IceFocus");
         BeginRecoilFlight(magnet,new Vector3(focus.x,focus.y,focus.z),lands?Owner(Tile(shore)):null);
         if(nextChapter){ChapterRecoilTravel.Begin(chapterExit,magnet);yield break;}
-        // Constant travel speed across a gap; the takeoff and landing alone ease vertically.
+        // Position and rendered offset interpolate together, producing one straight trajectory.
         float duration=Mathf.Max(.8f,Vector3.Distance(playerStart,playerEnd)/(cellSize*5));
-        float cruiseHeight=Mathf.Max(playerStart.y,Mathf.Max(playerEnd.y,magnetEnd.y))+cellSize*.65f;
+        Vector3 endPlayerOffset=lands?SurfaceOffset(playerEnd):playerFlightOffset,endMagnetOffset=lands?SurfaceOffset(magnetEnd):magnetFlightOffset;
         for(float t=0;t<duration;t+=Time.deltaTime){
-            float a=Mathf.Clamp01(t/duration);float rise=Mathf.SmoothStep(0,1,Mathf.Clamp01(t/.24f));
-            float settle=lands?Mathf.SmoothStep(0,1,Mathf.Clamp01((t-(duration-.3f))/.3f)):0;
+            float a=Mathf.Clamp01(t/duration);
             player.position=Vector3.Lerp(playerStart,playerEnd,a);magnet.transform.position=Vector3.Lerp(magnetStart,magnetEnd,a);
-            player.position=new Vector3(player.position.x,Mathf.Lerp(Mathf.Lerp(playerStart.y,cruiseHeight,rise),playerEnd.y,settle),player.position.z);
-            magnet.transform.position=new Vector3(magnet.transform.position.x,Mathf.Lerp(Mathf.Lerp(magnetStart.y,cruiseHeight,rise),magnetEnd.y,settle),magnet.transform.position.z);
-            player.rotation=Quaternion.AngleAxis(-20*rise*(1-settle),axis)*facing;yield return null;
+            FlightOffset(player,Vector3.Lerp(playerFlightOffset,endPlayerOffset,a));FlightOffset(magnet.transform,Vector3.Lerp(magnetFlightOffset,endMagnetOffset,a));
+            player.rotation=facing;yield return null;
         }
         if(lands){
             magnet.transform.position=magnetEnd;player.SetPositionAndRotation(playerEnd,facing);
@@ -70,7 +86,7 @@ public sealed partial class GridPlayground {
             var window=GetComponent<FiveIslandWindow>();if(window)window.Show(window.CurrentRoom);
             yield break;
         }
-        var playerDrift=new Vector3(playerEnd.x,cruiseHeight,playerEnd.z);var magnetDrift=new Vector3(magnetEnd.x,cruiseHeight,magnetEnd.z);
+        var playerDrift=playerEnd;var magnetDrift=magnetEnd;
         player.position=playerDrift;magnet.transform.position=magnetDrift;
         LastRule="没有可落地的小岛：在太空漂浮 5 秒后重开本关";
         for(float t=0;t<5f;t+=Time.deltaTime){
@@ -86,7 +102,11 @@ public sealed partial class GridPlayground {
         var magnetEnd=Position(shore,GroundHeight(shore));var playerEnd=Position(inner,GroundHeight(inner));
         var playerStart=player.position;var magnetStart=magnet.transform.position;
         var initialRotation=player.rotation;
-        BeginRecoilFlight(magnet,origin,Owner(Tile(shore)));
+        BeginRecoilFlight(magnet,origin,Owner(Tile(shore)),true);
+        var playerProperties=new MaterialPropertyBlock();player.GetComponentInChildren<Renderer>().GetPropertyBlock(playerProperties);
+        var magnetProperties=new MaterialPropertyBlock();magnet.GetComponentInChildren<Renderer>().GetPropertyBlock(magnetProperties);
+        Vector3 startPlayerOffset=playerProperties.GetVector("_RecoilDisplayOffset"),startMagnetOffset=magnetProperties.GetVector("_RecoilDisplayOffset");
+        Vector3 endPlayerOffset=SurfaceOffset(playerEnd),endMagnetOffset=SurfaceOffset(magnetEnd);
         float duration=Mathf.Max(.8f,Mathf.Abs(playerStart.x-playerEnd.x)/speed);
         // Cruise at the same speed, then smoothly brake over the final three cells.
         float braking=Mathf.Min(.9f,duration*.4f);duration+=braking*.5f;
@@ -95,6 +115,7 @@ public sealed partial class GridPlayground {
             float distance=speed*(t-.5f*braking*brake*brake);
             float a=Mathf.Clamp01(distance/Mathf.Abs(playerStart.x-playerEnd.x));
             player.position=Vector3.Lerp(playerStart,playerEnd,a);magnet.transform.position=Vector3.Lerp(magnetStart,magnetEnd,a);
+            FlightOffset(player,Vector3.Lerp(startPlayerOffset,endPlayerOffset,a));FlightOffset(magnet.transform,Vector3.Lerp(startMagnetOffset,endMagnetOffset,a));
             player.rotation=Quaternion.Slerp(initialRotation,Quaternion.LookRotation(Vector3.left),Mathf.SmoothStep(0,1,brake));yield return null;
         }
         player.SetPositionAndRotation(playerEnd,Quaternion.LookRotation(Vector3.left));magnet.transform.position=magnetEnd;

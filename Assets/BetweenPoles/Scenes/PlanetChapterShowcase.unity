@@ -11432,202 +11432,330 @@ MonoBehaviour:
     land: {r: 0.8156863, g: 0.93333334, b: 0.9411765, a: 1}
     accent: {r: 0.52156866, g: 0.7921569, b: 0.84313726, a: 1}
     surfaceBackground: {fileID: 2800000, guid: 942f4f8e3c2522b4b97029e6d6eab160, type: 3}
+    spaceBackground: {fileID: 843158218173243972, guid: 1b27a235d3bf3074aba628522bf602bb, type: 3}
     start: 0
     islands:
-    - id: Planet B center
-      hasBlackHole: 1
-      blackHoleCell: {x: 0, y: 2}
-      position: {x: 0.5, y: 0.48}
+    - id: mux00qcvvmpv7
+      hasBlackHole: 0
+      blackHoleCell: {x: 0, y: 0}
+      position: {x: 0.395, y: 0.32786885}
       cells:
-      - {x: -3, y: -2}
+      - {x: -2, y: 0}
+      - {x: -2, y: -1}
+      - {x: -1, y: 1}
+      - {x: -1, y: 0}
+      - {x: -1, y: -1}
+      - {x: 0, y: 1}
+      - {x: 0, y: 0}
+      - {x: 0, y: -1}
+      - {x: 1, y: 1}
+      - {x: 1, y: -1}
+      - {x: 2, y: 1}
+      - {x: 2, y: 0}
+      - {x: 1, y: 0}
+      rocks: []
+      magnets:
+      - {x: 2, y: 0}
+      neighbors: 01000000
+      spawn: {x: 0, y: 0, z: 0}
+    - id: mux00qcvv47nj
+      hasBlackHole: 0
+      blackHoleCell: {x: 0, y: 0}
+      position: {x: 0.465, y: 0.32786885}
+      cells:
+      - {x: -2, y: 1}
+      - {x: -2, y: 0}
+      - {x: -2, y: -1}
+      - {x: -1, y: 1}
+      - {x: -1, y: 0}
+      - {x: -1, y: -1}
+      - {x: 0, y: 2}
+      - {x: 0, y: 1}
+      - {x: 0, y: 0}
+      - {x: 0, y: -1}
+      - {x: 0, y: -2}
+      - {x: 1, y: 1}
+      - {x: 1, y: 0}
+      - {x: 1, y: -1}
+      - {x: 1, y: -2}
+      - {x: 2, y: 1}
+      - {x: 2, y: 0}
+      - {x: 2, y: -1}
+      rocks: []
+      magnets:
+      - {x: -1, y: 0}
+      neighbors: 0000000002000000
+      spawn: {x: 9, y: 0, z: 0}
+    - id: muxeb2b5vx4qt
+      hasBlackHole: 0
+      blackHoleCell: {x: 0, y: 0}
+      position: {x: 0.535, y: 0.30874318}
+      cells:
+      - {x: -2, y: 1}
+      - {x: -2, y: 0}
+      - {x: -1, y: 1}
+      - {x: -1, y: 0}
+      - {x: 0, y: 1}
+      - {x: 0, y: 0}
+      - {x: 1, y: 1}
+      - {x: 1, y: 0}
+      - {x: 2, y: 1}
+      - {x: 2, y: 0}
+      - {x: 3, y: 1}
+      - {x: 3, y: 0}
+      - {x: 1, y: -1}
+      - {x: 2, y: -1}
+      rocks: []
+      magnets:
+      - {x: 0, y: 0}
+      - {x: 1, y: 0}
+      neighbors: 0100000003000000
+      spawn: {x: 18, y: 0, z: 0}
+    - id: muxetj8qfmggm
+      hasBlackHole: 0
+      blackHoleCell: {x: 0, y: 0}
+      position: {x: 0.62833333, y: 0.32786885}
+      cells:
+      - {x: -3, y: 1}
+      - {x: -3, y: 0}
+      - {x: -2, y: 2}
+      - {x: -2, y: 1}
+      - {x: -2, y: 0}
+      - {x: -2, y: -1}
+      - {x: -1, y: 2}
+      - {x: -1, y: 1}
+      - {x: -1, y: 0}
+      - {x: 0, y: 2}
+      - {x: 0, y: 1}
+      - {x: 0, y: 0}
+      - {x: 1, y: 2}
+      - {x: 1, y: 1}
+      - {x: 1, y: 0}
+      - {x: -1, y: -1}
+      - {x: 2, y: 1}
+      - {x: 2, y: 2}
+      - {x: 2, y: 0}
       - {x: -3, y: -1}
-      - {x: -2, y: -2}
+      rocks:
+      - {x: -1, y: 1}
+      - {x: 1, y: 1}
+      magnets:
+      - {x: 0, y: 1}
+      neighbors: 0200000004000000
+      spawn: {x: 28.5, y: 0, z: 0}
+    - id: muxfdgnq62pkq
+      hasBlackHole: 0
+      blackHoleCell: {x: 0, y: 0}
+      position: {x: 0.58166665, y: 0.42349726}
+      cells:
+      - {x: -2, y: 1}
+      - {x: -2, y: -1}
+      - {x: -1, y: 2}
+      - {x: -1, y: 1}
+      - {x: -1, y: -1}
+      - {x: -1, y: -2}
+      - {x: 0, y: 2}
+      - {x: 0, y: 1}
+      - {x: 0, y: 0}
+      - {x: 0, y: -1}
+      - {x: 0, y: -2}
+      - {x: 1, y: 2}
+      - {x: 1, y: 1}
+      - {x: 1, y: 0}
+      - {x: 1, y: -1}
+      - {x: 1, y: -2}
+      - {x: -2, y: 0}
+      - {x: -1, y: 0}
+      rocks:
+      - {x: 0, y: 1}
+      - {x: 0, y: -1}
+      magnets:
+      - {x: -1, y: -1}
+      - {x: 0, y: 0}
+      neighbors: 0300000005000000
+      spawn: {x: 22.5, y: 0, z: 7.5}
+    - id: muxgo6ec2ivq5
+      hasBlackHole: 0
+      blackHoleCell: {x: 0, y: 0}
+      position: {x: 0.5233333, y: 0.44262296}
+      cells:
+      - {x: -2, y: 1}
+      - {x: -2, y: 0}
+      - {x: -2, y: -1}
+      - {x: -1, y: 1}
+      - {x: -1, y: 0}
+      - {x: -1, y: -1}
+      - {x: 0, y: 1}
+      - {x: 0, y: 0}
+      - {x: 0, y: -1}
+      - {x: 1, y: 1}
+      - {x: 1, y: 0}
+      - {x: -1, y: 2}
+      - {x: 0, y: 2}
+      - {x: 1, y: 2}
+      - {x: -2, y: 2}
+      - {x: 2, y: 1}
+      rocks: []
+      magnets:
+      - {x: 0, y: 2}
+      - {x: -2, y: 0}
+      neighbors: 040000000600000009000000
+      spawn: {x: 16.5, y: 0, z: 10.5}
+    - id: muxhee2omx2kp
+      hasBlackHole: 0
+      blackHoleCell: {x: 0, y: 0}
+      position: {x: 0.45333335, y: 0.44262296}
+      cells:
+      - {x: 0, y: 1}
+      - {x: 0, y: -1}
+      - {x: 1, y: 1}
+      - {x: 1, y: 0}
+      - {x: 1, y: -1}
+      - {x: 2, y: 0}
+      - {x: 0, y: 0}
+      - {x: -1, y: 1}
+      - {x: -1, y: 0}
+      - {x: -1, y: -1}
+      - {x: -1, y: 2}
+      - {x: -2, y: 1}
+      - {x: -2, y: 0}
+      - {x: 2, y: 2}
+      - {x: 1, y: 2}
+      - {x: 0, y: 2}
+      rocks:
+      - {x: 0, y: 1}
+      magnets:
+      - {x: 2, y: 0}
+      - {x: 1, y: 0}
+      neighbors: 050000000700000008000000
+      spawn: {x: 7.5, y: 0, z: 9}
+    - id: muxhexcp3wpqm
+      hasBlackHole: 0
+      blackHoleCell: {x: 0, y: 0}
+      position: {x: 0.38333333, y: 0.42349726}
+      cells:
+      - {x: -1, y: -1}
+      - {x: 0, y: 0}
+      - {x: 0, y: -1}
+      - {x: 1, y: 0}
+      - {x: 1, y: -1}
+      - {x: 2, y: 0}
+      - {x: 2, y: -1}
+      - {x: 3, y: 0}
+      - {x: -1, y: 0}
+      - {x: -2, y: 0}
       - {x: -2, y: -1}
       - {x: -3, y: 0}
-      - {x: -3, y: 1}
-      - {x: -2, y: 0}
-      - {x: -2, y: 1}
-      - {x: -3, y: 2}
-      - {x: -3, y: 3}
-      - {x: -2, y: 2}
-      - {x: -2, y: 3}
-      - {x: -3, y: 4}
-      - {x: -3, y: 5}
-      - {x: -2, y: 4}
-      - {x: -2, y: 5}
-      - {x: -1, y: -4}
-      - {x: -1, y: -3}
-      - {x: 0, y: -4}
-      - {x: 0, y: -3}
-      - {x: -1, y: -2}
-      - {x: -1, y: -1}
-      - {x: 0, y: -2}
-      - {x: 0, y: -1}
-      - {x: -1, y: 0}
-      - {x: -1, y: 1}
-      - {x: 0, y: 0}
       - {x: 0, y: 1}
-      - {x: -1, y: 2}
-      - {x: -1, y: 3}
+      - {x: -1, y: 1}
+      - {x: -2, y: 1}
+      rocks: []
+      magnets: []
+      neighbors: 06000000
+      spawn: {x: -1.5, y: 0, z: 7.5}
+    - id: muxig6fp3og11
+      hasBlackHole: 0
+      blackHoleCell: {x: 0, y: 0}
+      position: {x: 0.395, y: 0.5191257}
+      cells:
+      - {x: -1, y: 1}
+      - {x: -1, y: 0}
+      - {x: -1, y: -1}
       - {x: 0, y: 2}
-      - {x: 0, y: 3}
-      - {x: -1, y: 4}
-      - {x: -1, y: 5}
-      - {x: 0, y: 4}
-      - {x: 0, y: 5}
-      - {x: 1, y: -4}
-      - {x: 1, y: -3}
-      - {x: 2, y: -4}
-      - {x: 2, y: -3}
-      - {x: 1, y: -2}
-      - {x: 1, y: -1}
-      - {x: 2, y: -2}
-      - {x: 2, y: -1}
-      - {x: 1, y: 0}
-      - {x: 1, y: 1}
-      - {x: 2, y: 0}
-      - {x: 2, y: 1}
+      - {x: 0, y: 1}
+      - {x: 0, y: 0}
+      - {x: 0, y: -1}
+      - {x: 0, y: -2}
       - {x: 1, y: 2}
-      - {x: 1, y: 3}
-      - {x: 2, y: 2}
-      - {x: 2, y: 3}
-      - {x: 1, y: 4}
-      - {x: 1, y: 5}
-      - {x: 2, y: 4}
-      - {x: 2, y: 5}
-      - {x: 3, y: -2}
+      - {x: 1, y: 1}
+      - {x: 1, y: 0}
+      - {x: 1, y: -1}
+      - {x: 1, y: -2}
+      - {x: 2, y: 1}
+      - {x: 2, y: 0}
+      - {x: 2, y: -1}
+      - {x: 2, y: -2}
+      rocks: []
+      magnets:
+      - {x: 0, y: 0}
+      neighbors: 0600000009000000
+      spawn: {x: 1.5, y: 0, z: 15}
+    - id: muxiqbq51b719
+      hasBlackHole: 0
+      blackHoleCell: {x: 0, y: 0}
+      position: {x: 0.47666666, y: 0.55737704}
+      cells:
+      - {x: -2, y: 0}
+      - {x: -2, y: -1}
+      - {x: -1, y: 2}
+      - {x: -1, y: 1}
+      - {x: -1, y: 0}
+      - {x: -1, y: -1}
+      - {x: 0, y: 1}
+      - {x: 0, y: 0}
+      - {x: 0, y: -1}
+      - {x: 1, y: 1}
+      - {x: 1, y: 0}
+      - {x: 1, y: -1}
+      - {x: 2, y: 0}
+      - {x: 2, y: -1}
+      - {x: 2, y: -2}
+      - {x: 1, y: -2}
+      - {x: -2, y: 1}
+      - {x: -3, y: 1}
+      - {x: -3, y: 0}
+      - {x: -3, y: -1}
+      - {x: 2, y: 1}
       - {x: 3, y: -1}
-      - {x: 4, y: -2}
-      - {x: 4, y: -1}
       - {x: 3, y: 0}
       - {x: 3, y: 1}
-      - {x: 4, y: 0}
-      - {x: 4, y: 1}
-      - {x: 3, y: 2}
-      - {x: 3, y: 3}
-      - {x: 4, y: 2}
-      - {x: 4, y: 3}
+      - {x: 3, y: -2}
       rocks:
-      - {x: -2, y: -2}
-      - {x: -2, y: 1}
+      - {x: -2, y: -1}
       - {x: 1, y: -1}
+      - {x: -2, y: 1}
+      - {x: 3, y: -1}
       magnets:
-      - {x: -3, y: 0}
       - {x: -2, y: 0}
-      - {x: -2, y: 4}
-      - {x: 1, y: 2}
-      - {x: -4, y: 1}
-      - {x: 5, y: 0}
-      - {x: 0, y: 6}
-      - {x: 0, y: -5}
-      neighbors: 01000000020000000300000004000000
-      spawn: {x: 3.75, y: 0, z: 0.75}
-    - id: Planet A center
+      - {x: 2, y: -1}
+      neighbors: 05000000080000000a000000
+      spawn: {x: 10.5, y: 0, z: 18}
+    - id: muxk4c1ufa7uy
       hasBlackHole: 0
       blackHoleCell: {x: 0, y: 0}
-      position: {x: 0.24, y: 0.4935294}
+      position: {x: 0.465, y: 0.6721311}
       cells:
-      - {x: -2, y: -1}
       - {x: -2, y: 0}
-      - {x: -2, y: 1}
-      - {x: -1, y: -2}
-      - {x: -1, y: -1}
       - {x: -1, y: 0}
-      - {x: -1, y: 1}
-      - {x: -1, y: 2}
-      - {x: 0, y: -2}
-      - {x: 0, y: -1}
-      - {x: 0, y: 0}
-      - {x: 0, y: 1}
+      - {x: -1, y: -1}
       - {x: 0, y: 2}
-      - {x: 1, y: -2}
-      - {x: 1, y: -1}
-      - {x: 1, y: 0}
-      - {x: 1, y: 1}
-      rocks:
-      - {x: -2, y: 1}
+      - {x: 0, y: 1}
+      - {x: 0, y: 0}
+      - {x: 0, y: -1}
       - {x: 0, y: -2}
-      magnets: []
-      neighbors: 00000000
-      spawn: {x: -6.75, y: 0, z: 1.5}
-    - id: "\u955C\u5934\u7126\u70B9 (11.25, 0.00, 0.00)"
-      hasBlackHole: 0
-      blackHoleCell: {x: 0, y: 0}
-      position: {x: 0.76, y: 0.4935294}
-      cells:
-      - {x: -2, y: -1}
-      - {x: -2, y: 0}
-      - {x: -2, y: 1}
+      - {x: 1, y: 2}
+      - {x: 1, y: 1}
+      - {x: 1, y: 0}
+      - {x: 1, y: -1}
+      - {x: 1, y: -2}
+      - {x: 2, y: 1}
+      - {x: 2, y: 0}
       - {x: -2, y: 2}
+      - {x: 2, y: -1}
+      - {x: -1, y: 2}
+      - {x: -1, y: 1}
+      - {x: -2, y: 1}
       - {x: -1, y: -2}
-      - {x: -1, y: -1}
-      - {x: -1, y: 0}
-      - {x: -1, y: 1}
-      - {x: -1, y: 2}
-      - {x: 0, y: -2}
-      - {x: 0, y: -1}
-      - {x: 0, y: 0}
+      rocks:
       - {x: 0, y: 1}
-      - {x: 0, y: 2}
-      - {x: 1, y: -1}
-      - {x: 1, y: 0}
-      - {x: 1, y: 1}
-      rocks: []
-      magnets: []
-      neighbors: 00000000
-      spawn: {x: 14.25, y: 0, z: 1.5}
-    - id: "\u955C\u5934\u7126\u70B9 (3.75, 0.00, 9.00)"
-      hasBlackHole: 0
-      blackHoleCell: {x: 0, y: 0}
-      position: {x: 0.5, y: 0.71}
-      cells:
-      - {x: -1, y: -1}
-      - {x: -1, y: 0}
-      - {x: -1, y: 1}
-      - {x: -1, y: 2}
-      - {x: 0, y: -2}
       - {x: 0, y: -1}
-      - {x: 0, y: 0}
-      - {x: 0, y: 1}
-      - {x: 0, y: 2}
-      - {x: 1, y: -2}
-      - {x: 1, y: -1}
       - {x: 1, y: 0}
-      - {x: 1, y: 1}
-      - {x: 1, y: 2}
-      - {x: 2, y: -1}
-      - {x: 2, y: 0}
-      - {x: 2, y: 1}
-      rocks: []
-      magnets: []
-      neighbors: 00000000
-      spawn: {x: 3.75, y: 0, z: 13.5}
-    - id: "\u955C\u5934\u7126\u70B9 (3.75, 0.00, -9.00)"
-      hasBlackHole: 0
-      blackHoleCell: {x: 0, y: 0}
-      position: {x: 0.5, y: 0.25}
-      cells:
-      - {x: -1, y: -1}
-      - {x: -1, y: 0}
       - {x: -1, y: 1}
-      - {x: -1, y: 2}
-      - {x: 0, y: -2}
-      - {x: 0, y: -1}
+      magnets:
       - {x: 0, y: 0}
-      - {x: 0, y: 1}
-      - {x: 0, y: 2}
-      - {x: 1, y: -2}
-      - {x: 1, y: -1}
-      - {x: 1, y: 0}
-      - {x: 1, y: 1}
-      - {x: 1, y: 2}
-      - {x: 2, y: -1}
-      - {x: 2, y: 0}
-      - {x: 2, y: 1}
-      rocks: []
-      magnets: []
-      neighbors: 00000000
-      spawn: {x: 3.75, y: 0, z: -12}
+      - {x: -1, y: -1}
+      neighbors: 09000000
+      spawn: {x: 7.5, y: 0, z: 27}
   - title: "\u7EFF\u91CE\u4E16\u754C"
     scene: Assets/BetweenPoles/Scenes/Chapter02_VerdantWorld.unity
     planet: {fileID: 802105671}
@@ -11636,12 +11764,13 @@ MonoBehaviour:
     land: {r: 0.5764706, g: 0.7254902, b: 0.41568628, a: 1}
     accent: {r: 0.84705883, g: 0.89411765, b: 0.63529414, a: 1}
     surfaceBackground: {fileID: 2800000, guid: b92c9dec6b6286e4e8003ed575e0c043, type: 3}
+    spaceBackground: {fileID: 5025801452485524870, guid: c13f3a16c4057354a91f27af4abd9e78, type: 3}
     start: 0
     islands:
     - id: Planet B center
       hasBlackHole: 0
-      blackHoleCell: {x: 0, y: 2}
-      position: {x: 0.5, y: 0.48}
+      blackHoleCell: {x: 0, y: 0}
+      position: {x: 0.49416667, y: 0.49043715}
       cells:
       - {x: -3, y: -2}
       - {x: -3, y: -1}
@@ -11720,12 +11849,8 @@ MonoBehaviour:
       - {x: -2, y: 0}
       - {x: -2, y: 4}
       - {x: 1, y: 2}
-      - {x: -4, y: 1}
-      - {x: 5, y: 0}
-      - {x: 0, y: 6}
-      - {x: 0, y: -5}
-      neighbors: 
-      spawn: {x: 3.75, y: 0, z: 0.75}
+      neighbors: []
+      spawn: {x: 3, y: 0, z: 0}
   - title: "\u661F\u73AF\u4E16\u754C"
     scene: Assets/BetweenPoles/Scenes/Chapter03_RingWorld.unity
     planet: {fileID: 443578283}
@@ -11734,12 +11859,13 @@ MonoBehaviour:
     land: {r: 0.8509804, g: 0.72156864, b: 0.5294118, a: 1}
     accent: {r: 0.972549, g: 0.8509804, b: 0.6313726, a: 1}
     surfaceBackground: {fileID: 2800000, guid: c216c47ca973f7f4d8107734ac833a44, type: 3}
+    spaceBackground: {fileID: 6958512832813410042, guid: 44addfe2912d6a34aa132621ed3f7534, type: 3}
     start: 0
     islands:
     - id: Planet B center
       hasBlackHole: 0
-      blackHoleCell: {x: 0, y: 2}
-      position: {x: 0.5, y: 0.48}
+      blackHoleCell: {x: 0, y: 0}
+      position: {x: 0.49416667, y: 0.49043715}
       cells:
       - {x: -3, y: -2}
       - {x: -3, y: -1}
@@ -11818,118 +11944,8 @@ MonoBehaviour:
       - {x: -2, y: 0}
       - {x: -2, y: 4}
       - {x: 1, y: 2}
-      - {x: -4, y: 1}
-      - {x: 5, y: 0}
-      - {x: 0, y: 6}
-      - {x: 0, y: -5}
-      neighbors: 01000000020000000300000004000000
-      spawn: {x: 3.75, y: 0, z: 0.75}
-    - id: Planet A center
-      hasBlackHole: 0
-      blackHoleCell: {x: 0, y: 0}
-      position: {x: 0.24, y: 0.4935294}
-      cells:
-      - {x: -2, y: -1}
-      - {x: -2, y: 0}
-      - {x: -2, y: 1}
-      - {x: -1, y: -2}
-      - {x: -1, y: -1}
-      - {x: -1, y: 0}
-      - {x: -1, y: 1}
-      - {x: -1, y: 2}
-      - {x: 0, y: -2}
-      - {x: 0, y: -1}
-      - {x: 0, y: 0}
-      - {x: 0, y: 1}
-      - {x: 0, y: 2}
-      - {x: 1, y: -2}
-      - {x: 1, y: -1}
-      - {x: 1, y: 0}
-      - {x: 1, y: 1}
-      rocks:
-      - {x: -2, y: 1}
-      - {x: 0, y: -2}
-      magnets: []
-      neighbors: 00000000
-      spawn: {x: -6.75, y: 0, z: 1.5}
-    - id: "\u955C\u5934\u7126\u70B9 (11.25, 0.00, 0.00)"
-      hasBlackHole: 0
-      blackHoleCell: {x: 0, y: 0}
-      position: {x: 0.76, y: 0.4935294}
-      cells:
-      - {x: -2, y: -1}
-      - {x: -2, y: 0}
-      - {x: -2, y: 1}
-      - {x: -2, y: 2}
-      - {x: -1, y: -2}
-      - {x: -1, y: -1}
-      - {x: -1, y: 0}
-      - {x: -1, y: 1}
-      - {x: -1, y: 2}
-      - {x: 0, y: -2}
-      - {x: 0, y: -1}
-      - {x: 0, y: 0}
-      - {x: 0, y: 1}
-      - {x: 0, y: 2}
-      - {x: 1, y: -1}
-      - {x: 1, y: 0}
-      - {x: 1, y: 1}
-      rocks: []
-      magnets: []
-      neighbors: 00000000
-      spawn: {x: 14.25, y: 0, z: 1.5}
-    - id: "\u955C\u5934\u7126\u70B9 (3.75, 0.00, 9.00)"
-      hasBlackHole: 0
-      blackHoleCell: {x: 0, y: 0}
-      position: {x: 0.5, y: 0.71}
-      cells:
-      - {x: -1, y: -1}
-      - {x: -1, y: 0}
-      - {x: -1, y: 1}
-      - {x: -1, y: 2}
-      - {x: 0, y: -2}
-      - {x: 0, y: -1}
-      - {x: 0, y: 0}
-      - {x: 0, y: 1}
-      - {x: 0, y: 2}
-      - {x: 1, y: -2}
-      - {x: 1, y: -1}
-      - {x: 1, y: 0}
-      - {x: 1, y: 1}
-      - {x: 1, y: 2}
-      - {x: 2, y: -1}
-      - {x: 2, y: 0}
-      - {x: 2, y: 1}
-      rocks: []
-      magnets: []
-      neighbors: 00000000
-      spawn: {x: 3.75, y: 0, z: 13.5}
-    - id: "\u955C\u5934\u7126\u70B9 (3.75, 0.00, -9.00)"
-      hasBlackHole: 0
-      blackHoleCell: {x: 0, y: 0}
-      position: {x: 0.5, y: 0.25}
-      cells:
-      - {x: -1, y: -1}
-      - {x: -1, y: 0}
-      - {x: -1, y: 1}
-      - {x: -1, y: 2}
-      - {x: 0, y: -2}
-      - {x: 0, y: -1}
-      - {x: 0, y: 0}
-      - {x: 0, y: 1}
-      - {x: 0, y: 2}
-      - {x: 1, y: -2}
-      - {x: 1, y: -1}
-      - {x: 1, y: 0}
-      - {x: 1, y: 1}
-      - {x: 1, y: 2}
-      - {x: 2, y: -1}
-      - {x: 2, y: 0}
-      - {x: 2, y: 1}
-      rocks: []
-      magnets: []
-      neighbors: 00000000
-      spawn: {x: 3.75, y: 0, z: -12}
+      neighbors: []
+      spawn: {x: 3, y: 0, z: 0}
   - title: "\u7194\u5CA9\u4E16\u754C"
     scene: Assets/BetweenPoles/Scenes/Chapter04_LavaWorld.unity
     planet: {fileID: 228872}
@@ -11938,12 +11954,13 @@ MonoBehaviour:
     land: {r: 0.5882353, g: 0.48235294, b: 0.5137255, a: 1}
     accent: {r: 0.9529412, g: 0.64705884, b: 0.40784314, a: 1}
     surfaceBackground: {fileID: 2800000, guid: b208919568896e640aaf56a9af5c4208, type: 3}
+    spaceBackground: {fileID: 8344555489506964710, guid: f0040609146ef34458606678f24e5cb2, type: 3}
     start: 0
     islands:
     - id: Planet B center
-      hasBlackHole: 1
-      blackHoleCell: {x: 0, y: 2}
-      position: {x: 0.5, y: 0.48}
+      hasBlackHole: 0
+      blackHoleCell: {x: 0, y: 0}
+      position: {x: 0.49416667, y: 0.49043715}
       cells:
       - {x: -3, y: -2}
       - {x: -3, y: -1}
@@ -12022,118 +12039,8 @@ MonoBehaviour:
       - {x: -2, y: 0}
       - {x: -2, y: 4}
       - {x: 1, y: 2}
-      - {x: -4, y: 1}
-      - {x: 5, y: 0}
-      - {x: 0, y: 6}
-      - {x: 0, y: -5}
-      neighbors: 01000000020000000300000004000000
-      spawn: {x: 3.75, y: 0, z: 0.75}
-    - id: Planet A center
-      hasBlackHole: 0
-      blackHoleCell: {x: 0, y: 0}
-      position: {x: 0.24, y: 0.4935294}
-      cells:
-      - {x: -2, y: -1}
-      - {x: -2, y: 0}
-      - {x: -2, y: 1}
-      - {x: -1, y: -2}
-      - {x: -1, y: -1}
-      - {x: -1, y: 0}
-      - {x: -1, y: 1}
-      - {x: -1, y: 2}
-      - {x: 0, y: -2}
-      - {x: 0, y: -1}
-      - {x: 0, y: 0}
-      - {x: 0, y: 1}
-      - {x: 0, y: 2}
-      - {x: 1, y: -2}
-      - {x: 1, y: -1}
-      - {x: 1, y: 0}
-      - {x: 1, y: 1}
-      rocks:
-      - {x: -2, y: 1}
-      - {x: 0, y: -2}
-      magnets: []
-      neighbors: 00000000
-      spawn: {x: -6.75, y: 0, z: 1.5}
-    - id: "\u955C\u5934\u7126\u70B9 (11.25, 0.00, 0.00)"
-      hasBlackHole: 0
-      blackHoleCell: {x: 0, y: 0}
-      position: {x: 0.76, y: 0.4935294}
-      cells:
-      - {x: -2, y: -1}
-      - {x: -2, y: 0}
-      - {x: -2, y: 1}
-      - {x: -2, y: 2}
-      - {x: -1, y: -2}
-      - {x: -1, y: -1}
-      - {x: -1, y: 0}
-      - {x: -1, y: 1}
-      - {x: -1, y: 2}
-      - {x: 0, y: -2}
-      - {x: 0, y: -1}
-      - {x: 0, y: 0}
-      - {x: 0, y: 1}
-      - {x: 0, y: 2}
-      - {x: 1, y: -1}
-      - {x: 1, y: 0}
-      - {x: 1, y: 1}
-      rocks: []
-      magnets: []
-      neighbors: 00000000
-      spawn: {x: 14.25, y: 0, z: 1.5}
-    - id: "\u955C\u5934\u7126\u70B9 (3.75, 0.00, 9.00)"
-      hasBlackHole: 0
-      blackHoleCell: {x: 0, y: 0}
-      position: {x: 0.5, y: 0.71}
-      cells:
-      - {x: -1, y: -1}
-      - {x: -1, y: 0}
-      - {x: -1, y: 1}
-      - {x: -1, y: 2}
-      - {x: 0, y: -2}
-      - {x: 0, y: -1}
-      - {x: 0, y: 0}
-      - {x: 0, y: 1}
-      - {x: 0, y: 2}
-      - {x: 1, y: -2}
-      - {x: 1, y: -1}
-      - {x: 1, y: 0}
-      - {x: 1, y: 1}
-      - {x: 1, y: 2}
-      - {x: 2, y: -1}
-      - {x: 2, y: 0}
-      - {x: 2, y: 1}
-      rocks: []
-      magnets: []
-      neighbors: 00000000
-      spawn: {x: 3.75, y: 0, z: 13.5}
-    - id: "\u955C\u5934\u7126\u70B9 (3.75, 0.00, -9.00)"
-      hasBlackHole: 0
-      blackHoleCell: {x: 0, y: 0}
-      position: {x: 0.5, y: 0.25}
-      cells:
-      - {x: -1, y: -1}
-      - {x: -1, y: 0}
-      - {x: -1, y: 1}
-      - {x: -1, y: 2}
-      - {x: 0, y: -2}
-      - {x: 0, y: -1}
-      - {x: 0, y: 0}
-      - {x: 0, y: 1}
-      - {x: 0, y: 2}
-      - {x: 1, y: -2}
-      - {x: 1, y: -1}
-      - {x: 1, y: 0}
-      - {x: 1, y: 1}
-      - {x: 1, y: 2}
-      - {x: 2, y: -1}
-      - {x: 2, y: 0}
-      - {x: 2, y: 1}
-      rocks: []
-      magnets: []
-      neighbors: 00000000
-      spawn: {x: 3.75, y: 0, z: -12}
+      neighbors: []
+      spawn: {x: 3, y: 0, z: 0}
 --- !u!1 &1636979576
 GameObject:
   m_ObjectHideFlags: 0

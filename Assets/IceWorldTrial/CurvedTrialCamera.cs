@@ -15,6 +15,7 @@ namespace BetweenPoles {
   [Min(.05f),InspectorName("镜头缩放缓动时间")] public float zoomSmoothTime=.55f;
   [System.NonSerialized] public bool fixedDisplayOrigin;
   [System.NonSerialized] public Vector3 displayOrigin;
+  [System.NonSerialized] public Vector3 curveOrigin;
   public Vector3 DisplayFocus(Vector3 world){return fixedDisplayOrigin?displayOrigin+(world-displayOrigin)*Mathf.Max(1,islandDisplayScale*(island&&island.board&&island.board.GetComponent<FiveIslandWindow>()?1.1f:1f)):world;}
   float zoomVelocity;
   bool zoomInitialized;
@@ -40,6 +41,7 @@ namespace BetweenPoles {
    Vector3 renderFocus=fixedDisplayOrigin?displayOrigin:recoil?island.board.RecoilOrigin:focus;
    float displayScale=islandDisplayScale*(edgeLayout?1.1f:1f);
    Shader.SetGlobalFloat("_IslandDisplayScale",displayScale);
+   Shader.SetGlobalVector("_IceCurveFocus",fixedDisplayOrigin?curveOrigin:renderFocus);
    Shader.SetGlobalVector("_IceFocus",new Vector4(renderFocus.x,0,renderFocus.z,0));
    var window=island&&island.board?island.board.GetComponent<FiveIslandWindow>():null;
    var centers=window&&window.VisibleCenters!=null?window.VisibleCenters:(island?island.islandCenters:null);
@@ -54,7 +56,7 @@ namespace BetweenPoles {
    Vector3 rotationFocus=fixedDisplayOrigin&&count>0?focus-DisplayFocus(centers[0].position):focus;
    Quaternion rotation=Quaternion.FromToRotation(SphereNormal(rotationFocus,planetRadius),Vector3.up);Shader.SetGlobalMatrix("_IceRotation",Matrix4x4.Rotate(rotation));
    float visibleRadius=displayRadius>0?displayRadius*globeDisplayScale:planetRadius;
-   if(planet&&!recoil){
+   if(planet&&!recoil&&!fixedDisplayOrigin){
     Vector3 destination=centeredGlobe?focus+transform.forward*(planetRadius+1.5f):new Vector3(focus.x,-planetRadius-.15f,focus.z);
     if(displayRadius>0)destination=focus+transform.forward*(visibleRadius+1.5f)+transform.up*globeVerticalOffset;
     float follow=fixedDisplayOrigin&&Application.isPlaying?1-Mathf.Exp(-Time.deltaTime/.35f):1;

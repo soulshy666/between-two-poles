@@ -27,11 +27,13 @@ public sealed class ChapterRecoilTravel:MonoBehaviour {
         if(scene.path!=destinationPath)return;destination=scene;
         foreach(var root in scene.GetRootGameObjects()){
             foreach(var camera in root.GetComponentsInChildren<Camera>())camera.enabled=false;
+            foreach(var listener in root.GetComponentsInChildren<AudioListener>())listener.enabled=false;
             foreach(var pixel in root.GetComponentsInChildren<PixelWorldCamera>())pixel.enabled=false;
             foreach(var curved in root.GetComponentsInChildren<CurvedTrialCamera>())curved.enabled=false;
             foreach(var island in root.GetComponentsInChildren<IslandCamera>())island.enabled=false;
             foreach(var light in root.GetComponentsInChildren<Light>())light.enabled=false;
             foreach(var board in root.GetComponentsInChildren<GridPlayground>())board.enabled=false;
+            foreach(var window in root.GetComponentsInChildren<FiveIslandWindow>())window.enabled=false;
             // Keep star positions and animation continuous; inherit destination colors later.
             if(root.name=="动态太空背景"){targetBackground=root.GetComponent<PixelGeneratorLab>();root.SetActive(false);continue;}
             foreach(var renderer in root.GetComponentsInChildren<Renderer>())if(renderer.enabled){destinationRenderers.Add(renderer);renderer.enabled=false;}
@@ -117,10 +119,12 @@ public sealed class ChapterRecoilTravel:MonoBehaviour {
         magnet.transform.SetParent(null,true);SceneManager.MoveGameObjectToScene(magnet.gameObject,destination);magnet.transform.SetParent(board.transform,true);
         board.magnets=board.magnets.Concat(new[]{magnet}).ToArray();
         var anchor=actor.GetComponent<IslandSurfaceAnchor>();if(anchor)anchor.ground=board;
+        var magnetAnchor=magnet.GetComponent<IslandSurfaceAnchor>();if(magnetAnchor)magnetAnchor.ground=board;
         source.enabled=false;source.ReleaseChapterFlight();
-        view.island.enabled=false;view.island.board=board;view.island.player=actor;view.island.islandCenters=targetCenters;view.island.enabled=true;
-        var window=board.GetComponent<FiveIslandWindow>();if(window)window.view=view.island;
-        view.fixedDisplayOrigin=true;view.displayOrigin=origin;
+        view.island.enabled=false;view.island.board=board;view.island.player=actor;view.island.islandCenters=targetCenters;view.island.SelectCurrentIsland();view.island.enabled=true;
+        var window=board.GetComponent<FiveIslandWindow>();if(window){window.view=view.island;window.enabled=true;window.Show(window.initialRoom);}
+        view.fixedDisplayOrigin=true;view.displayOrigin=origin;view.curveOrigin=targetCenters[0].position;
+        Shader.SetGlobalVector("_IceCurveFocus",view.curveOrigin);
         var planetStyle=targetPlanet.GetComponent<MainPlanetStyle>();if(planetStyle)planetStyle.targetCamera=view.GetComponent<Camera>();
         view.planet=targetPlanet;view.displayRadius=targetView.displayRadius;view.globeDisplayScale=targetView.globeDisplayScale;
         view.islandDisplayScale=scale/(window&&window.enabled?1.1f:1f);
