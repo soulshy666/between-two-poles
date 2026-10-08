@@ -7,8 +7,27 @@ Shader "BetweenPoles/PaintedIceTrial" {
  float4 _IceFocus,_IslandAnchors[16],_ExplicitIsland;int _IslandCount;float _IceRadius,_IslandFlatten;float3 _IslandViewOffset;float _IceDiskRadius;float3 _IceDiskCenter,_IceDiskRight,_IceDiskUp;float4x4 _IceRotation;float _IslandDisplayScale;
  float _IslandWindowClipEnabled;float4 _IslandWindowBounds;
  // Connected gameplay uses one common frame; never stretch a bridge between warped shores.
- float _IslandRigidLayout,_RecoilFlying;
- float3 displayPoint(float3 p){return _IceFocus.xyz+(p-_IceFocus.xyz)*max(1,_IslandDisplayScale);}
+ float _IslandRigidLayout,_RecoilFlying; float3 _IceCurveFocus,_RecoilDisplayOffset;
+ // One continuous arc for terrain, bridges and actors: no separate shore offsets.
+ float3 surfaceFrame(float3 p,out float3 axis,out float a){
+  float3 q=(p-_IceCurveFocus)*max(1,_IslandDisplayScale);
+  float d=length(q.xz);float radius=max(12,_IceRadius*1.65);
+  a=min(d/radius,1.15);axis=d>.0001?float3(q.z,0,-q.x)/d:float3(0,0,1);
+  float extra=max(0,d-radius*1.15);
+  float radial=radius*sin(a)+extra*cos(a);
+  float drop=radius*(cos(a)-1)-extra*sin(a);
+  float3 up=float3(-axis.z*sin(a),cos(a),axis.x*sin(a));
+  return _IceFocus.xyz+(_IceCurveFocus-_IceFocus.xyz)*max(1,_IslandDisplayScale)+float3(d>.0001?q.x/d*radial:0,drop,d>.0001?q.z/d*radial:0)+up*q.y;
+ }
+ float3 displayPoint(float3 p){
+  if(_IslandRigidLayout<.5)return _IceFocus.xyz+(p-_IceFocus.xyz)*max(1,_IslandDisplayScale);
+  float3 axis;float a;float3 curved=surfaceFrame(p,axis,a);
+  return lerp(curved,_IceFocus.xyz+(p-_IceFocus.xyz)*max(1,_IslandDisplayScale)+_RecoilDisplayOffset,step(.5,_RecoilFlying));
+ }
+ float3 displayNormal(float3 p,float3 n){
+  float3 axis;float a;surfaceFrame(p,axis,a);
+  return lerp(n*cos(a)+cross(axis,n)*sin(a)+axis*dot(axis,n)*(1-cos(a)),n,step(.5,_RecoilFlying));
+ }
  float3 turn(float3 q,float3 axis,float si,float co){return q*co+cross(axis,q)*si+axis*dot(axis,q)*(1-co);}
  float _BridgeEnabled;float4 _BridgeStart,_BridgeEnd,_BridgeIslandA,_BridgeIslandB;
  float3 _BridgeOffsetA,_BridgeOffsetB;
@@ -37,6 +56,7 @@ Shader "BetweenPoles/PaintedIceTrial" {
  UNITY_INITIALIZE_OUTPUT(Input,o);o.iceTint=v.color;
  float3 p=mul(unity_ObjectToWorld,v.vertex).xyz;o.logicalXZ=p.xz;o.iceSurface=float2(v.normal.y,p.y);
  if(_IslandRigidLayout>.5){
+  v.normal=mul((float3x3)unity_WorldToObject,displayNormal(p,UnityObjectToWorldNormal(v.normal)));
   v.vertex=mul(unity_WorldToObject,float4(displayPoint(p),1));
   return;
  }
@@ -83,6 +103,7 @@ Shader "BetweenPoles/PaintedIceTrial" {
   float strata=floor(saturate(-i.iceSurface.y/.85)*4)/4;
   float3 side=lerp(float3(.25,.50,.66),float3(.08,.18,.34),strata);
   side*=.90+.14*step(.48,iceNoise(float2(p.x*3+p.y*2,floor(i.iceSurface.y*18))));
+  side=lerp(side,float3(.28,.49,.56),smoothstep(.28,.85,-i.iceSurface.y)*.60);
   col=lerp(side,ice,top);
   col=lerp(col,float3(.20,.42,.55),seam*.72*top);
   o.Albedo=col*.88;o.Emission=col*.12+crystal*float3(.015,.05,.08);o.Alpha=1;return;

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -29,7 +29,7 @@ public sealed class FiveIslandWindow : MonoBehaviour {
     MaterialPropertyBlock previewBlock;
     void OnEnable(){if(board)board.Landed+=OnLanded;}
     void OnDisable(){if(previewBlock==null)previewBlock=new MaterialPropertyBlock();if(board)board.Landed-=OnLanded;foreach(var room in rooms)foreach(var renderer in room.surfaces)if(renderer){renderer.GetPropertyBlock(previewBlock);previewBlock.SetFloat("_IslandWindowClipEnabled",0);renderer.SetPropertyBlock(previewBlock);}}
-    void Start(){Show(initialRoom);}
+    void Start(){if(enabled)Show(initialRoom);}
     void OnLanded(GridTile tile){
         var owner=tile.GetComponentInParent<IslandSurfaceAnchor>();
         if(!owner)return;
@@ -57,7 +57,7 @@ public sealed class FiveIslandWindow : MonoBehaviour {
     }
     void ApplyPreview(Renderer renderer,bool edge){if(previewBlock==null)previewBlock=new MaterialPropertyBlock();renderer.GetPropertyBlock(previewBlock);previewBlock.SetFloat("_IslandWindowClipEnabled",0);previewBlock.SetVector("_IslandWindowBounds",previewBounds);renderer.SetPropertyBlock(previewBlock);}
     Vector2Int Cell(Transform t){return new Vector2Int(Mathf.RoundToInt(t.position.x/board.cellSize),Mathf.RoundToInt(t.position.z/board.cellSize));}
-    void LateUpdate(){RefreshBridgeLinks();RefreshPieces();}
+    void LateUpdate(){if(!board||!board.enabled)return;RefreshBridgeLinks();RefreshPieces();}
     void RefreshBridgeLinks(){
         if(!board||!bridges||floor.Count==0)return;
         int signature=17;var spans=new Dictionary<Vector2Int,MagnetPiece>();

@@ -7,8 +7,8 @@ public sealed class IslandCamera : MonoBehaviour {
     public Transform player;
     public Transform[] islandCenters;
     public GridPlayground board;
-    public static readonly Vector3 DefaultViewingOffset = new Vector3(0,17.7f,-8.25f);
-    [Tooltip("正向俯视，不向左右偏转。")]
+    public static readonly Vector3 DefaultViewingOffset = new Vector3(0,15.4f,-12f);
+    [Tooltip("约52度俯角，露出人物正面，保持左右方向端正。")]
     public Vector3 viewingOffset = DefaultViewingOffset;
     public float transitionSeconds = .65f;
     Vector3 focus, velocity;
@@ -27,6 +27,7 @@ public sealed class IslandCamera : MonoBehaviour {
         if(board)foreach(var tile in board.tiles)if(tile&&tile.gameObject.activeInHierarchy){Vector3 d=tile.transform.position-player.position;d.y=0;if(d.sqrMagnitude<.1f){OnLanded(tile);break;}}
         focus=islandCenters[current].position;Apply();
     }
+    public void SelectCurrentIsland(){current=Nearest();}
     int Nearest() {
         int selected=0;float best=float.PositiveInfinity;
         for(int i=0;i<islandCenters.Length;i++){
@@ -46,7 +47,9 @@ public sealed class IslandCamera : MonoBehaviour {
     }
     public void ApplyView(Vector3 target){
         // Migrate the previous overhead preset while keeping yaw and roll at zero.
-        if(Mathf.Abs(viewingOffset.x)<.001f&&Mathf.Abs(viewingOffset.z)<.001f)viewingOffset=DefaultViewingOffset;
+        if((viewingOffset-new Vector3(0,17.7f,-8.25f)).sqrMagnitude<.001f
+            ||(viewingOffset-new Vector3(0,13.05f,-14.5f)).sqrMagnitude<.001f
+            ||(Mathf.Abs(viewingOffset.x)<.001f&&Mathf.Abs(viewingOffset.z)<.001f))viewingOffset=DefaultViewingOffset;
         transform.position=target+viewingOffset;
         transform.rotation=Quaternion.LookRotation(-viewingOffset,Mathf.Abs(viewingOffset.normalized.y)>.999f?Vector3.forward:Vector3.up);
     }

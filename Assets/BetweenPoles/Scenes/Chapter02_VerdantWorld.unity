@@ -8210,7 +8210,7 @@ Transform:
   m_GameObject: {fileID: 552510275}
   serializedVersion: 2
   m_LocalRotation: {x: -0.020794174, y: 0, z: 0.10397086, w: 0.99436295}
-  m_LocalPosition: {x: 3.75, y: -12.830708, z: 6.7304106}
+  m_LocalPosition: {x: 3.75, y: -11.166257, z: 9.450979}
   m_LocalScale: {x: 1.2656, y: 1.2656, z: 1.2656}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -16468,8 +16468,14 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   cellSize: 1.5
   stepSeconds: 0.22
+  walkSeconds: 0.18
+  turnSeconds: 0.09
+  heldStepPauseSeconds: 0.015
+  barPushSeconds: 0.46
   uRollSeconds: 0.7
   joinSeconds: 1.35
+  crossTurnSeconds: 0.75
+  attractionAnimationSpeed: 1.25
   player: {fileID: 8919500918669351906}
   playerVisual: {fileID: 8919500918669351907}
   tiles:
@@ -29271,7 +29277,7 @@ Camera:
   far clip plane: 100
   field of view: 60
   orthographic: 1
-  orthographic size: 11.437674
+  orthographic size: 10.485283
   m_Depth: -10
   m_CullingMask:
     serializedVersion: 2
@@ -29295,8 +29301,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2054248345}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.53737104, y: -0, z: -0, w: 0.843346}
-  m_LocalPosition: {x: 3.75, y: 17.7, z: -7.5}
+  m_LocalRotation: {x: 0.43894786, y: -0, z: -0, w: 0.89851254}
+  m_LocalPosition: {x: 3.75, y: 15.4, z: -11.25}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -29318,7 +29324,7 @@ MonoBehaviour:
   islandCenters:
   - {fileID: 683063415}
   board: {fileID: 1108717419}
-  viewingOffset: {x: 0, y: 17.7, z: -8.25}
+  viewingOffset: {x: 0, y: 15.4, z: -12}
   transitionSeconds: 0.65
 --- !u!114 &2054248351
 MonoBehaviour:
@@ -29488,7 +29494,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!114 &2075559773
 MonoBehaviour:
   m_ObjectHideFlags: 0
