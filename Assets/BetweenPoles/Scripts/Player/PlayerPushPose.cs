@@ -127,6 +127,38 @@ public sealed class PlayerPushPose:MonoBehaviour {
         posed.vertices=workVertices;if(normals.Length==vertices.Length)posed.normals=workNormals;
         // Retain the original enlarged bounds used by the spherical-world renderer.
     }
+    // Opening cinematic: rigid limbs support the body while it rises from prone.
+    public static PlayerPushPose CrashPose(Transform player){var p=GetPose(player);p.End();return p;}
+    public void SampleCrashSeat(){
+        if(!visual)return;
+        visual.localRotation=restRotation;visual.localPosition=restPosition+Vector3.down*.30f;
+        if(!posed)return;
+        for(int i=0;i<vertices.Length;i++){
+            float side=Mathf.Sign(vertices[i].x);
+            Vector3 pivot=arms[i]?new Vector3(side*.235f,.635f,0):new Vector3(side*.097f,.34f,0);
+            Quaternion q=Quaternion.Euler(arms[i]?-48:-82,0,0);
+            bool limb=arms[i]||legs[i];workVertices[i]=limb?pivot+q*(vertices[i]-pivot):vertices[i];
+            if(i<normals.Length)workNormals[i]=limb?q*normals[i]:normals[i];
+        }
+        posed.vertices=workVertices;if(normals.Length==vertices.Length)posed.normals=workNormals;
+    }
+    public void SampleCrashPose(float prone,float support){SampleInjuredRecovery(prone,support,0,0);}
+    public void SampleInjuredRecovery(float prone,float support,float headTouch,float rub){
+        if(!visual)return;
+        visual.localRotation=restRotation*Quaternion.Euler(88*prone,0,headTouch*4);
+        visual.localPosition=restPosition+Vector3.up*(.17f*prone-.09f*support*(1-prone));
+        if(!posed)return;
+        for(int i=0;i<vertices.Length;i++){
+            float side=Mathf.Sign(vertices[i].x);
+            Vector3 pivot=arms[i]?new Vector3(side*.235f,.635f,0):new Vector3(side*.097f,.34f,0);
+            Quaternion q=arms[i]?Quaternion.Euler(-65*support,0,-side*12*support):Quaternion.Euler(40*support,0,0);
+            // One hand stays braced; the other reaches the helmet and gently rubs it.
+            if(arms[i]&&side>0)q=Quaternion.Slerp(q,Quaternion.Euler(-12+rub*3,0,-155+rub*4),headTouch);
+            bool limb=arms[i]||legs[i];workVertices[i]=limb?pivot+q*(vertices[i]-pivot):vertices[i];
+            if(i<normals.Length)workNormals[i]=limb?q*normals[i]:normals[i];
+        }
+        posed.vertices=workVertices;if(normals.Length==vertices.Length)posed.normals=workNormals;
+    }
     public void End(){
         if(walking&&walkDistance>.001f){
             int steps=Mathf.Max(1,Mathf.RoundToInt(walkDistance/walkCellSize));

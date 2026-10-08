@@ -4,6 +4,7 @@ namespace BetweenPoles {
 public sealed partial class GridPlayground {
     sealed class WorldState {
         public Snapshot[] pieces;
+        public RecoilArrival[] arrivals;
         public Vector3 playerPosition,entryPosition;
         public Quaternion playerRotation,entryRotation;
         public Transform island;
@@ -13,6 +14,30 @@ public sealed partial class GridPlayground {
     public const int UndoLimit=20;
     readonly List<WorldState> history=new List<WorldState>(UndoLimit);
     readonly HashSet<Transform> recordedGeometry=new HashSet<Transform>();
+    struct RecoilArrival {
+        public int index;
+        public Transform island;
+        public Snapshot piece;
+        public bool active;
+    }
+    readonly List<RecoilArrival> recoilArrivals=new List<RecoilArrival>();
+    // A foreign landing is a local checkpoint, not a transfer of authored ownership.
+    void RecordRecoilArrival(MagnetPiece magnet,Transform island){
+        if(!island||initialState==null)return;
+        for(int i=0;i<magnets.Length;i++){
+            if(!magnets[i].transform.IsChildOf(magnet.transform))continue;
+            var tile=Tile(CellAt(initialState.pieces[i].position));
+            var origin=Owner(tile);
+            int existing=-1;
+            for(int j=0;j<recoilArrivals.Count;j++)if(recoilArrivals[j].index==i){
+                var entry=recoilArrivals[j];entry.active=false;recoilArrivals[j]=entry;
+                if(entry.island==island)existing=j;
+            }
+            if(origin==island)continue;
+            if(existing>=0){var entry=recoilArrivals[existing];entry.active=true;recoilArrivals[existing]=entry;}
+            else recoilArrivals.Add(new RecoilArrival{index=i,island=island,piece=SavePiece(magnets[i]),active=true});
+        }
+    }
     WorldState initialState;
     Transform currentIsland;
     Vector3 islandEntry;
@@ -25,12 +50,14 @@ public sealed partial class GridPlayground {
     void KeepGeometry(WorldState state,HashSet<Transform> keep){
         if(state==null)return;
         foreach(var piece in state.pieces)if(piece.geometry)keep.Add(piece.geometry);
+        if(state.arrivals!=null)foreach(var entry in state.arrivals)if(entry.piece.geometry)keep.Add(entry.piece.geometry);
     }
     void ReleaseUnusedGeometry(){
         // Only release runtime objects previously referenced by this board's snapshots.
         // Original reset geometry and every retained undo state must remain alive.
         var keep=new HashSet<Transform>();KeepGeometry(initialState,keep);
         foreach(var state in history)KeepGeometry(state,keep);
+        foreach(var entry in recoilArrivals)if(entry.piece.geometry)keep.Add(entry.piece.geometry);
         foreach(var m in magnets)if(m&&m.geometry)keep.Add(m.geometry);
         var expired=new List<Transform>();
         foreach(var geometry in recordedGeometry)if(!geometry||!keep.Contains(geometry))expired.Add(geometry);
@@ -40,7 +67,7 @@ public sealed partial class GridPlayground {
     Transform Owner(MagnetPiece m){var tile=Tile(Cell(m.transform));if(tile)return Owner(tile);var a=m.GetComponent<IslandSurfaceAnchor>();return a?a.center:null;}
     Snapshot SavePiece(MagnetPiece m){return new Snapshot{parent=m.transform.parent,position=m.transform.position,rotation=m.transform.rotation,geometry=m.geometry,pose=m.geometry.localRotation,geoPosition=m.geometry.localPosition,scale=m.geometry.localScale,combined=m.combined,walkable=m.walkable,enabled=m.enabled,active=m.gameObject.activeSelf,product=m.product,baseNorth=m.baseNorth,bridgeDirection=m.bridgeDirection,north=m.north,shape=m.shape,owner=Owner(m)};}
     WorldState SaveWorld(){
-        var s=new WorldState{pieces=new Snapshot[magnets.Length],playerPosition=player.position,playerRotation=player.rotation,island=currentIsland,entryPosition=islandEntry,entryRotation=islandEntryRotation,goal=ReachedGoal,goalMaterial=goalLight?goalLight.sharedMaterial:null};
+        var s=new WorldState{pieces=new Snapshot[magnets.Length],arrivals=recoilArrivals.ToArray(),playerPosition=player.position,playerRotation=player.rotation,island=currentIsland,entryPosition=islandEntry,entryRotation=islandEntryRotation,goal=ReachedGoal,goalMaterial=goalLight?goalLight.sharedMaterial:null};
         for(int i=0;i<magnets.Length;i++){s.pieces[i]=SavePiece(magnets[i]);recordedGeometry.Add(s.pieces[i].geometry);}return s;
     }
     void TrackIsland(GridTile tile){
@@ -77,10 +104,12 @@ public sealed partial class GridPlayground {
         ClearWalkInterrupt();
         ClearMovementInput();
         StopAllCoroutines();EndRecoilFlight();Busy=false;RestorePieces(s.pieces);
+        recoilArrivals.Clear();if(s.arrivals!=null)recoilArrivals.AddRange(s.arrivals);
         player.SetPositionAndRotation(s.playerPosition,s.playerRotation);currentIsland=s.island;islandEntry=s.entryPosition;islandEntryRotation=s.entryRotation;
         ReachedGoal=s.goal;if(goalLight)goalLight.sharedMaterial=s.goalMaterial;RefreshRestoredIsland();
     }
     public bool UndoStep(){
+        if(OpeningCinematic)return false;
         if(history.Count==0)return Reject("没有可以撤销的操作");
         var state=history[history.Count-1];history.RemoveAt(history.Count-1);
         RestoreWorld(state);ReleaseUnusedGeometry();LastRule="已撤销上一步";return true;
@@ -99,6 +128,12 @@ public sealed partial class GridPlayground {
             selected[i]=tile&&Owner(tile)==currentIsland;
         }
         var restore=(Snapshot[])initialState.pieces.Clone();
+        // Resetting the authored island recalls its materials and retires all foreign
+        // checkpoints. Undo retains them through the WorldState captured above.
+        recoilArrivals.RemoveAll(entry=>selected[entry.index]);
+        foreach(var entry in recoilArrivals)if(entry.active&&entry.island==currentIsland){
+            selected[entry.index]=true;restore[entry.index]=entry.piece;
+        }
         var affected=(bool[])selected.Clone();
         // Split mixed-origin assemblies. Foreign materials regain their own geometry
         // at the assembly location; only this island's materials return to their start.

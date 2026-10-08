@@ -3,7 +3,9 @@ Shader "BetweenPoles/CurvedIceTrial" {
  SubShader{Tags{"RenderType"="Opaque" "DisableBatching"="True"} CGPROGRAM
  #pragma surface surf Lambert vertex:bend addshadow
  #include "UnityCG.cginc"
- fixed4 _Color;float _Grid,_Snow;struct Input{float3 worldPos;float3 worldNormal;float2 logicalXZ;};
+ fixed4 _Color;float _Grid,_Snow;struct Input{float3 worldPos;float3 worldNormal;float2 logicalXZ;float cockpitDistance;};
+ // All astronaut submaterials share the shuttle's rigid flight frame and cockpit mask.
+ float _SpaceRigid,_SpaceAirborne,_CockpitClip;float3 _SpaceAnchor;float4 _CockpitPlane;
  float4 _IceFocus,_IslandAnchors[16],_ExplicitIsland;int _IslandCount;float _IceRadius,_IslandFlatten;float3 _IslandViewOffset;float _IceDiskRadius;float3 _IceDiskCenter,_IceDiskRight,_IceDiskUp;float4x4 _IceRotation;float _IslandDisplayScale;
  float _IslandRigidLayout,_RecoilFlying; float3 _IceCurveFocus,_RecoilDisplayOffset;
  // One continuous arc for terrain, bridges and actors: no separate shore offsets.
@@ -38,6 +40,19 @@ Shader "BetweenPoles/CurvedIceTrial" {
  void bend(inout appdata_full v,out Input o){
  UNITY_INITIALIZE_OUTPUT(Input,o);
  float3 p=mul(unity_ObjectToWorld,v.vertex).xyz;o.logicalXZ=p.xz;float3 anchor=float3(-3.75,0,0);float best=1e9;
+ o.cockpitDistance=dot(float4(p,1),_CockpitPlane);
+ if(_SpaceRigid>.0001){
+  float scale=max(1,_IslandDisplayScale);float3 delta=p-_SpaceAnchor;
+  float3 n=UnityObjectToWorldNormal(v.normal),rn=n;
+  if(_IslandRigidLayout>.5){
+   float3 axis;float angle;surfaceFrame(_SpaceAnchor,axis,angle);
+   delta=turn(delta,axis,sin(angle),cos(angle));rn=turn(n,axis,sin(angle),cos(angle));
+  }
+  float3 rigid=displayPoint(_SpaceAnchor)+delta*scale;
+  float3 rigidWorldPoint=lerp(displayPoint(p),rigid,saturate(_SpaceRigid));
+  float3 normal=lerp(displayNormal(p,n),rn,saturate(_SpaceRigid));
+  v.vertex=mul(unity_WorldToObject,float4(rigidWorldPoint,1));v.normal=mul((float3x3)unity_WorldToObject,normal);return;
+ }
  if(_IslandRigidLayout>.5){
   v.normal=mul((float3x3)unity_WorldToObject,displayNormal(p,UnityObjectToWorldNormal(v.normal)));v.vertex=mul(unity_WorldToObject,float4(displayPoint(p),1));return;}
  if(_BridgeEnabled>.5){
@@ -62,6 +77,6 @@ Shader "BetweenPoles/CurvedIceTrial" {
  v.normal=mul((float3x3)unity_WorldToObject,n);
  }
 
- void surf(Input i,inout SurfaceOutput o){if(_IceDiskRadius>0 && _RecoilFlying<.5){float3 relative=i.worldPos-_IceDiskCenter;float2 disk=float2(dot(relative,_IceDiskRight),dot(relative,_IceDiskUp));clip(_IceDiskRadius*_IceDiskRadius-dot(disk,disk));}float3 col=_Color.rgb;float2 g=abs(frac((i.logicalXZ+.75)/1.5)-.5);float seam=smoothstep(.452,.486,max(g.x,g.y))*_Grid;float up=saturate(i.worldNormal.y);col=lerp(col,lerp(float3(.20,.49,.62),col,smoothstep(.3,.85,up)),_Snow);col=lerp(col,float3(.18,.36,.48),seam*.68);o.Albedo=col;o.Emission=col*.10;o.Alpha=1;}
+ void surf(Input i,inout SurfaceOutput o){if(_CockpitClip>.5)clip(i.cockpitDistance);if(_IceDiskRadius>0 && _RecoilFlying<.5 && _SpaceAirborne<.5){float3 relative=i.worldPos-_IceDiskCenter;float2 disk=float2(dot(relative,_IceDiskRight),dot(relative,_IceDiskUp));clip(_IceDiskRadius*_IceDiskRadius-dot(disk,disk));}float3 col=_Color.rgb;float2 g=abs(frac((i.logicalXZ+.75)/1.5)-.5);float seam=smoothstep(.452,.486,max(g.x,g.y))*_Grid;float up=saturate(i.worldNormal.y);col=lerp(col,lerp(float3(.20,.49,.62),col,smoothstep(.3,.85,up)),_Snow);col=lerp(col,float3(.18,.36,.48),seam*.68);o.Albedo=col;o.Emission=col*.10;o.Alpha=1;}
  ENDCG} FallBack "Diffuse" }
 

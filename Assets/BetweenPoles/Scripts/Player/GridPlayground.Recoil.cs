@@ -82,6 +82,7 @@ public sealed partial class GridPlayground {
         if(lands){
             magnet.transform.position=magnetEnd;player.SetPositionAndRotation(playerEnd,facing);
             var binding=magnet.GetComponent<IslandSurfaceAnchor>();if(binding){binding.center=Owner(Tile(shore));binding.Apply();}
+            RecordRecoilArrival(magnet,Owner(Tile(shore)));
             EndRecoilFlight();NotifyLanding(shore+travel);Busy=false;LastRule="反冲抵达另一座岛：磁铁在外侧，主角在内侧";
             var window=GetComponent<FiveIslandWindow>();if(window)window.Show(window.CurrentRoom);
             yield break;
