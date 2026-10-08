@@ -26,7 +26,12 @@ public sealed partial class GridPlayground {
             }
         }else PlayContact(contact);
     }
+    void PlayMagnetPushSound(){
+        if(!Application.isPlaying||recordingPush||finishingMovement)return;
+        var audio=PlayerFootstepAudio.For(player);if(audio)audio.PlayPush();
+    }
     void PlayContact(ContactEvent contact){
+        if(Application.isPlaying&&!finishingMovement){var audio=PlayerFootstepAudio.For(player);if(audio)audio.PlayMerge();}
         contactSparks.RemoveAll(effect=>!effect);
         contactSparks.Add(MagnetContactSpark.Spawn(contact.point,contact.block));
     }

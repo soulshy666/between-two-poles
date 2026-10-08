@@ -82,6 +82,7 @@ public sealed partial class GridPlayground:MonoBehaviour {
         CaptureInitialState();
     }
     public void CaptureInitialState(){
+        recoilArrivals.Clear();
         ClearMovementInput();
         foreach(var m in magnets)if(m&&m.geometry&&!m.combined&&m.product==MagnetProduct.None&&m.shape==MagnetShape.Horseshoe&&!MagnetPiece.FlatU(m.Pose)){
             m.geometry.rotation=MagnetPiece.FlatUPose(m.Pose);MagnetVisuals.Ground(m);
@@ -90,6 +91,7 @@ public sealed partial class GridPlayground:MonoBehaviour {
         history.Clear();initialState=SaveWorld();ReleaseUnusedGeometry();
     }
     public bool JumpTestRoom(int direction){
+        if(OpeningCinematic)return false;
         if(Busy||ChapterRecoilTravel.Active||BlackHoleTravel.InTransit||BlackHoleTravel.Selecting)return false;
         if(direction!=1&&direction!=-1)return false;
         IslandCamera view=null;
@@ -114,6 +116,7 @@ public sealed partial class GridPlayground:MonoBehaviour {
         LastRule="测试跳转：房间 "+(next+1)+" / "+centers.Count;return true;
     }
     void Update(){
+        if(OpeningCinematic){ClearMovementInput();return;}
         var panel=GetComponent<MagnetDebugPanel>();
         if((panel&&panel.enabled&&panel.IsOpen)||Time.timeScale<=0){ClearMovementInput();return;}
         if(Input.GetKeyDown(KeyCode.Alpha1)||Input.GetKeyDown(KeyCode.Keypad1)){JumpTestRoom(1);return;}
@@ -214,7 +217,7 @@ public sealed partial class GridPlayground:MonoBehaviour {
         return true;
     }
     void ClearWalkInterrupt(){reversibleWalk=false;completingWalkForTurn=false;}
-    void BeginPushInterrupt(Vector2Int direction,bool feedbackOnly=false){interruptiblePush=true;pushFeedbackOnly=feedbackOnly;pushDirection=direction;pushUndo=null;}
+    void BeginPushInterrupt(Vector2Int direction,bool feedbackOnly=false){if(!feedbackOnly)PlayMagnetPushSound();interruptiblePush=true;pushFeedbackOnly=feedbackOnly;pushDirection=direction;pushUndo=null;}
     void EndPushInterrupt(){interruptiblePush=false;pushFeedbackOnly=false;pushUndo=null;}
     bool CanInterruptPush(Vector2Int direction){
         return Busy&&interruptiblePush&&(pushUndo!=null||pushFeedbackOnly)&&direction!=pushDirection&&Mathf.Abs(direction.x)+Mathf.Abs(direction.y)==1;

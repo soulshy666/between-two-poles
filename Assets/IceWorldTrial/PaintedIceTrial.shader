@@ -3,10 +3,11 @@ Shader "BetweenPoles/PaintedIceTrial" {
  SubShader{Tags{"RenderType"="Opaque" "DisableBatching"="True"} CGPROGRAM
  #pragma surface surf Lambert vertex:bend addshadow
  #include "UnityCG.cginc"
- fixed4 _Color;float _Grid,_Snow,_IceArt,_Painted,_Cracks;struct Input{float3 worldPos;float3 worldNormal;float2 logicalXZ;float4 iceTint;float2 iceSurface;};
+ fixed4 _Color;float _Grid,_Snow,_IceArt,_Painted,_Cracks;float _CockpitClip;float4 _CockpitPlane;struct Input{float3 worldPos;float3 worldNormal;float2 logicalXZ;float4 iceTint;float2 iceSurface;};
  float4 _IceFocus,_IslandAnchors[16],_ExplicitIsland;int _IslandCount;float _IceRadius,_IslandFlatten;float3 _IslandViewOffset;float _IceDiskRadius;float3 _IceDiskCenter,_IceDiskRight,_IceDiskUp;float4x4 _IceRotation;float _IslandDisplayScale;
  float _IslandWindowClipEnabled;float4 _IslandWindowBounds;
  // Connected gameplay uses one common frame; never stretch a bridge between warped shores.
+ float _SpaceRigid,_SpaceAirborne;float3 _SpaceAnchor;
  float _IslandRigidLayout,_RecoilFlying; float3 _IceCurveFocus,_RecoilDisplayOffset;
  // One continuous arc for terrain, bridges and actors: no separate shore offsets.
  float3 surfaceFrame(float3 p,out float3 axis,out float a){
@@ -54,7 +55,21 @@ Shader "BetweenPoles/PaintedIceTrial" {
  float3 bridgeNormal(float3 n,float4 anchor){float3 relative=anchor.xyz-_IceFocus.xyz+referencePoint();float d=length(relative.xz);float a=d/_IceRadius*(1-.10*upperWeight(anchor.xyz-_IceFocus.xyz));float3 axis=d>.001?float3(relative.z,0,-relative.x)/d:float3(0,0,1);return originalFrame(turn(n,axis,sin(a),cos(a)));}
  void bend(inout appdata_full v,out Input o){
  UNITY_INITIALIZE_OUTPUT(Input,o);o.iceTint=v.color;
- float3 p=mul(unity_ObjectToWorld,v.vertex).xyz;o.logicalXZ=p.xz;o.iceSurface=float2(v.normal.y,p.y);
+ float3 p=mul(unity_ObjectToWorld,v.vertex).xyz;o.logicalXZ=p.xz;o.iceSurface=float2(v.normal.y,p.y);if(_CockpitClip>.5)o.iceSurface.x=dot(float4(p,1),_CockpitPlane);
+ // Spacecraft uses a single rigid tangent frame: no per-vertex globe curvature.
+ // Its anchor follows island presentation, but flight offsets remain free-space vectors.
+ if(_SpaceRigid>.0001){
+  float scale=max(1,_IslandDisplayScale);float3 delta=p-_SpaceAnchor;
+  float3 n=UnityObjectToWorldNormal(v.normal),rn=n;
+  if(_IslandRigidLayout>.5){
+   float3 axis;float angle;surfaceFrame(_SpaceAnchor,axis,angle);
+   delta=turn(delta,axis,sin(angle),cos(angle));rn=turn(n,axis,sin(angle),cos(angle));
+  }
+  float3 rigid=displayPoint(_SpaceAnchor)+delta*scale;
+  float3 rigidWorldPoint=lerp(displayPoint(p),rigid,saturate(_SpaceRigid));
+  float3 normal=lerp(displayNormal(p,n),rn,saturate(_SpaceRigid));
+  v.vertex=mul(unity_WorldToObject,float4(rigidWorldPoint,1));v.normal=mul((float3x3)unity_WorldToObject,normal);return;
+ }
  if(_IslandRigidLayout>.5){
   v.normal=mul((float3x3)unity_WorldToObject,displayNormal(p,UnityObjectToWorldNormal(v.normal)));
   v.vertex=mul(unity_WorldToObject,float4(displayPoint(p),1));
@@ -86,8 +101,9 @@ Shader "BetweenPoles/PaintedIceTrial" {
  float iceField(float2 p){return iceNoise(p)*.65+iceNoise(p*2.03+7)*.25+iceNoise(p*4.1)*.1;}
  float cracks(float2 p){float2 id=floor(p),f=frac(p);float nearest=9,second=9;for(int y=-1;y<=1;y++)for(int x=-1;x<=1;x++){float2 cell=float2(x,y);float2 seed=float2(iceHash(id+cell),iceHash(id+cell+41));float d=length(cell+seed-f);if(d<nearest){second=nearest;nearest=d;}else second=min(second,d);}return 1-smoothstep(.014,.05,second-nearest);}
  void surf(Input i,inout SurfaceOutput o){
- if(_IslandWindowClipEnabled>.5){float2 edge=min(i.logicalXZ-_IslandWindowBounds.xy,_IslandWindowBounds.zw-i.logicalXZ);clip(min(edge.x,edge.y));}
- if(_IceDiskRadius>0 && _RecoilFlying<.5){float3 relative=i.worldPos-_IceDiskCenter;float2 disk=float2(dot(relative,_IceDiskRight),dot(relative,_IceDiskUp));clip(_IceDiskRadius*_IceDiskRadius-dot(disk,disk));}
+ if(_CockpitClip>.5)clip(i.iceSurface.x);
+ if(_IslandWindowClipEnabled>.5 && _SpaceAirborne<.5){float2 edge=min(i.logicalXZ-_IslandWindowBounds.xy,_IslandWindowBounds.zw-i.logicalXZ);clip(min(edge.x,edge.y));}
+ if(_IceDiskRadius>0 && _RecoilFlying<.5 && _SpaceAirborne<.5){float3 relative=i.worldPos-_IceDiskCenter;float2 disk=float2(dot(relative,_IceDiskRight),dot(relative,_IceDiskUp));clip(_IceDiskRadius*_IceDiskRadius-dot(disk,disk));}
  float3 col=_Color.rgb;float2 g=abs(frac((i.logicalXZ+.75)/1.5)-.5);float seam=smoothstep(.452,.486,max(g.x,g.y))*_Grid;
  if(_Painted>.5){
   // Stable world-aligned pixel pigments: no scrolling texture or shimmer under the player.

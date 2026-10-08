@@ -64,6 +64,7 @@ public sealed partial class GridPlayground {
         return Mathf.Abs((bar*Vector3.right).y)<.05f?MagnetProduct.BridgeHalf:MagnetProduct.None;
     }
     public bool TryStep(Vector2Int dir) {
+        if(OpeningCinematic)return false;
         if(CanInterruptPush(dir))return InterruptPush(dir);
         if(TryReverseWalk(dir))return true;
         if(Busy||Mathf.Abs(dir.x)+Mathf.Abs(dir.y)!=1)return false;
@@ -78,6 +79,7 @@ public sealed partial class GridPlayground {
         var from=Cell(player);var support=Deck(from);
         if(support&&support.product==MagnetProduct.Bridge){var side=support.transform.forward;float across=Vector3.Dot(new Vector3(dir.x,0,dir.y),side);float lane=Vector3.Dot(player.position-support.transform.position,side);if(Mathf.Abs(across)>.5f&&across*lane<0)return Reject("桥中央镂空，请沿当前侧梁行走");}
         var next=from+dir;var tile=Tile(next);var m=Piece(next);
+        if(IsWreckCell(next))return Reject("飞船残骸挡住了这个格子");
         if(m&&MagnetStillAnimating(m))return Reject("磁铁正在完成上一次推动，请稍候再接触");
         if(!BridgePassage(from,next))return Reject("宽条桥必须沿长边两端接通，只能从两端通过");
         // A player already on an object may walk across level tops or step down.
@@ -339,6 +341,7 @@ public sealed partial class GridPlayground {
         }
     }
     IEnumerator Recoil(MagnetPiece incoming,Vector2Int dir,Vector2Int from){
+        PlayMagnetPushSound();
         var magnetStart=incoming.transform.position;var playerStart=player.position;
         var forward=new Vector3(dir.x,0,dir.y);var axis=new Vector3(dir.y,0,-dir.x);
         var facing=Quaternion.LookRotation(forward);
@@ -451,6 +454,7 @@ public sealed partial class GridPlayground {
         }
         var rotation=cross.geometry.localRotation;var starts=moves.Select(m=>m.transform.position).ToArray();
         yield return TurnPlayer(cross.transform.position-player.position);
+        if(!blocked)PlayMagnetPushSound();
         var sweepPose=PlayerPushPose.BeginCrossSweep(player);
         try{
             float seconds=Mathf.Max(.01f,crossTurnSeconds);

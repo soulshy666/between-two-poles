@@ -20,6 +20,7 @@ public sealed class BlackHolePortal : MonoBehaviour {
     public static bool TrySurface(GridPlayground board,Vector2Int cell,out GridTile exit,out Vector3 landing){
         exit=board.TileAt(cell);
         landing=new Vector3(cell.x*board.cellSize,exit?exit.surfaceHeight:float.NegativeInfinity,cell.y*board.cellSize);
+        if(board.IsWreckCell(cell))return false;
         bool support=exit&&!exit.blocked;
         if(exit&&exit.blocked){
             var anchor=exit.GetComponentInParent<IslandSurfaceAnchor>(true);
