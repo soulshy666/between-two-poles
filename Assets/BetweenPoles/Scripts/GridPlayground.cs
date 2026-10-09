@@ -73,7 +73,7 @@ public sealed partial class GridPlayground:MonoBehaviour {
     GridTile Tile(Vector2Int p){foreach(var t in tiles)if(t&&Cell(t.transform)==p)return t;return null;}
     MagnetPiece Piece(Vector2Int p,MagnetPiece ignore=null){
         MagnetPiece result=null;
-        foreach(var m in magnets)if(m&&m.enabled&&m!=ignore&&m.gameObject.activeInHierarchy&&m.Occupies(p,cellSize))
+        foreach(var m in magnets)if(m&&m.enabled&&m!=ignore&&!IsKnockedFlying(m)&&m.gameObject.activeInHierarchy&&m.Occupies(p,cellSize))
             if(!result||m.transform.position.y>result.transform.position.y+.01f
                 ||(SameHeight(m.transform.position.y,result.transform.position.y)&&result.walkable&&!m.walkable))result=m;
         return result;
@@ -81,11 +81,13 @@ public sealed partial class GridPlayground:MonoBehaviour {
     Vector3 Position(Vector2Int p,float y=0){return new Vector3(p.x*cellSize,y,p.y*cellSize);}
     bool Floor(Vector2Int p){var t=Tile(p);return t&&!t.blocked;}
     void Awake(){
+        SharedPlayer.Prepare(this);
         if(player)PlayerPushPose.EnsureIdle(player);
         CaptureInitialState();
     }
     public void CaptureInitialState(){
         recoilArrivals.Clear();
+        ClearKnockFlights();knockCheckpoints.Clear();
         ClearMovementInput();
         foreach(var m in magnets)if(m&&m.geometry&&!m.combined&&m.product==MagnetProduct.None&&m.shape==MagnetShape.Horseshoe&&!MagnetPiece.FlatU(m.Pose)){
             m.geometry.rotation=MagnetPiece.FlatUPose(m.Pose);MagnetVisuals.Ground(m);

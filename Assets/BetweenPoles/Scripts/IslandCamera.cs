@@ -13,6 +13,7 @@ public sealed class IslandCamera : MonoBehaviour {
     public float transitionSeconds = .65f;
     Vector3 focus, velocity;
     int current;
+    public Transform CurrentIsland {get{return islandCenters!=null&&current>=0&&current<islandCenters.Length?islandCenters[current]:null;}}
     void OnEnable(){if(board)board.Landed+=OnLanded;}
     void OnDisable(){if(board)board.Landed-=OnLanded;}
     void OnLanded(GridTile tile){
@@ -28,6 +29,8 @@ public sealed class IslandCamera : MonoBehaviour {
         focus=islandCenters[current].position;Apply();
     }
     public void SelectCurrentIsland(){current=Nearest();}
+    // Coordinate-frame handoff only; normal island tracking and easing stay in charge.
+    public void RebaseFocus(Vector3 delta){focus+=delta;Apply();}
     int Nearest() {
         int selected=0;float best=float.PositiveInfinity;
         for(int i=0;i<islandCenters.Length;i++){

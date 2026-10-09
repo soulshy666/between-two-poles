@@ -91,15 +91,23 @@ public sealed class ChapterRecoilTravel:MonoBehaviour {
         var board=destination.GetRootGameObjects().SelectMany(r=>r.GetComponentsInChildren<GridPlayground>()).FirstOrDefault();
         var targetView=destination.GetRootGameObjects().SelectMany(r=>r.GetComponentsInChildren<CurvedTrialCamera>()).FirstOrDefault();
         if(!board||!targetView){Abort("目标星球缺少关卡或镜头配置");yield break;}
+        var targetWindow=board.GetComponent<FiveIslandWindow>();
+        int startRoom=targetWindow?Mathf.Clamp(targetWindow.initialRoom,0,targetWindow.rooms.Length-1):0;
+        var landingIsland=targetWindow&&targetWindow.rooms.Length>0?targetWindow.rooms[startRoom].center:targetView.island.CurrentIsland;
         GridTile shoreTile=null;float score=float.NegativeInfinity;
         foreach(var tile in board.tiles){
             if(!tile||!tile.gameObject.activeInHierarchy||tile.blocked)continue;
+            var owner=tile.GetComponentInParent<IslandSurfaceAnchor>();
+            if(!owner||owner.center!=landingIsland)continue;
             var cell=Cell(tile.transform.position,board.cellSize);var inner=board.TileAt(cell+Vector2Int.left);
-            if(!inner||inner.blocked||board.MagnetAt(cell)||board.MagnetAt(cell+Vector2Int.left))continue;
-            float value=tile.transform.position.x*100-Mathf.Abs(tile.transform.position.z);
+            var innerOwner=inner?inner.GetComponentInParent<IslandSurfaceAnchor>():null;
+            if(!inner||!inner.gameObject.activeInHierarchy||inner.blocked||!innerOwner||innerOwner.center!=landingIsland)continue;
+            if(tile.GetComponentInChildren<BlackHolePortal>()||inner.GetComponentInChildren<BlackHolePortal>())continue;
+            // Landing magnets are handled by the shared impact rule on arrival.
+            float value=tile.transform.position.x*100-Mathf.Abs(tile.transform.position.z-landingIsland.position.z);
             if(value>score){score=value;shoreTile=tile;}
         }
-        if(!shoreTile){Abort("目标星球没有连续两个空落脚格");yield break;}
+        if(!shoreTile){Abort("目标星球的初始房间没有左右相邻的两个可落脚地块，请在（0，0）房间预留落点");yield break;}
         var oldScene=source.gameObject.scene;var actor=source.player;var cellSize=board.cellSize;
         var shore=Cell(shoreTile.transform.position,cellSize);var innerCell=shore+Vector2Int.left;
         // Place the loaded planet ahead of the ongoing flight, aligned to whole grid cells.
@@ -115,25 +123,32 @@ public sealed class ChapterRecoilTravel:MonoBehaviour {
         flightBackground=roots.Where(r=>r.name=="动态太空背景").Select(r=>r.GetComponent<PixelGeneratorLab>()).FirstOrDefault();
         foreach(var root in roots)if(root==view.transform.root.gameObject||root.name=="动态太空背景"||root.name=="04 LIGHTING")SceneManager.MoveGameObjectToScene(root,destination);
         var oldActor=board.player;oldActor.gameObject.SetActive(false);
-        actor.SetParent(null,true);SceneManager.MoveGameObjectToScene(actor.gameObject,destination);board.player=actor;board.playerVisual=source.playerVisual;
+        SharedPlayer.Bind(board,true);actor=board.player;
         magnet.transform.SetParent(null,true);SceneManager.MoveGameObjectToScene(magnet.gameObject,destination);magnet.transform.SetParent(board.transform,true);
         board.magnets=board.magnets.Concat(new[]{magnet}).ToArray();
         var anchor=actor.GetComponent<IslandSurfaceAnchor>();if(anchor)anchor.ground=board;
         var magnetAnchor=magnet.GetComponent<IslandSurfaceAnchor>();if(magnetAnchor)magnetAnchor.ground=board;
         source.enabled=false;source.ReleaseChapterFlight();
         view.island.enabled=false;view.island.board=board;view.island.player=actor;view.island.islandCenters=targetCenters;view.island.SelectCurrentIsland();view.island.enabled=true;
-        var window=board.GetComponent<FiveIslandWindow>();if(window){window.view=view.island;window.enabled=true;window.Show(window.initialRoom);}
-        view.fixedDisplayOrigin=true;view.displayOrigin=origin;view.curveOrigin=targetCenters[0].position;
+        var window=board.GetComponent<FiveIslandWindow>();if(window){window.view=view.island;window.enabled=true;window.RefreshLayout();window.Show(startRoom);}
+        view.rotationOrigin=shift;view.fixedDisplayOrigin=true;view.displayOrigin=origin;view.curveOrigin=landingIsland.position;
         Shader.SetGlobalVector("_IceCurveFocus",view.curveOrigin);
         var planetStyle=targetPlanet.GetComponent<MainPlanetStyle>();if(planetStyle)planetStyle.targetCamera=view.GetComponent<Camera>();
         view.planet=targetPlanet;view.displayRadius=targetView.displayRadius;view.globeDisplayScale=targetView.globeDisplayScale;
         view.islandDisplayScale=scale/(window&&window.enabled?1.1f:1f);
         float radius=view.displayRadius>0?view.displayRadius*view.globeDisplayScale:view.planetRadius;
         // Convert the planet center into the same rendered frame as the translated tiles.
-        var center=targetCenters[0].position;var displayedCenter=origin+(center-origin)*scale;
+        var center=landingIsland.position;var displayedCenter=origin+(center-origin)*scale;
         targetPlanet.position=displayedCenter+view.transform.forward*(radius+1.5f)+view.transform.up*view.globeVerticalOffset;
         targetPlanet.localScale=Vector3.one*(radius/10);targetPlanet.rotation=Quaternion.identity;
         foreach(var renderer in destinationRenderers)if(renderer&&renderer.gameObject.activeInHierarchy)renderer.enabled=true;
+        if(window)window.Show(startRoom);
+        // The arrival offsets must be evaluated against destination bounds, never
+        // the previous world's gradually moving flat rectangle.
+        view.planningSize=targetView.planningSize;view.fitIsland=targetView.fitIsland;
+        view.planetRadius=targetView.planetRadius;view.centeredGlobe=targetView.centeredGlobe;
+        view.globeVerticalOffset=targetView.globeVerticalOffset;view.zoomSmoothTime=targetView.zoomSmoothTime;
+        view.ResetSurfaceFrame();view.Apply(view.transform.position-view.island.viewingOffset);
         board.enabled=true;SceneManager.SetActiveScene(destination);
         float remainingDistance=Vector3.Distance(actor.position,new Vector3(innerCell.x*cellSize,actor.position.y,innerCell.y*cellSize));
         var colorBlend=StartCoroutine(BlendBackground(Mathf.Max(.5f,remainingDistance/speed*.85f)));
@@ -141,7 +156,9 @@ public sealed class ChapterRecoilTravel:MonoBehaviour {
         var unload=SceneManager.UnloadSceneAsync(oldScene);
         yield return arrival;
         yield return colorBlend;
+        while(view.SettlingFlight)yield return null;
         while(unload!=null&&!unload.isDone)yield return null;
+        board.ReleaseChapterFlight();
         Active=false;Destroy(gameObject);
     }
     static Vector2Int Cell(Vector3 p,float size){return new Vector2Int(Mathf.RoundToInt(p.x/size),Mathf.RoundToInt(p.z/size));}

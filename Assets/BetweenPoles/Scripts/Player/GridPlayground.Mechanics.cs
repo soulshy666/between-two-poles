@@ -499,6 +499,7 @@ public sealed partial class GridPlayground {
         Busy=false;
     }
     void LateUpdate(){
+        TickKnockedMagnets();
         foreach(var m in magnets){if(!m||!m.enabled||!m.gameObject.activeInHierarchy)continue;
             bool active=m.product==MagnetProduct.Lift||(m.product==MagnetProduct.Cross&&RotorActive(m));
             var flow=m.GetComponent<MagnetFlow>();if(active&&!flow)flow=m.gameObject.AddComponent<MagnetFlow>();

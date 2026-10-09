@@ -16,12 +16,50 @@ namespace BetweenPoles {
   [System.NonSerialized] public bool fixedDisplayOrigin;
   [System.NonSerialized] public Vector3 displayOrigin;
   [System.NonSerialized] public Vector3 curveOrigin;
+  [System.NonSerialized] public Vector3 rotationOrigin;
   public Vector3 DisplayFocus(Vector3 world){return fixedDisplayOrigin?displayOrigin+(world-displayOrigin)*Mathf.Max(1,islandDisplayScale*(island&&island.board&&island.board.GetComponent<FiveIslandWindow>()?1.1f:1f)):world;}
+  bool settlingFlight;
+  float settleElapsed;
+  Vector3 settleOrigin,settleCurve,settlePlanet;
+  Quaternion settleRotation;
+  Transform settleIsland;
+  public bool SettlingFlight {get{return settlingFlight;}}
+  public void ResetSurfaceFrame(){flatInitialized=false;}
+  public void ResumeFlight(){if(settlingFlight){settlingFlight=false;fixedDisplayOrigin=false;}}
+  // Both ordinary recoil landings and chapter landings leave the airborne frame
+  // through this one continuous presentation transition.
+  public void SettleFlight(Vector3 origin,Transform destination){
+   if(!fixedDisplayOrigin){fixedDisplayOrigin=true;displayOrigin=origin;curveOrigin=origin;}
+   settleOrigin=displayOrigin;settleCurve=curveOrigin;settleIsland=destination;
+   settlePlanet=planet?planet.position:Vector3.zero;settleRotation=planet?planet.rotation:Quaternion.identity;
+   settleElapsed=0;settlingFlight=true;
+  }
   float zoomVelocity;
   bool zoomInitialized;
+  Vector4 flatBounds;
+  bool flatInitialized;
   readonly Vector4[] anchors=new Vector4[16];
   void OnEnable(){Apply(editFocus);}
-  void OnDisable(){Shader.SetGlobalFloat("_IslandRigidLayout",0);}
+  void OnDisable(){Shader.SetGlobalFloat("_IslandRigidLayout",0);Shader.SetGlobalFloat("_IslandFlatEnabled",0);flatInitialized=false;}
+  void UpdateFlatIsland(FiveIslandWindow window,Vector3 focus){
+   bool valid=island&&island.board&&island.islandCenters!=null&&island.islandCenters.Length>0;
+   if(!valid){Shader.SetGlobalFloat("_IslandFlatEnabled",0);flatInitialized=false;return;}
+   var center=island.CurrentIsland;
+   if(window&&window.enabled&&window.rooms.Length>0)center=window.rooms[Mathf.Clamp(window.CurrentRoom,0,window.rooms.Length-1)].center;
+   else if(!Application.isPlaying)foreach(var candidate in island.islandCenters)if(candidate&&(!center||(candidate.position-focus).sqrMagnitude<(center.position-focus).sqrMagnitude))center=candidate;
+   float minX=float.PositiveInfinity,minZ=minX,maxX=float.NegativeInfinity,maxZ=maxX;
+   float pad=island.board.cellSize*.5f;
+   foreach(var tile in island.board.tiles){
+    if(!tile||!tile.gameObject.activeInHierarchy)continue;
+    var owner=tile.GetComponentInParent<IslandSurfaceAnchor>();if(!owner||owner.center!=center)continue;
+    var p=tile.transform.position;minX=Mathf.Min(minX,p.x-pad);maxX=Mathf.Max(maxX,p.x+pad);minZ=Mathf.Min(minZ,p.z-pad);maxZ=Mathf.Max(maxZ,p.z+pad);
+   }
+   if(float.IsInfinity(minX)){Shader.SetGlobalFloat("_IslandFlatEnabled",0);return;}
+   var target=new Vector4(minX,minZ,maxX,maxZ);
+   if(!Application.isPlaying||!flatInitialized)flatBounds=target;
+   else flatBounds=Vector4.Lerp(flatBounds,target,1-Mathf.Exp(-Time.deltaTime/Mathf.Max(.05f,island.transitionSeconds*.3f)));
+   flatInitialized=true;Shader.SetGlobalVector("_IslandFlatBounds",flatBounds);Shader.SetGlobalFloat("_IslandFlatEnabled",1);
+  }
   // OnEnable can run before the island window and camera select the spawn island.
   // Recompute the first frame after their Start methods, using the normal zoom rule.
   void Start(){
@@ -29,13 +67,27 @@ namespace BetweenPoles {
    zoomInitialized=false;
    Apply(island.enabled?transform.position-island.viewingOffset:editFocus);
   }
-  void LateUpdate(){if(!island)return;Vector3 focus=Application.isPlaying&&island.enabled?transform.position-island.viewingOffset:editFocus;Apply(focus);}
+  void LateUpdate(){if(!island)return;
+   if(settlingFlight&&settleIsland){
+    if(island.CurrentIsland)settleIsland=island.CurrentIsland;
+    settleElapsed+=Time.deltaTime;float t=Mathf.SmoothStep(0,1,Mathf.Clamp01(settleElapsed/Mathf.Max(.8f,island.transitionSeconds*2)));
+    var previousOrigin=displayOrigin;
+    displayOrigin=Vector3.Lerp(settleOrigin,settleIsland.position,t);curveOrigin=Vector3.Lerp(settleCurve,settleIsland.position,t);
+    // Changing the render origin is a coordinate conversion, not a camera pan.
+    // Convert camera and globe together in the same frame before easing continues.
+    float scale=islandDisplayScale*(island.board&&island.board.GetComponent<FiveIslandWindow>()?1.1f:1f);
+    var delta=(displayOrigin-previousOrigin)*(1-scale);
+    island.RebaseFocus(delta);settlePlanet+=delta;
+    if(t>=1&&(transform.position-island.viewingOffset-settleIsland.position).sqrMagnitude<.000001f){settlingFlight=false;fixedDisplayOrigin=false;}
+   }
+   Vector3 focus=Application.isPlaying&&island.enabled?transform.position-island.viewingOffset:editFocus;Apply(focus);}
   public static Vector3 SphereNormal(Vector3 point,float radius=10){float d=new Vector2(point.x,point.z).magnitude;return d<.001f?Vector3.up:new Vector3(point.x/d*Mathf.Sin(d/radius),Mathf.Cos(d/radius),point.z/d*Mathf.Sin(d/radius));}
   public void Apply(Vector3 focus){
    // Share the physical camera offset in edit mode and during island transitions.
    if(island)island.ApplyView(focus);
    Shader.SetGlobalFloat("_IceRadius",planetRadius);
    var layoutWindow=island&&island.board?island.board.GetComponent<FiveIslandWindow>():null;
+   UpdateFlatIsland(layoutWindow,focus);
    bool edgeLayout=layoutWindow&&layoutWindow.enabled;
    bool recoil=island&&island.board&&island.board.RecoilFlying;
    Vector3 renderFocus=fixedDisplayOrigin?displayOrigin:recoil?island.board.RecoilOrigin:focus;
@@ -50,17 +102,17 @@ namespace BetweenPoles {
    // Keep every connected island, magnet and the player in the same rigid frame.
    // Independent rim placement changes shore separation and stretches bridge meshes.
    // The camera pans over the fixed board while only the background globe rotates.
-   Shader.SetGlobalFloat("_IslandRigidLayout",edgeLayout||recoil||fixedDisplayOrigin?1:0);
+   Shader.SetGlobalFloat("_IslandRigidLayout",edgeLayout||recoil||fixedDisplayOrigin||Shader.GetGlobalFloat("_IslandFlatEnabled")>.5f?1:0);
    Shader.SetGlobalFloat("_IslandEdgeLayout",0);
    Shader.SetGlobalVectorArray("_IslandAnchors",anchors);Shader.SetGlobalInt("_IslandCount",count);
-   Vector3 rotationFocus=fixedDisplayOrigin&&count>0?focus-DisplayFocus(centers[0].position):focus;
+   Vector3 rotationFocus=(fixedDisplayOrigin?displayOrigin+(focus-displayOrigin)/Mathf.Max(1,displayScale):focus)-rotationOrigin;
    Quaternion rotation=Quaternion.FromToRotation(SphereNormal(rotationFocus,planetRadius),Vector3.up);Shader.SetGlobalMatrix("_IceRotation",Matrix4x4.Rotate(rotation));
    float visibleRadius=displayRadius>0?displayRadius*globeDisplayScale:planetRadius;
-   if(planet&&!recoil&&!fixedDisplayOrigin){
+   if(planet&&!recoil&&(!fixedDisplayOrigin||settlingFlight)){
     Vector3 destination=centeredGlobe?focus+transform.forward*(planetRadius+1.5f):new Vector3(focus.x,-planetRadius-.15f,focus.z);
     if(displayRadius>0)destination=focus+transform.forward*(visibleRadius+1.5f)+transform.up*globeVerticalOffset;
-    float follow=fixedDisplayOrigin&&Application.isPlaying?1-Mathf.Exp(-Time.deltaTime/.35f):1;
-    planet.position=Vector3.Lerp(planet.position,destination,follow);planet.rotation=Quaternion.Slerp(planet.rotation,rotation,follow);planet.localScale=Vector3.one*(visibleRadius/10);
+    float follow=settlingFlight?Mathf.SmoothStep(0,1,Mathf.Clamp01(settleElapsed/Mathf.Max(.8f,island.transitionSeconds*2))):1;
+    planet.position=Vector3.Lerp(settlingFlight?settlePlanet:planet.position,destination,follow);planet.rotation=Quaternion.Slerp(settlingFlight?settleRotation:planet.rotation,rotation,follow);planet.localScale=Vector3.one*(visibleRadius/10);
    }
    Shader.SetGlobalFloat("_IceDiskRadius",displayRadius>0?visibleRadius:0);
    if(planet)Shader.SetGlobalVector("_IceDiskCenter",planet.position);

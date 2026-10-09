@@ -5,6 +5,8 @@ public sealed partial class GridPlayground {
     sealed class WorldState {
         public Snapshot[] pieces;
         public RecoilArrival[] arrivals;
+        public KnockCheckpoint[] knockPoints;
+        public KnockFlight[] knockFlights;
         public Vector3 playerPosition,entryPosition;
         public Quaternion playerRotation,entryRotation;
         public Transform island;
@@ -51,6 +53,7 @@ public sealed partial class GridPlayground {
         if(state==null)return;
         foreach(var piece in state.pieces)if(piece.geometry)keep.Add(piece.geometry);
         if(state.arrivals!=null)foreach(var entry in state.arrivals)if(entry.piece.geometry)keep.Add(entry.piece.geometry);
+        if(state.knockPoints!=null)foreach(var entry in state.knockPoints)if(entry.piece.geometry)keep.Add(entry.piece.geometry);
     }
     void ReleaseUnusedGeometry(){
         // Only release runtime objects previously referenced by this board's snapshots.
@@ -58,6 +61,7 @@ public sealed partial class GridPlayground {
         var keep=new HashSet<Transform>();KeepGeometry(initialState,keep);
         foreach(var state in history)KeepGeometry(state,keep);
         foreach(var entry in recoilArrivals)if(entry.piece.geometry)keep.Add(entry.piece.geometry);
+        foreach(var entry in knockCheckpoints)if(entry.piece.geometry)keep.Add(entry.piece.geometry);
         foreach(var m in magnets)if(m&&m.geometry)keep.Add(m.geometry);
         var expired=new List<Transform>();
         foreach(var geometry in recordedGeometry)if(!geometry||!keep.Contains(geometry))expired.Add(geometry);
@@ -68,6 +72,7 @@ public sealed partial class GridPlayground {
     Snapshot SavePiece(MagnetPiece m){return new Snapshot{parent=m.transform.parent,position=m.transform.position,rotation=m.transform.rotation,geometry=m.geometry,pose=m.geometry.localRotation,geoPosition=m.geometry.localPosition,scale=m.geometry.localScale,combined=m.combined,walkable=m.walkable,enabled=m.enabled,active=m.gameObject.activeSelf,product=m.product,baseNorth=m.baseNorth,bridgeDirection=m.bridgeDirection,north=m.north,shape=m.shape,owner=Owner(m)};}
     WorldState SaveWorld(){
         var s=new WorldState{pieces=new Snapshot[magnets.Length],arrivals=recoilArrivals.ToArray(),playerPosition=player.position,playerRotation=player.rotation,island=currentIsland,entryPosition=islandEntry,entryRotation=islandEntryRotation,goal=ReachedGoal,goalMaterial=goalLight?goalLight.sharedMaterial:null};
+        s.knockPoints=knockCheckpoints.ToArray();s.knockFlights=knockedFlights.ToArray();
         for(int i=0;i<magnets.Length;i++){s.pieces[i]=SavePiece(magnets[i]);recordedGeometry.Add(s.pieces[i].geometry);}return s;
     }
     void TrackIsland(GridTile tile){
@@ -103,8 +108,10 @@ public sealed partial class GridPlayground {
         var pushPose=player.GetComponent<PlayerPushPose>();if(pushPose)pushPose.End();
         ClearWalkInterrupt();
         ClearMovementInput();
-        StopAllCoroutines();EndRecoilFlight();Busy=false;RestorePieces(s.pieces);
+        StopAllCoroutines();EndRecoilFlight();ClearKnockFlights();Busy=false;RestorePieces(s.pieces);
         recoilArrivals.Clear();if(s.arrivals!=null)recoilArrivals.AddRange(s.arrivals);
+        knockCheckpoints.Clear();if(s.knockPoints!=null)knockCheckpoints.AddRange(s.knockPoints);
+        if(s.knockFlights!=null)foreach(var f in s.knockFlights){knockedFlights.Add(f);if(f.magnet)KnockRendering(f.magnet,true,f.lands?Vector3.Lerp(f.offset,SurfaceOffset(f.end),Mathf.Clamp01(f.elapsed/f.duration)):f.offset);}
         player.SetPositionAndRotation(s.playerPosition,s.playerRotation);currentIsland=s.island;islandEntry=s.entryPosition;islandEntryRotation=s.entryRotation;
         ReachedGoal=s.goal;if(goalLight)goalLight.sharedMaterial=s.goalMaterial;RefreshRestoredIsland();
     }
@@ -117,6 +124,7 @@ public sealed partial class GridPlayground {
     public bool ResetCurrentIsland(){
         ClearMovementInput();
         if(Busy)return Reject("请等待当前动作结束后重置小岛");
+        if(knockedFlights.Exists(f=>f.lands))return Reject("请等待被撞飞的磁铁落地后重置");
         ClearPushPresentations();
         if(initialState==null)return false;
         RecordHistory(SaveWorld());
@@ -148,6 +156,7 @@ public sealed partial class GridPlayground {
             var binding=assembly.GetComponent<IslandSurfaceAnchor>();state.owner=binding?binding.center:Owner(Tile(CellAt(assembly.position)));
             restore[i]=state;affected[i]=true;
         }
+        ResolveKnockReset(restore,affected);
         RestorePieces(restore,affected);
         Vector3 spawn=islandEntry;var at=Tile(CellAt(spawn));
         if(!at||at.blocked||Piece(CellAt(spawn))){

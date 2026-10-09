@@ -1,0 +1,560 @@
+{
+  "rooms": [
+    {
+      "id": "muzb4fp7gmlk5",
+      "name": "(0, 0)",
+      "x": 1920,
+      "y": 680,
+      "w": 6,
+      "h": 5,
+      "cells": {
+        "1,1": true,
+        "1,2": true,
+        "1,3": true,
+        "2,0": true,
+        "2,1": true,
+        "2,2": true,
+        "2,3": true,
+        "3,0": true,
+        "3,1": true,
+        "3,2": true,
+        "3,3": true,
+        "3,4": true,
+        "4,0": true,
+        "4,1": true,
+        "4,2": true,
+        "4,3": true,
+        "4,4": true,
+        "5,1": true,
+        "5,2": true,
+        "5,3": true,
+        "5,4": true,
+        "0,3": true,
+        "0,2": true,
+        "2,4": true
+      }
+    },
+    {
+      "id": "muzb662ruucgg",
+      "name": "(0, 0)",
+      "x": 1680,
+      "y": 720,
+      "w": 5,
+      "h": 4,
+      "cells": {
+        "0,0": true,
+        "0,1": true,
+        "1,0": true,
+        "1,1": true,
+        "1,2": true,
+        "2,0": true,
+        "2,1": true,
+        "2,2": true,
+        "3,0": true,
+        "3,1": true,
+        "3,2": true,
+        "3,3": true,
+        "4,0": true,
+        "4,1": true,
+        "4,2": true
+      }
+    },
+    {
+      "id": "mv0lptprfar38",
+      "name": "(2, 2)",
+      "x": 2000,
+      "y": 960,
+      "w": 5,
+      "h": 5,
+      "cells": {
+        "0,1": true,
+        "0,2": true,
+        "0,3": true,
+        "0,4": true,
+        "1,1": true,
+        "1,3": true,
+        "1,4": true,
+        "2,1": true,
+        "2,3": true,
+        "2,4": true,
+        "3,0": true,
+        "3,3": true,
+        "3,4": true,
+        "4,1": true,
+        "4,2": true,
+        "4,3": true,
+        "4,4": true,
+        "3,1": true,
+        "0,0": true,
+        "1,0": true,
+        "2,0": true,
+        "4,0": true
+      }
+    },
+    {
+      "id": "mv0mjiii141z8",
+      "name": "(1, 2)",
+      "x": 2360,
+      "y": 1160,
+      "w": 5,
+      "h": 7,
+      "cells": {
+        "0,1": true,
+        "0,2": true,
+        "0,3": true,
+        "0,5": true,
+        "1,1": true,
+        "1,2": true,
+        "1,3": true,
+        "1,4": true,
+        "1,5": true,
+        "2,1": true,
+        "2,2": true,
+        "2,3": true,
+        "2,4": true,
+        "2,5": true,
+        "3,2": true,
+        "3,3": true,
+        "3,4": true,
+        "3,5": true,
+        "2,0": true,
+        "4,2": true,
+        "4,0": true,
+        "4,1": true,
+        "3,1": true,
+        "0,4": true,
+        "0,6": true,
+        "1,6": true,
+        "2,6": true
+      }
+    },
+    {
+      "id": "mv0nf9ixrggv4",
+      "name": "(0, 3)",
+      "x": 2320,
+      "y": 1520,
+      "w": 8,
+      "h": 4,
+      "cells": {
+        "0,1": true,
+        "0,2": true,
+        "0,3": true,
+        "1,0": true,
+        "1,1": true,
+        "1,2": true,
+        "1,3": true,
+        "2,2": true,
+        "2,3": true,
+        "3,2": true,
+        "4,2": true,
+        "4,3": true,
+        "5,1": true,
+        "5,2": true,
+        "5,3": true,
+        "6,1": true,
+        "6,2": true,
+        "6,3": true,
+        "3,0": true,
+        "5,0": true,
+        "0,0": true,
+        "6,0": true,
+        "4,0": true,
+        "4,1": true,
+        "3,1": true,
+        "3,3": true,
+        "7,3": true,
+        "7,2": true,
+        "7,1": true,
+        "7,0": true
+      }
+    },
+    {
+      "id": "mv0o6wm28f2mq",
+      "name": "(3, 1)",
+      "x": 2240,
+      "y": 920,
+      "w": 6,
+      "h": 5,
+      "cells": {
+        "0,1": true,
+        "1,1": true,
+        "1,2": true,
+        "1,3": true,
+        "2,1": true,
+        "2,2": true,
+        "2,3": true,
+        "3,1": true,
+        "3,2": true,
+        "3,3": true,
+        "4,1": true,
+        "4,2": true,
+        "4,3": true,
+        "4,0": true,
+        "5,0": true,
+        "5,1": true,
+        "5,2": true,
+        "3,0": true,
+        "1,4": true,
+        "2,4": true,
+        "3,4": true,
+        "4,4": true
+      }
+    },
+    {
+      "id": "mv0pc5djp5gbn",
+      "name": "(1, 3)",
+      "x": 1960,
+      "y": 1520,
+      "w": 7,
+      "h": 5,
+      "cells": {
+        "0,0": true,
+        "0,1": true,
+        "0,2": true,
+        "0,3": true,
+        "0,4": true,
+        "1,0": true,
+        "1,1": true,
+        "1,2": true,
+        "1,3": true,
+        "1,4": true,
+        "2,0": true,
+        "2,1": true,
+        "2,2": true,
+        "2,3": true,
+        "2,4": true,
+        "3,0": true,
+        "3,1": true,
+        "3,2": true,
+        "3,3": true,
+        "3,4": true,
+        "4,0": true,
+        "4,1": true,
+        "4,2": true,
+        "4,3": true,
+        "4,4": true,
+        "5,2": true,
+        "5,1": true,
+        "6,1": true,
+        "6,2": true,
+        "5,0": true,
+        "5,3": true,
+        "5,4": true
+      }
+    }
+  ],
+  "items": [
+    {
+      "id": "mux00qcu9k4d3",
+      "name": "石头",
+      "color": "#83909e",
+      "w": 1,
+      "h": 1,
+      "kind": "rock"
+    },
+    {
+      "id": "mux00qcvr7lfj",
+      "name": "N 长条",
+      "color": "#e95261",
+      "w": 1,
+      "h": 1,
+      "magnet": {
+        "type": "bar",
+        "pole": "N",
+        "direction": "0"
+      },
+      "kind": "bar"
+    },
+    {
+      "id": "mux00qcvas61n",
+      "name": "S 长条",
+      "color": "#428fd7",
+      "w": 1,
+      "h": 1,
+      "img": "data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20100%20100%22%3E%3Cg%20transform%3D%22rotate(0%2050%2050)%22%3E%3Crect%20x%3D%2210%22%20y%3D%2239%22%20width%3D%2280%22%20height%3D%2222%22%20fill%3D%22%23428fd7%22%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E",
+      "magnet": {
+        "type": "bar",
+        "pole": "S",
+        "direction": "0"
+      },
+      "kind": "bar"
+    },
+    {
+      "id": "mux00qcvm33hz",
+      "name": "N U型",
+      "color": "#e95261",
+      "w": 1,
+      "h": 1,
+      "img": "data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20100%20100%22%3E%3Cg%20transform%3D%22rotate(0%2050%2050)%22%3E%3Cpath%20d%3D%22M20%2072V45a30%2030%200%200%201%2060%200v27%22%20fill%3D%22none%22%20stroke%3D%22%23e95261%22%20stroke-width%3D%2217%22%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E",
+      "magnet": {
+        "type": "u",
+        "pole": "N",
+        "direction": "0"
+      },
+      "kind": "u"
+    },
+    {
+      "id": "mux00qcvmuuxj",
+      "name": "S U型",
+      "color": "#428fd7",
+      "w": 1,
+      "h": 1,
+      "img": "data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20100%20100%22%3E%3Cg%20transform%3D%22rotate(0%2050%2050)%22%3E%3Cpath%20d%3D%22M20%2072V45a30%2030%200%200%201%2060%200v27%22%20fill%3D%22none%22%20stroke%3D%22%23428fd7%22%20stroke-width%3D%2217%22%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E",
+      "magnet": {
+        "type": "u",
+        "pole": "S",
+        "direction": "0"
+      },
+      "kind": "u"
+    },
+    {
+      "id": "mux00qcvw8nbb",
+      "kind": "player",
+      "name": "出生点",
+      "color": "#f7e8ba",
+      "w": 1,
+      "h": 1
+    },
+    {
+      "id": "mux00qcvjgvyo",
+      "kind": "goal",
+      "name": "终点",
+      "color": "#a3efc8",
+      "w": 1,
+      "h": 1
+    },
+    {
+      "id": "mux00qcwvqzty",
+      "name": "加宽条",
+      "color": "#e95261",
+      "w": 1,
+      "h": 1,
+      "img": "data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20100%20100%22%3E%3Cg%20transform%3D%22rotate(0%2050%2050)%22%3E%3Cpath%20d%3D%22M10%2039h80%22%20stroke%3D%22%23e95261%22%20stroke-width%3D%2222%22%2F%3E%3Cpath%20d%3D%22M10%2061h80%22%20stroke%3D%22%23428fd7%22%20stroke-width%3D%2222%22%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E",
+      "magnet": {
+        "type": "wide",
+        "pole": "N",
+        "direction": "0"
+      },
+      "kind": "wide"
+    },
+    {
+      "id": "mux00qcw9hsye",
+      "name": "圆环",
+      "color": "#e95261",
+      "w": 1,
+      "h": 1,
+      "img": "data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20100%20100%22%3E%3Cg%20transform%3D%22rotate(0%2050%2050)%22%3E%3Cpath%20d%3D%22M20%2050a30%2030%200%200%201%2060%200%22%20stroke%3D%22%23e95261%22%20stroke-width%3D%2217%22%20fill%3D%22none%22%2F%3E%3Cpath%20d%3D%22M80%2050a30%2030%200%200%201-60%200%22%20stroke%3D%22%23428fd7%22%20stroke-width%3D%2217%22%20fill%3D%22none%22%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E",
+      "magnet": {
+        "type": "ring",
+        "pole": "N",
+        "direction": "0"
+      },
+      "kind": "ring"
+    },
+    {
+      "id": "mux00qcwsnkkx",
+      "name": "十字",
+      "color": "#e95261",
+      "w": 1,
+      "h": 1,
+      "img": "data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20100%20100%22%3E%3Cg%20transform%3D%22rotate(0%2050%2050)%22%3E%3Cpath%20d%3D%22M10%2050h80%22%20stroke%3D%22%23e95261%22%20stroke-width%3D%2220%22%2F%3E%3Cpath%20d%3D%22M50%2010v80%22%20stroke%3D%22%23111%22%20stroke-width%3D%2224%22%2F%3E%3Cpath%20d%3D%22M50%2010v80%22%20stroke%3D%22%23428fd7%22%20stroke-width%3D%2220%22%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E",
+      "magnet": {
+        "type": "cross",
+        "pole": "N",
+        "direction": "0"
+      },
+      "kind": "cross"
+    },
+    {
+      "id": "mux00qcwlsmsb",
+      "name": "升降",
+      "color": "#e95261",
+      "w": 1,
+      "h": 1,
+      "img": "data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20100%20100%22%3E%3Cg%20transform%3D%22rotate(0%2050%2050)%22%3E%3Cpath%20d%3D%22M20%2072V45a30%2030%200%200%201%2060%200v27%22%20fill%3D%22none%22%20stroke%3D%22%23428fd7%22%20stroke-width%3D%2217%22%2F%3E%3Cpath%20d%3D%22M50%2058V15%22%20stroke%3D%22%23e95261%22%20stroke-width%3D%2218%22%2F%3E%3Ctext%20x%3D%2264%22%20y%3D%2292%22%20font-size%3D%2219%22%3E%E2%86%911%3C%2Ftext%3E%3C%2Fg%3E%3C%2Fsvg%3E",
+      "magnet": {
+        "type": "lift",
+        "pole": "N",
+        "direction": "0"
+      },
+      "kind": "lift"
+    },
+    {
+      "id": "mux00qcwkeafu",
+      "name": "两格桥",
+      "color": "#e95261",
+      "w": 2,
+      "h": 1,
+      "img": "data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20200%20100%22%3E%3Cg%20transform%3D%22rotate(0%20100%2050)%22%3E%3Cpath%20d%3D%22M45%2025a25%2025%200%200%200%200%2050%22%20fill%3D%22none%22%20stroke%3D%22%23428fd7%22%20stroke-width%3D%2216%22%2F%3E%3Cpath%20d%3D%22M45%2025H190M45%2075H190%22%20stroke%3D%22%23e95261%22%20stroke-width%3D%2216%22%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E",
+      "magnet": {
+        "type": "bridge",
+        "pole": "N",
+        "direction": "0"
+      },
+      "kind": "bridge"
+    },
+    {
+      "id": "muxklulpxhcr1",
+      "kind": "collectible",
+      "name": "收藏品",
+      "color": "#f5c84c",
+      "w": 1,
+      "h": 1
+    },
+    {
+      "id": "muzc2a21qsxaw",
+      "kind": "blackhole",
+      "name": "黑洞",
+      "color": "#9857dc",
+      "w": 1,
+      "h": 1
+    }
+  ],
+  "placements": {
+    "muzb4fp7gmlk5": [
+      {
+        "cx": 5,
+        "cy": 1,
+        "itemId": "mux00qcu9k4d3"
+      },
+      {
+        "cx": 4,
+        "cy": 1,
+        "itemId": "mux00qcvr7lfj"
+      }
+    ],
+    "muzb662ruucgg": [
+      {
+        "cx": 3,
+        "cy": 1,
+        "itemId": "muzc2a21qsxaw"
+      }
+    ],
+    "mv0mjiii141z8": [
+      {
+        "cx": 3,
+        "cy": 1,
+        "itemId": "mux00qcvr7lfj",
+        "rotation": 180
+      },
+      {
+        "cx": 3,
+        "cy": 3,
+        "itemId": "mux00qcvas61n",
+        "rotation": 90
+      },
+      {
+        "cx": 2,
+        "cy": 4,
+        "itemId": "mux00qcvw8nbb"
+      },
+      {
+        "cx": 0,
+        "cy": 3,
+        "itemId": "mux00qcu9k4d3"
+      },
+      {
+        "cx": 0,
+        "cy": 4,
+        "itemId": "mux00qcvr7lfj"
+      }
+    ],
+    "mv0lptprfar38": [
+      {
+        "cx": 3,
+        "cy": 0,
+        "itemId": "mux00qcvr7lfj"
+      },
+      {
+        "cx": 1,
+        "cy": 3,
+        "itemId": "mux00qcvas61n",
+        "rotation": 90
+      },
+      {
+        "cx": 1,
+        "cy": 1,
+        "itemId": "mux00qcvr7lfj",
+        "rotation": 90
+      },
+      {
+        "cx": 3,
+        "cy": 3,
+        "itemId": "mux00qcvas61n"
+      }
+    ],
+    "mv0o6wm28f2mq": [
+      {
+        "cx": 4,
+        "cy": 1,
+        "itemId": "mux00qcu9k4d3"
+      },
+      {
+        "cx": 1,
+        "cy": 1,
+        "itemId": "mux00qcvr7lfj"
+      },
+      {
+        "cx": 4,
+        "cy": 2,
+        "itemId": "mux00qcvr7lfj"
+      }
+    ],
+    "mv0nf9ixrggv4": [
+      {
+        "cx": 2,
+        "cy": 2,
+        "itemId": "mux00qcvr7lfj",
+        "rotation": 90
+      },
+      {
+        "cx": 3,
+        "cy": 2,
+        "itemId": "mux00qcu9k4d3"
+      },
+      {
+        "cx": 1,
+        "cy": 2,
+        "itemId": "mux00qcvas61n"
+      },
+      {
+        "cx": 4,
+        "cy": 3,
+        "itemId": "mux00qcu9k4d3"
+      },
+      {
+        "cx": 5,
+        "cy": 2,
+        "itemId": "mux00qcvas61n"
+      },
+      {
+        "cx": 6,
+        "cy": 2,
+        "itemId": "mux00qcvr7lfj"
+      },
+      {
+        "cx": 3,
+        "cy": 3,
+        "itemId": "mux00qcvr7lfj"
+      }
+    ],
+    "mv0pc5djp5gbn": [
+      {
+        "cx": 0,
+        "cy": 2,
+        "itemId": "mux00qcvr7lfj"
+      },
+      {
+        "cx": 0,
+        "cy": 3,
+        "itemId": "mux00qcu9k4d3"
+      }
+    ]
+  },
+  "roomW": 5,
+  "roomH": 5,
+  "originId": "muzb4fp7gmlk5",
+  "uniformSize": false,
+  "schemaVersion": 1,
+  "cellPixels": 40
+}
