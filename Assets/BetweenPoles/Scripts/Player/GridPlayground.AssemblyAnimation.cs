@@ -285,7 +285,7 @@ public sealed partial class GridPlayground {
         preview.SetActive(false);
         preview.transform.SetParent(receiver.transform,false);
         preview.transform.SetPositionAndRotation(receiver.transform.position,yaw);
-        var final=MagnetVisuals.Build(preview.transform,receiver.shape,receiver.north,product,cellSize,uNorth,bridgeDirection);
+        var final=MagnetVisuals.Build(preview.transform,receiver.shape,receiver.north,product,cellSize,uNorth,bridgeDirection,incoming.north);
         if(product==MagnetProduct.Cross&&receiverOnTop){final.GetChild(0).localPosition=new Vector3(0,.36f,0);final.GetChild(1).localPosition=new Vector3(0,.12f,0);}
         if(product==MagnetProduct.Cross&&!receiverOnTop&&!incomingOnTop)final.localPosition=Vector3.down*.24f;
         var incomingParts=new List<Renderer>();var receiverParts=new List<Renderer>();
@@ -323,7 +323,7 @@ public sealed partial class GridPlayground {
             &&Mathf.Abs(Vector3.Dot(poseReceiver*Vector3.right,endPoseReceiver*Vector3.right))>.95f)
             endPoseReceiver=poseReceiver;
         var scaleIncoming=incoming.geometry.localScale;var scaleReceiver=receiver.geometry.localScale;
-        if((product==MagnetProduct.BridgeHalf||product==MagnetProduct.Lift)&&incoming.shape==MagnetShape.Bar){
+        if((product==MagnetProduct.BridgeHalf||product==MagnetProduct.Bridge||product==MagnetProduct.Lift)&&incoming.shape==MagnetShape.Bar){
             // Lift vertically before crossing the U, align above it, and descend
             // only once over the final rail or lift-column socket. The vertical
             // extents keep the whole upright bar above the U during flight.

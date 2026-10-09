@@ -22,7 +22,7 @@ public sealed partial class PlayerPushPose {
     void UpdateIdle(){
         var panel=board?board.GetComponent<MagnetDebugPanel>():null;
         if(!Application.isPlaying||!Application.isFocused||!board||!board.isActiveAndEnabled
-            ||board.Busy||board.OpeningCinematic||Time.timeScale<=0||pushing||walking||balancing
+            ||board.Busy||board.OpeningCinematic||Time.timeScale<=0||pushing||walking||balancing||pushingStone
             ||(panel&&panel.enabled&&panel.IsOpen)||BlackHoleTravel.InTransit||BlackHoleTravel.Selecting
             ||ChapterRecoilTravel.Active){
             CancelIdle();StopBreathing();return;

@@ -177,6 +177,7 @@ public sealed partial class PlayerPushPose:MonoBehaviour {
         posed.vertices=workVertices;if(normals.Length==vertices.Length)posed.normals=workNormals;
     }
     public void End(){
+        ResetStonePush();
         idlePlaying=false;idleElapsed=0;idleWait=0;
         breathing=false;breathingElapsed=0;
         if(walking&&walkDistance>.001f){
@@ -211,6 +212,7 @@ public sealed partial class PlayerPushPose:MonoBehaviour {
     }
     void LateUpdate(){
         UpdateIdle();
+        UpdateStonePush();
         if(balancing){
             if(board&&board.Busy){End();return;}
             balanceTime+=Time.deltaTime;

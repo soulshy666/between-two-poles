@@ -28,6 +28,7 @@ public sealed partial class GridPlayground {
     }
     IEnumerator MoveRing(MagnetPiece ring,Vector2Int dir,Vector2Int origin,int cells,bool tip){
         BeginPushInterrupt(dir);
+        pushHoverParticipants.Add(ring);
         Vector3 start=ring.transform.position;
         var path=new Vector3[cells+1];path[0]=start;
         for(int i=1;i<=cells;i++){

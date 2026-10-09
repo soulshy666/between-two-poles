@@ -1,0 +1,1 @@
+PASS: 44 assertions; four directions; centered bridge walking/exit and push-follow; both land cells block players/materials; gap entry; half bridge blocked; ring rim preserved.

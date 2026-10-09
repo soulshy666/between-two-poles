@@ -3,7 +3,7 @@ namespace BetweenPoles {
 // Small runtime meshes use the same bent-world material as the imported islands.
 public static class MagnetVisuals {
     const string LinkName="磁流连接",BridgeSurfaceName="通路电屏障";
-    static Material red,blue,link,bridgeSurface;
+    static Material red,blue,link,bridgeSurface,bridgeTrim;
     static Material Color(bool north) {
         var m=north?red:blue;if(m)return m;
         m=new Material(Shader.Find("BetweenPoles/PaintedIceTrial"));m.color=north?new Color(.88f,.22f,.29f):new Color(.18f,.55f,.78f);
@@ -20,8 +20,17 @@ public static class MagnetVisuals {
     }
     static Material BridgeSurfaceMaterial() {
         if(bridgeSurface)return bridgeSurface;
-        bridgeSurface=new Material(Shader.Find("BetweenPoles/BridgeEnergyGlass"));bridgeSurface.color=new Color(.12f,.58f,1f,.30f);
+        bridgeSurface=new Material(Shader.Find("BetweenPoles/PaintedIceTrial"));
+        bridgeSurface.color=new Color(.48f,.73f,.78f,1);
+        bridgeSurface.SetFloat("_Painted",0);bridgeSurface.SetFloat("_Snow",0);bridgeSurface.SetFloat("_Grid",0);
         return bridgeSurface;
+    }
+    static Material BridgeTrimMaterial(){
+        if(bridgeTrim)return bridgeTrim;
+        bridgeTrim=new Material(Shader.Find("BetweenPoles/PaintedIceTrial"));
+        bridgeTrim.color=new Color(.76f,.95f,.96f,1);
+        bridgeTrim.SetFloat("_Painted",0);bridgeTrim.SetFloat("_Snow",0);bridgeTrim.SetFloat("_Grid",0);
+        return bridgeTrim;
     }
     static void MagneticLink(Transform parent,float z,float begin,float end) {
         var root=Group(parent,LinkName);
@@ -34,8 +43,43 @@ public static class MagnetVisuals {
     }
     static void BridgeSurface(Transform parent,float begin,float end) {
         var root=Group(parent,BridgeSurfaceName);
-        // Cover the complete two-cell assembly, including both rails and the U-shaped base.
-        Box(root,new Vector3((begin+end)*.5f,.247f,0),new Vector3(end-begin,.012f,1.2f),BridgeSurfaceMaterial(),"蓝色桥面");
+        // A solid continuous walkway reads at the low render resolution. Keep
+        // its top at the gameplay deck height and leave the coloured rails exposed.
+        // Match the U's hollow with a rounded end. A rectangular panel's rear
+        // corners (including its trim) otherwise poke through the curved shell.
+        float arcCenter=begin+.48f,radius=.35f;
+        RoundedBridgeDeck(root,arcCenter,end,radius);
+        float length=end-arcCenter,center=(arcCenter+end)*.5f;
+        foreach(float side in new[]{-1f,1f})
+            Box(root,new Vector3(center,.23f,side*(radius-.025f)),new Vector3(length,.02f,.04f),BridgeTrimMaterial(),"通路边线");
+        Box(root,new Vector3(end-.045f,.23f,0),new Vector3(.09f,.02f,radius*2),BridgeTrimMaterial(),"桥头踏边");
+    }
+    static void RoundedBridgeDeck(Transform parent,float arcCenter,float end,float radius){
+        const int segments=20;
+        var outline=new Vector3[segments+3];
+        outline[0]=new Vector3(end,0,-radius);outline[1]=new Vector3(end,0,radius);
+        for(int i=0;i<=segments;i++){
+            float angle=Mathf.PI*(.5f+(float)i/segments);
+            outline[i+2]=new Vector3(arcCenter+radius*Mathf.Cos(angle),0,radius*Mathf.Sin(angle));
+        }
+        int count=outline.Length;
+        var vertices=new Vector3[count*6];var triangles=new int[(count-2)*6+count*6];int t=0;
+        for(int i=0;i<count;i++){
+            vertices[i]=outline[i]+Vector3.up*.24f;
+            vertices[count+i]=outline[i]+Vector3.up*.15f;
+            int next=(i+1)%count,s=count*2+i*4;
+            vertices[s]=outline[i]+Vector3.up*.15f;vertices[s+1]=outline[next]+Vector3.up*.15f;
+            vertices[s+2]=outline[next]+Vector3.up*.24f;vertices[s+3]=outline[i]+Vector3.up*.24f;
+            triangles[t++]=s;triangles[t++]=s+2;triangles[t++]=s+1;
+            triangles[t++]=s;triangles[t++]=s+3;triangles[t++]=s+2;
+        }
+        for(int i=1;i<count-1;i++){
+            triangles[t++]=0;triangles[t++]=i+1;triangles[t++]=i;
+            triangles[t++]=count;triangles[t++]=count+i;triangles[t++]=count+i+1;
+        }
+        var mesh=new Mesh{name="圆头连续桥面"};mesh.vertices=vertices;mesh.triangles=triangles;mesh.RecalculateNormals();mesh.RecalculateBounds();
+        var deck=Group(parent,"连续桥面");deck.gameObject.AddComponent<MeshFilter>().sharedMesh=mesh;
+        deck.gameObject.AddComponent<MeshRenderer>().sharedMaterial=BridgeSurfaceMaterial();
     }
     public static bool IsMagneticEffect(Renderer renderer) {
         for(var current=renderer?renderer.transform:null;current;current=current.parent)
@@ -48,7 +92,7 @@ public static class MagnetVisuals {
             part.localRotation=Quaternion.Euler(0,-a*Mathf.Rad2Deg,0);Box(part,Vector3.zero,new Vector3(.22f,.24f,.09f),north);
         }
     }
-    public static Transform Build(Transform owner,MagnetShape shape,bool north,MagnetProduct product,float cell,bool baseNorth,Vector2Int direction) {
+    public static Transform Build(Transform owner,MagnetShape shape,bool north,MagnetProduct product,float cell,bool baseNorth,Vector2Int direction,bool? secondRailNorth=null) {
         var g=Group(owner,"磁铁实体 · "+product);
         if(product==MagnetProduct.None){if(shape==MagnetShape.Bar)Box(g,new Vector3(0,.12f,0),new Vector3(cell,.24f,.24f),north);else Arc(g,north,180,360);}
         if(product==MagnetProduct.WideBar){Box(g,new Vector3(0,.12f,-.12f),new Vector3(cell,.24f,.24f),north);Box(g,new Vector3(0,.12f,.12f),new Vector3(cell,.24f,.24f),!north);}
@@ -62,7 +106,7 @@ public static class MagnetVisuals {
             // The short gap to the U sockets is an energy connection, not stretched material.
             float railCenter=cell,railStart=cell*.5f,linkStart=-cell*.5f+.48f;
             Box(g,new Vector3(railCenter,.12f,-.48f),new Vector3(cell,.24f,.22f),!baseNorth);
-            if(product==MagnetProduct.Bridge)Box(g,new Vector3(railCenter,.12f,.48f),new Vector3(cell,.24f,.22f),!baseNorth);
+            if(product==MagnetProduct.Bridge)Box(g,new Vector3(railCenter,.12f,.48f),new Vector3(cell,.24f,.22f),secondRailNorth??!baseNorth);
             MagneticLink(g,-.48f,linkStart,railStart);
             if(product==MagnetProduct.Bridge){
                 MagneticLink(g,.48f,linkStart,railStart);
@@ -83,8 +127,8 @@ public static class MagnetVisuals {
         if(!float.IsInfinity(min.y)){var shift=Vector3.up*min.y;if(m.product==MagnetProduct.None||m.product==MagnetProduct.Ring)shift+=new Vector3((min.x+max.x)*.5f,0,(min.z+max.z)*.5f);m.geometry.position-=shift;}
 
     }
-    public static void Product(MagnetPiece m,MagnetProduct product,float cell,Quaternion yaw,bool baseNorth,bool receiverOnTop=false) {
-        m.geometry.gameObject.SetActive(false);m.geometry=Build(m.transform,m.shape,m.north,product,cell,baseNorth,m.bridgeDirection);
+    public static void Product(MagnetPiece m,MagnetProduct product,float cell,Quaternion yaw,bool baseNorth,bool receiverOnTop=false,bool? secondRailNorth=null) {
+        m.geometry.gameObject.SetActive(false);m.geometry=Build(m.transform,m.shape,m.north,product,cell,baseNorth,m.bridgeDirection,secondRailNorth);
         if(product==MagnetProduct.Cross&&receiverOnTop){
             // The upright receiver falls onto the incoming flat bar, which stays below.
             m.geometry.GetChild(0).localPosition=new Vector3(0,.36f,0);
