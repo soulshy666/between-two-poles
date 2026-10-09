@@ -1,0 +1,1 @@
+PASS: 80 cases; four directions, both poles, bar/U, return to land, open gap/stone/height/occupied blockers, player landing, undo, ordinary and same-pole hover heights.

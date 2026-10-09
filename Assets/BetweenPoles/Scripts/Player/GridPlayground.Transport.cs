@@ -40,7 +40,14 @@ public sealed partial class GridPlayground {
             if(!result||DeckHeight(m)>DeckHeight(result))result=m;
         return result;
     }
+    bool ShoreLevelBridge(MagnetPiece deck){
+        if(!deck||!deck.walkable)return false;
+        var cell=Cell(deck.transform);
+        return deck.product==MagnetProduct.WideBar&&!Tile(cell)
+            ||deck.product==MagnetProduct.Bridge&&(!Tile(cell)||!Tile(cell+deck.bridgeDirection));
+    }
     float DeckHeight(MagnetPiece deck){
+        if(ShoreLevelBridge(deck))return deck.transform.position.y;
         if(deck.product==MagnetProduct.None)foreach(var bridges in FindObjectsOfType<PrejoinedTestBridges>()){
             float height;if(bridges.board==this&&bridges.TryGetShoreLevel(deck,out height))return height;
         }

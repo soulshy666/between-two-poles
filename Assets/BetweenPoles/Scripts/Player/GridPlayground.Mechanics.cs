@@ -111,8 +111,9 @@ public sealed partial class GridPlayground {
             if(!CanReachMagnet(m))return Reject("需要站在同一层推动");
             // A single already beyond the shore is out of the player's reach.
             // It can still receive another material pushed from a supported cell.
-            if(!Supported(m))return Reject("边缘外的磁铁无法直接推动，请推来另一块磁铁与它组合");
+            if(!Supported(m))return Reject("边缘外的磁铁无法直接推动，请从岸上推来磁铁与它组合，或用同极磁铁将它排斥回陆地");
             var target=next+dir;var far=TransportObstacle(target,m);var land=Tile(target);float targetHeight;
+            var portal=BlackHolePortal.At(this,target);if(portal)return BeginPortalPush(m,portal,dir);
             if(far&&MagnetStillAnimating(far))return Reject("目标磁铁正在完成上一次推动");
             if(land&&land.blocked)return Reject("目标格被石头占据");
             if(!BridgePassage(next,target,m))return Reject("宽条桥必须沿长边两端接通，只能从两端通过");
@@ -123,9 +124,9 @@ public sealed partial class GridPlayground {
                 // A bridge's second socket belongs to its U base, not the first rail.
                 if(far.product!=MagnetProduct.BridgeHalf&&far.product!=MagnetProduct.None)return Reject("合成体不能被单块磁铁继续合成或排斥；圆环需由主角直接推动");
                 if(far.product!=MagnetProduct.BridgeHalf&&far.north==m.north){
-                    // A hovering same-pole piece blocks the shore material; it
-                    // cannot be repelled farther out or trigger a stone recoil.
-                    var edgeChain=EdgeRepelChain(m,far,dir);
+                    // A hovering receiver may return to a free, level shore. It
+                    // still blocks pushes farther into open space or into a stone.
+                    var edgeChain=CanRepelBackToLand(far,dir)?null:EdgeRepelChain(m,far,dir);
                     if(edgeChain!=null){
                         Busy=true;StartMovement(EdgeRepelFeedback(edgeChain,dir));
                         return Reject("边缘同极斥力回弹：无法继续向外推动");
@@ -170,7 +171,7 @@ public sealed partial class GridPlayground {
             }
             var path=MagnetPiece.RollPath(m.shape,m.Pose,dir);Vector2Int end;
             if(!ValidateRollPath(m,path,from,next,null,null,out end))return false;
-            Busy=true;StartMovement(RollThenWalk(m,dir,target,PushLanding(next,from),path));LastRule=Deck(target,m)?"沿桥面推动磁铁":!land?"磁铁推出边缘一格，在原高度悬停，等待后续组合":m.shape==MagnetShape.Horseshoe?"U 型翻面一格，保持平躺":"翻滚推动一格";return true;
+            Busy=true;StartMovement(RollThenWalk(m,dir,target,PushLanding(next,from),path));LastRule=Deck(target,m)?"沿桥面推动磁铁":!land?"磁铁推出边缘一格悬停，等待组合或同极排斥回岸":m.shape==MagnetShape.Horseshoe?"U 型翻面一格，保持平躺":"翻滚推动一格";return true;
         }
         if(!Floor(next)&&!(m&&m.walkable)){
             if(Floor(from)&&!tile&&!m){
@@ -314,6 +315,14 @@ public sealed partial class GridPlayground {
             current=TransportObstacle(next,current);
         }
         return null;
+    }
+    bool CanRepelBackToLand(MagnetPiece far,Vector2Int direction){
+        if(Supported(far))return false;
+        var from=Cell(far.transform);var to=from+direction;var tile=Tile(to);float height;
+        return tile&&!tile.blocked&&SameHeight(tile.surfaceHeight,far.transform.position.y)
+            &&!TransportObstacle(to,far)&&to!=PlayerCell
+            &&TravelSurface(from,far.transform.position.y,to,far,out height)
+            &&SameHeight(height,far.transform.position.y);
     }
     IEnumerator EdgeRepelFeedback(List<MagnetPiece> chain,Vector2Int direction){
         // A rejected push has no undo entry, but its visual remainder can still
