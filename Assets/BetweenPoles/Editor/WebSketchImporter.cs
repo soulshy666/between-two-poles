@@ -15,7 +15,7 @@ public static class WebSketchImporter {
     public class PieceData { public int room;public string kind,pole;public Vector2Int cell;public int angle,vertical,w=1,h=1;public bool upright; }
     public class Layout { public List<RoomData> rooms=new List<RoomData>();public List<PieceData> pieces=new List<PieceData>();public List<string> warnings=new List<string>();public Vector2Int spawn;public int start; }
     static int Int(JToken t,string name){if(t==null||!double.TryParse(t.ToString(),out var n)||double.IsNaN(n)||double.IsInfinity(n)||n!=Math.Round(n)||Math.Abs(n)>100000)throw new Exception(name+" 必须是有效整数");return (int)n;}
-    static string Kind(JObject it){var explicitKind=(string)it["kind"];if(!string.IsNullOrEmpty(explicitKind))return explicitKind;var m=(string)it["magnet"]?["type"];if(m!=null)return m;var n=(string)it["name"]??"";if(n=="石头"||n=="土地")return "rock";if(n=="出生点"||n=="主角")return "player";if(n=="终点")return "goal";if(n.Contains("收藏")||n.Contains("纪念")||n.Contains("宝物")||n.Contains("遗物"))return "collectible";if(n.Contains("两格桥"))return "bridge";if(n.Contains("加宽"))return "wide";if(n.Contains("U型")||n.Contains("U 型"))return "u";if(n.Contains("长条"))return "bar";return "unknown";}
+    static string Kind(JObject it){var explicitKind=(string)it["kind"];if(!string.IsNullOrEmpty(explicitKind))return explicitKind;var m=(string)it["magnet"]?["type"];if(m!=null)return m;var n=(string)it["name"]??"";if(n=="石头"||n=="土地")return "rock";if(n=="出生点"||n=="主角")return "player";if(n=="终点")return "goal";if(n=="黑洞")return "blackhole";if(n.Contains("收藏")||n.Contains("纪念")||n.Contains("宝物")||n.Contains("遗物"))return "collectible";if(n.Contains("两格桥"))return "bridge";if(n.Contains("加宽"))return "wide";if(n.Contains("U型")||n.Contains("U 型"))return "u";if(n.Contains("长条"))return "bar";return "unknown";}
     public static Layout Parse(string json){
         var root=JObject.Parse(json);var input=root["rooms"] as JArray;var items=root["items"] as JArray;var placements=root["placements"] as JObject;
         if(input==null||items==null||placements==null||input.Count==0||input.Count>200)throw new Exception("JSON 需要 rooms、items、placements，房间数量须为 1–200。");
@@ -41,7 +41,7 @@ public static class WebSketchImporter {
         for(int ri=0;ri<data.rooms.Count;ri++){
             var room=data.rooms[ri];var list=placements[room.id] as JArray;if(list==null)continue;
             foreach(JObject p in list){if(!itemMap.TryGetValue((string)p["itemId"]??"",out var it))throw new Exception("摆放引用了不存在的物品");string kind=Kind(it);
-                if(!new[]{"bar","u","wide","bridge","rock","player","goal","collectible","collection","artifact","display"}.Contains(kind))throw new Exception("暂不支持物品“"+(string)it["name"]+"”的游戏规则。请先移除其摆放；当前支持石头、长条、U型、加宽条、两格桥、出生点、终点和收藏品。");
+                if(!new[]{"bar","u","wide","bridge","rock","player","goal","collectible","collection","artifact","display","blackhole"}.Contains(kind))throw new Exception("暂不支持物品“"+(string)it["name"]+"”的游戏规则。请先移除其摆放；当前支持石头、长条、U型、加宽条、两格桥、出生点、终点、收藏品和黑洞。");
                 if(kind=="collection"||kind=="artifact"||kind=="display")kind="collectible";
                 string direction=(string)it["magnet"]?["direction"]??"0";
                 int angle=(int.TryParse(direction,out int a)?a:0)+(p["rotation"]==null?0:Int(p["rotation"],"物品旋转"));if(angle%90!=0)throw new Exception("物品方向必须是90度的倍数");angle=(angle%360+360)%360;
@@ -51,43 +51,30 @@ public static class WebSketchImporter {
                 piece.vertical=(piece.vertical%360+360)%360;piece.upright=piece.vertical%180!=0;
                 if(kind=="bridge"){piece.w=angle%180==0?2:1;piece.h=angle%180==0?1:2;}
                 for(int dy=0;dy<piece.h;dy++)for(int dx=0;dx<piece.w;dx++){var c=piece.cell+new Vector2Int(dx,-dy);if(!used.Add(c))throw new Exception("物品重叠："+c);}
-                if((kind=="rock"||kind=="player"||kind=="goal"||kind=="collectible")&&!occupied.ContainsKey(piece.cell))throw new Exception("石头、出生点、终点和收藏品必须放在地块上。");
+                if((kind=="rock"||kind=="player"||kind=="goal"||kind=="collectible"||kind=="blackhole")&&!occupied.ContainsKey(piece.cell))throw new Exception("石头、出生点、终点、收藏品和黑洞必须放在地块上。");
                 if(kind=="player"){players++;data.spawn=piece.cell;data.start=occupied[piece.cell];}if(kind=="goal")goals++;
                 data.pieces.Add(piece);
             }
         }
         if(players>1||goals>1)throw new Exception("只允许一个出生点和一个终点");
-        if(players==0){int ri=data.rooms.FindIndex(r=>r.id==(string)root["originId"]);data.start=Mathf.Max(0,ri);var available=data.rooms[data.start].cells.Where(c=>!used.Contains(c)).ToList();if(available.Count==0)throw new Exception("原点房间没有空地，请放置出生点");data.spawn=available[0];data.warnings.Add("未设置出生点：使用原点房间第一块空地。");}
+        int origin=data.rooms.FindIndex(r=>r.id==(string)root["originId"]);
+        if(origin<0)origin=data.rooms.FindIndex(r=>r.offset==Vector2Int.zero);
+        if(origin<0)origin=0;
+        if(players==0||data.start!=origin){
+            var available=data.rooms[origin].cells.Where(c=>!used.Contains(c)).ToList();
+            if(available.Count==0)throw new Exception("（0，0）原点房间没有安全空地，请在原点房间放置出生点或空出一格。");
+            data.spawn=available[0];data.warnings.Add(players==0?"未设置出生点：使用（0，0）原点房间的安全空格。":"出生点不在（0，0）原点房间：已使用原点房间的安全空格作为初始位置。");
+        }
+        data.start=origin;
         if(goals==0)data.warnings.Add("未设置终点：可游玩测试，但没有通关目标。");
 
         BuildNeighbors(data,occupied);
         return data;
     }
-    // A shared missing cell connects offset shorelines too; proximity alone is not a link.
+    // Match the target chapter's live visibility rule: ice one gap, verdant two.
     static void BuildNeighbors(Layout data,Dictionary<Vector2Int,int> occupied){
-        var links=Enumerable.Range(0,data.rooms.Count).Select(_=>new HashSet<int>()).ToArray();
-        var directions=new[]{Vector2Int.right,Vector2Int.up,Vector2Int.left,Vector2Int.down};
-        Action<int,int> connect=(a,b)=>{if(a!=b){links[a].Add(b);links[b].Add(a);}};
-        var gaps=new Dictionary<Vector2Int,HashSet<int>>();
-        foreach(var tile in occupied)foreach(var d in directions){
-            var next=tile.Key+d;
-            if(occupied.TryGetValue(next,out var owner)){connect(tile.Value,owner);continue;}
-            if(!gaps.TryGetValue(next,out var shores))gaps[next]=shores=new HashSet<int>();
-            foreach(int other in shores)connect(tile.Value,other);
-            shores.Add(tile.Value);
-        }
-        var spans=new Dictionary<Vector2Int,int>();
-        foreach(var p in data.pieces){
-            if(p.upright||!(p.kind=="bar"||p.kind=="wide"||p.kind=="bridge"))continue;
-            int axis=p.angle%180==0?1:2;
-            for(int y=0;y<p.h;y++)for(int x=0;x<p.w;x++)spans[p.cell+new Vector2Int(x,-y)]=axis;
-        }
-        foreach(var tile in occupied)foreach(var d in directions){
-            var pos=tile.Key+d;int axis=d.x!=0?1:2,steps=0;
-            while(!occupied.ContainsKey(pos)&&spans.TryGetValue(pos,out int spanAxis)&&spanAxis==axis){pos+=d;steps++;}
-            if(steps>0&&occupied.TryGetValue(pos,out var owner))connect(tile.Value,owner);
-        }
-        for(int i=0;i<data.rooms.Count;i++)data.rooms[i].neighbors=links[i].OrderBy(n=>n).ToArray();
+        for(int i=0;i<data.rooms.Count;i++)
+            data.rooms[i].neighbors=IslandVisibility.Neighbors(occupied,i,IslandVisibility.GapForScene(SceneManager.GetActiveScene().name)).OrderBy(n=>n).ToArray();
     }
     [MenuItem("两极之间/网页关卡/导入 JSON 到当前世界")]
     public static void ImportMenu(){
@@ -97,6 +84,18 @@ public static class WebSketchImporter {
             if(!EditorUtility.DisplayDialog("更新当前世界的小岛",SceneManager.GetActiveScene().name+"\n将用 JSON 替换当前小岛布局。旧布局会停用保留，支持撤销；星球、背景和镜头设置保留。\n"+string.Join("\n",data.warnings),"导入到此世界","取消"))return;
             string result=Build(data,path);EditorUtility.DisplayDialog("导入完成","已更新当前世界："+result+"\n请保存场景。显示当前岛与直接相连的边缘岛，不显示边缘岛的下一圈。","知道了");
         }catch(Exception e){Debug.LogException(e);EditorUtility.DisplayDialog("未能导入",e.Message,"知道了");}
+    }
+    static BlackHolePortal CreateBlackHole(GridTile tile,GridPlayground board,Transform center){
+        var material=AssetDatabase.LoadAssetAtPath<Material>("Assets/BetweenPoles/Materials/BlackHolePortal.mat");
+        if(!material)throw new Exception("缺少黑洞材质 BlackHolePortal.mat，无法生成黑洞。");
+        var o=GameObject.CreatePrimitive(PrimitiveType.Quad);Undo.RegisterCreatedObjectUndo(o,"创建网页黑洞");
+        o.name="黑洞";o.transform.SetParent(tile.transform,false);
+        o.transform.localPosition=new Vector3(0,tile.surfaceHeight-tile.transform.position.y+.035f,0);
+        o.transform.localRotation=Quaternion.Euler(90,0,0);o.transform.localScale=Vector3.one*(Cell*.85f);
+        Undo.DestroyObjectImmediate(o.GetComponent<Collider>());
+        var renderer=o.GetComponent<Renderer>();renderer.sharedMaterial=material;renderer.shadowCastingMode=UnityEngine.Rendering.ShadowCastingMode.Off;
+        var portal=Undo.AddComponent<BlackHolePortal>(o);portal.board=board;portal.tile=tile;
+        var binding=Undo.AddComponent<IslandSurfaceAnchor>(o);binding.center=center;binding.Apply();return portal;
     }
     static Vector3 Pos(Vector2Int p){return new Vector3(p.x*Cell,0,p.y*Cell);}
     static T Find<T>(Scene scene) where T:Component {return scene.GetRootGameObjects().SelectMany(r=>r.GetComponentsInChildren<T>(true)).FirstOrDefault(c=>c.gameObject.activeInHierarchy);}
@@ -217,6 +216,11 @@ public static class WebSketchImporter {
                 if(p.kind=="rock")tiles[p.cell].blocked=true;else{tiles[p.cell].goal=true;board.goalLight=o.GetComponentInChildren<Renderer>();board.goalCompleteMaterial=blue;}
                 var binding=Undo.AddComponent<IslandSurfaceAnchor>(o);binding.center=rooms[p.room].center;
                 rooms[p.room].surfaces=rooms[p.room].surfaces.Concat(o.GetComponentsInChildren<Renderer>()).ToArray();continue;
+            }
+            if(p.kind=="blackhole"){
+                var tile=tiles[p.cell];
+                var portal=CreateBlackHole(tile,board,rooms[p.room].center);
+                rooms[p.room].surfaces=rooms[p.room].surfaces.Concat(portal.GetComponentsInChildren<Renderer>()).ToArray();continue;
             }
             if(p.kind=="collectible"){
                 var o=Child("收藏品 · "+p.cell,island);o.transform.position=Pos(p.cell);

@@ -37,6 +37,7 @@ public sealed class BlackHoleTravel : MonoBehaviour {
         yield return effect.Absorb(BlackHoleScreenEffect.ScreenCenter(portal),2.80f,portal);
         portal.board.enabled=true;
         ChapterAtlas.ReturnChapter=-1;Suspend(portal.gameObject.scene);
+        if(SharedPlayer.Instance)SharedPlayer.Instance.gameObject.SetActive(false);
         var load=SceneManager.LoadSceneAsync(Showcase,LoadSceneMode.Additive);while(!load.isDone)yield return null;
         SceneManager.SetActiveScene(SceneManager.GetSceneByPath(Showcase));yield return null;yield return effect.FadeToNavigation();busy=false;
     }
@@ -63,7 +64,7 @@ public sealed class BlackHoleTravel : MonoBehaviour {
         if(!target){if(!suspended.ContainsKey(scene.handle))Suspend(scene);effect.Hide();busy=false;var atlas=FindObjectOfType<ChapterAtlas>();if(atlas)atlas.ShowPortalBlocked();yield break;}
         Selecting=false;ChapterAtlas.ReturnChapter=-1;
         Resume(scene);SceneManager.SetActiveScene(scene);
-        var board=target.board;board.enabled=false;target.Disarm();
+        var board=target.board;board.enabled=false;SharedPlayer.Bind(board,true);target.Disarm();
         board.player.position=new Vector3(target.tile.transform.position.x,target.tile.surfaceHeight,target.tile.transform.position.z);
         board.player.rotation=entryFacing;
         board.SendMessage("NotifyLanding",target.Cell);

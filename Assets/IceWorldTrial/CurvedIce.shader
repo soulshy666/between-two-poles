@@ -9,18 +9,21 @@ Shader "BetweenPoles/CurvedIceTrial" {
  float4 _IceFocus,_IslandAnchors[16],_ExplicitIsland;int _IslandCount;float _IceRadius,_IslandFlatten;float3 _IslandViewOffset;float _IceDiskRadius;float3 _IceDiskCenter,_IceDiskRight,_IceDiskUp;float4x4 _IceRotation;float _IslandDisplayScale;
  float _IslandRigidLayout,_RecoilFlying; float3 _IceCurveFocus,_RecoilDisplayOffset;
  // One continuous arc for terrain, bridges and actors: no separate shore offsets.
+ float _IslandFlatEnabled;float4 _IslandFlatBounds;
  float3 surfaceFrame(float3 p,out float3 axis,out float a){
-  float3 q=(p-_IceCurveFocus)*max(1,_IslandDisplayScale);
+  float3 basePoint=_IceCurveFocus;
+  if(_IslandFlatEnabled>.5)basePoint=float3(clamp(p.x,_IslandFlatBounds.x,_IslandFlatBounds.z),_IceCurveFocus.y,clamp(p.z,_IslandFlatBounds.y,_IslandFlatBounds.w));
+  float3 q=(p-basePoint)*max(1,_IslandDisplayScale);
   float d=length(q.xz);float radius=max(12,_IceRadius*1.65);
   a=min(d/radius,1.15);axis=d>.0001?float3(q.z,0,-q.x)/d:float3(0,0,1);
   float extra=max(0,d-radius*1.15);
   float radial=radius*sin(a)+extra*cos(a);
   float drop=radius*(cos(a)-1)-extra*sin(a);
   float3 up=float3(-axis.z*sin(a),cos(a),axis.x*sin(a));
-  return _IceFocus.xyz+(_IceCurveFocus-_IceFocus.xyz)*max(1,_IslandDisplayScale)+float3(d>.0001?q.x/d*radial:0,drop,d>.0001?q.z/d*radial:0)+up*q.y;
+  return _IceFocus.xyz+(basePoint-_IceFocus.xyz)*max(1,_IslandDisplayScale)+float3(d>.0001?q.x/d*radial:0,drop,d>.0001?q.z/d*radial:0)+up*q.y;
  }
  float3 displayPoint(float3 p){
-  if(_IslandRigidLayout<.5)return _IceFocus.xyz+(p-_IceFocus.xyz)*max(1,_IslandDisplayScale);
+  if(_IslandRigidLayout<.5 && _RecoilFlying<.5)return _IceFocus.xyz+(p-_IceFocus.xyz)*max(1,_IslandDisplayScale);
   float3 axis;float a;float3 curved=surfaceFrame(p,axis,a);
   return lerp(curved,_IceFocus.xyz+(p-_IceFocus.xyz)*max(1,_IslandDisplayScale)+_RecoilDisplayOffset,step(.5,_RecoilFlying));
  }
@@ -41,10 +44,11 @@ Shader "BetweenPoles/CurvedIceTrial" {
  UNITY_INITIALIZE_OUTPUT(Input,o);
  float3 p=mul(unity_ObjectToWorld,v.vertex).xyz;o.logicalXZ=p.xz;float3 anchor=float3(-3.75,0,0);float best=1e9;
  o.cockpitDistance=dot(float4(p,1),_CockpitPlane);
- if(_SpaceRigid>.0001){
+
+ if(_SpaceRigid>.0001 && _RecoilFlying<.5){
   float scale=max(1,_IslandDisplayScale);float3 delta=p-_SpaceAnchor;
   float3 n=UnityObjectToWorldNormal(v.normal),rn=n;
-  if(_IslandRigidLayout>.5){
+  if(_IslandRigidLayout>.5 || _RecoilFlying>.5){
    float3 axis;float angle;surfaceFrame(_SpaceAnchor,axis,angle);
    delta=turn(delta,axis,sin(angle),cos(angle));rn=turn(n,axis,sin(angle),cos(angle));
   }
@@ -53,7 +57,7 @@ Shader "BetweenPoles/CurvedIceTrial" {
   float3 normal=lerp(displayNormal(p,n),rn,saturate(_SpaceRigid));
   v.vertex=mul(unity_WorldToObject,float4(rigidWorldPoint,1));v.normal=mul((float3x3)unity_WorldToObject,normal);return;
  }
- if(_IslandRigidLayout>.5){
+ if(_IslandRigidLayout>.5 || _RecoilFlying>.5){
   v.normal=mul((float3x3)unity_WorldToObject,displayNormal(p,UnityObjectToWorldNormal(v.normal)));v.vertex=mul(unity_WorldToObject,float4(displayPoint(p),1));return;}
  if(_BridgeEnabled>.5){
   // A single straight span between the two shoreline edges, not a curved blend.

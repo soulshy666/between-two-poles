@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace BetweenPoles {
 // Only presentation is culled. Puzzle objects stay alive so snapshots and pushed pieces survive travel.
-[DefaultExecutionOrder(-100)]
+[ExecuteAlways, DefaultExecutionOrder(-100)]
 public sealed class FiveIslandWindow : MonoBehaviour {
     [Serializable] public class Room {
         public string id;
@@ -39,9 +39,9 @@ public sealed class FiveIslandWindow : MonoBehaviour {
     public void Show(int index){
         if(index<0||index>=rooms.Length)return;
         CurrentRoom=index;visible.Clear();visible.Add(rooms[index].center);
-        if(tileOwners.Count==0&&board)foreach(var tile in board.tiles){var owner=tile.GetComponentInParent<IslandSurfaceAnchor>();var key=Cell(tile.transform);floor[key]=tile;if(owner)tileOwners[key]=owner.center;}
+        if(tileOwners.Count==0&&board)foreach(var tile in board.tiles){if(!tile||!tile.gameObject.activeInHierarchy)continue;var owner=tile.GetComponentInParent<IslandSurfaceAnchor>();var key=Cell(tile.transform);floor[key]=tile;if(owner&&owner.center)tileOwners[key]=owner.center;}
         // Adjacency is a graph, not one nearest island per compass direction. Never include neighbors-of-neighbors.
-        foreach(int n in rooms[index].neighbors)if(n>=0&&n<rooms.Length)visible.Add(rooms[n].center);
+        foreach(var neighbor in IslandVisibility.Neighbors(tileOwners,rooms[index].center,IslandVisibility.GapForScene(gameObject.scene.name)))visible.Add(neighbor);
         Vector2 min=new Vector2(float.PositiveInfinity,float.PositiveInfinity),max=new Vector2(float.NegativeInfinity,float.NegativeInfinity);
         foreach(var pair in tileOwners)if(pair.Value==rooms[index].center){var p=(Vector2)pair.Key*board.cellSize;min=Vector2.Min(min,p);max=Vector2.Max(max,p);}
         float margin=(edgePreviewCells+.5f)*board.cellSize;
@@ -57,11 +57,21 @@ public sealed class FiveIslandWindow : MonoBehaviour {
     }
     void ApplyPreview(Renderer renderer,bool edge){if(previewBlock==null)previewBlock=new MaterialPropertyBlock();renderer.GetPropertyBlock(previewBlock);previewBlock.SetFloat("_IslandWindowClipEnabled",0);previewBlock.SetVector("_IslandWindowBounds",previewBounds);renderer.SetPropertyBlock(previewBlock);}
     Vector2Int Cell(Transform t){return new Vector2Int(Mathf.RoundToInt(t.position.x/board.cellSize),Mathf.RoundToInt(t.position.z/board.cellSize));}
-    void LateUpdate(){if(!board||!board.enabled)return;RefreshBridgeLinks();RefreshPieces();}
+    void LateUpdate(){
+        if(!board||!board.enabled)return;
+        // Edit-mode Game view must hide the same remote pieces as the island surfaces.
+        // Do not rebuild gameplay bridge links or change puzzle transforms in previews.
+        if(!Application.isPlaying){
+            if(rooms.Length>0&&(visible.Count==0||CurrentRoom!=Mathf.Clamp(initialRoom,0,rooms.Length-1)))Show(Mathf.Clamp(initialRoom,0,rooms.Length-1));
+            else RefreshPieces();
+            return;
+        }
+        RefreshBridgeLinks();RefreshPieces();
+    }
     void RefreshBridgeLinks(){
         if(!board||!bridges||floor.Count==0)return;
         int signature=17;var spans=new Dictionary<Vector2Int,MagnetPiece>();
-        foreach(var m in board.magnets)if(m&&m.enabled&&m.gameObject.activeInHierarchy&&(m.walkable||(!m.combined&&m.shape==MagnetShape.Bar&&!MagnetPiece.VerticalBar(m.Pose)))){unchecked{signature=signature*31+m.GetInstanceID();signature=signature*31+Cell(m.transform).GetHashCode();signature=signature*31+m.transform.rotation.GetHashCode();signature=signature*31+(int)m.product;signature=signature*31+m.bridgeDirection.GetHashCode();}spans[Cell(m.transform)]=m;if(m.product==MagnetProduct.Bridge)spans[Cell(m.transform)+m.bridgeDirection]=m;}
+        foreach(var m in board.magnets)if(m&&m.enabled&&m.gameObject.activeInHierarchy&&!board.IsKnockedFlying(m)&&!(board.RecoilFlying&&m==board.RecoilMagnet)&&(m.walkable||(!m.combined&&m.shape==MagnetShape.Bar&&!MagnetPiece.VerticalBar(m.Pose)))){unchecked{signature=signature*31+m.GetInstanceID();signature=signature*31+Cell(m.transform).GetHashCode();signature=signature*31+m.transform.rotation.GetHashCode();signature=signature*31+(int)m.product;signature=signature*31+m.bridgeDirection.GetHashCode();}spans[Cell(m.transform)]=m;if(m.product==MagnetProduct.Bridge)spans[Cell(m.transform)+m.bridgeDirection]=m;}
         if(signature==bridgeSignature)return;bridgeSignature=signature;
         var links=new List<PrejoinedTestBridges.Link>();
         foreach(var pair in spans){var m=pair.Value;if(pair.Key!=Cell(m.transform))continue;var right=m.transform.right;var dir=m.product==MagnetProduct.Bridge?m.bridgeDirection:new Vector2Int(Mathf.RoundToInt(right.x),Mathf.RoundToInt(right.z));GridTile a=null,b=null;
@@ -76,7 +86,7 @@ public sealed class FiveIslandWindow : MonoBehaviour {
         if(!board||visible.Count==0)return;
         foreach(var piece in board.magnets){
             if(!piece||!piece.enabled)continue;
-            if(board.RecoilFlying&&piece==board.RecoilMagnet){foreach(var r in piece.GetComponentsInChildren<Renderer>())r.enabled=true;continue;}
+            if((board.RecoilFlying&&piece==board.RecoilMagnet)||board.IsKnockedFlying(piece)){foreach(var r in piece.GetComponentsInChildren<Renderer>())r.enabled=true;continue;}
             var binding=piece.GetComponent<IslandSurfaceAnchor>();
             if(!binding)continue;
             // Moving pieces adopt the island they actually occupy; floating pieces retain their authored owner.

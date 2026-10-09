@@ -23,18 +23,21 @@ Shader "BetweenPoles/BridgeEnergyGlass" {
   // Connected gameplay uses one common frame; never stretch a bridge between warped shores.
  float _IslandRigidLayout,_RecoilFlying; float3 _IceCurveFocus,_RecoilDisplayOffset;
  // One continuous arc for terrain, bridges and actors: no separate shore offsets.
+ float _IslandFlatEnabled;float4 _IslandFlatBounds;
  float3 surfaceFrame(float3 p,out float3 axis,out float a){
-  float3 q=(p-_IceCurveFocus)*max(1,_IslandDisplayScale);
+  float3 basePoint=_IceCurveFocus;
+  if(_IslandFlatEnabled>.5)basePoint=float3(clamp(p.x,_IslandFlatBounds.x,_IslandFlatBounds.z),_IceCurveFocus.y,clamp(p.z,_IslandFlatBounds.y,_IslandFlatBounds.w));
+  float3 q=(p-basePoint)*max(1,_IslandDisplayScale);
   float d=length(q.xz);float radius=max(12,_IceRadius*1.65);
   a=min(d/radius,1.15);axis=d>.0001?float3(q.z,0,-q.x)/d:float3(0,0,1);
   float extra=max(0,d-radius*1.15);
   float radial=radius*sin(a)+extra*cos(a);
   float drop=radius*(cos(a)-1)-extra*sin(a);
   float3 up=float3(-axis.z*sin(a),cos(a),axis.x*sin(a));
-  return _IceFocus.xyz+(_IceCurveFocus-_IceFocus.xyz)*max(1,_IslandDisplayScale)+float3(d>.0001?q.x/d*radial:0,drop,d>.0001?q.z/d*radial:0)+up*q.y;
+  return _IceFocus.xyz+(basePoint-_IceFocus.xyz)*max(1,_IslandDisplayScale)+float3(d>.0001?q.x/d*radial:0,drop,d>.0001?q.z/d*radial:0)+up*q.y;
  }
  float3 displayPoint(float3 p){
-  if(_IslandRigidLayout<.5)return _IceFocus.xyz+(p-_IceFocus.xyz)*max(1,_IslandDisplayScale);
+  if(_IslandRigidLayout<.5 && _RecoilFlying<.5)return _IceFocus.xyz+(p-_IceFocus.xyz)*max(1,_IslandDisplayScale);
   float3 axis;float a;float3 curved=surfaceFrame(p,axis,a);
   return lerp(curved,_IceFocus.xyz+(p-_IceFocus.xyz)*max(1,_IslandDisplayScale)+_RecoilDisplayOffset,step(.5,_RecoilFlying));
  }
@@ -72,7 +75,8 @@ Shader "BetweenPoles/BridgeEnergyGlass" {
   }
   void bend(inout appdata_full v){
    float3 p=mul(unity_ObjectToWorld,v.vertex).xyz;
- if(_IslandRigidLayout>.5){
+
+ if(_IslandRigidLayout>.5 || _RecoilFlying>.5){
   v.normal=mul((float3x3)unity_WorldToObject,displayNormal(p,UnityObjectToWorldNormal(v.normal)));
   v.vertex=mul(unity_WorldToObject,float4(displayPoint(p),1));
   return;

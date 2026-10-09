@@ -3,6 +3,7 @@ using UnityEngine;
 namespace BetweenPoles {
 // A visual-only pose for the static astronaut mesh; grid movement owns the player root.
 public sealed partial class PlayerPushPose:MonoBehaviour {
+    public void BindBoard(GridPlayground target){Initialize();board=target;End();}
     Transform visual; Vector3 restPosition; Quaternion restRotation;
     MeshFilter body; Mesh original,posed;
     Vector3[] vertices,normals,workVertices,workNormals;
