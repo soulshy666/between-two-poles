@@ -85,6 +85,8 @@ public sealed partial class GridPlayground:MonoBehaviour {
         CaptureInitialState();
     }
     public void CaptureInitialState(){
+        IslandEdgeDressing.Refresh(this);
+        IceRockVisuals.Apply(this);
         recoilArrivals.Clear();
         ClearMovementInput();
         foreach(var m in magnets)if(m&&m.geometry&&!m.combined&&m.product==MagnetProduct.None&&m.shape==MagnetShape.Horseshoe&&!MagnetPiece.FlatU(m.Pose)){
@@ -159,10 +161,17 @@ public sealed partial class GridPlayground:MonoBehaviour {
         if(direction==Vector2Int.down)return Input.GetKey(KeyCode.S)||Input.GetKey(KeyCode.DownArrow);
         return false;
     }
+    static bool DirectionPressed(Vector2Int direction){
+        if(direction==Vector2Int.right)return Input.GetKeyDown(KeyCode.D)||Input.GetKeyDown(KeyCode.RightArrow);
+        if(direction==Vector2Int.left)return Input.GetKeyDown(KeyCode.A)||Input.GetKeyDown(KeyCode.LeftArrow);
+        if(direction==Vector2Int.up)return Input.GetKeyDown(KeyCode.W)||Input.GetKeyDown(KeyCode.UpArrow);
+        if(direction==Vector2Int.down)return Input.GetKeyDown(KeyCode.S)||Input.GetKeyDown(KeyCode.DownArrow);
+        return false;
+    }
     void ClearMovementInput(){
         bufferedSteps.Clear();heldDirection=Vector2Int.zero;nextHeldStep=0;
         completingWalkForTurn=false;
-        var pose=player?player.GetComponent<PlayerPushPose>():null;if(pose){pose.CancelIdle();pose.EndEdgeBalance();}
+        var pose=player?player.GetComponent<PlayerPushPose>():null;if(pose){pose.CancelIdle();pose.EndEdgeBalance();pose.EndStonePush();}
     }
     void PauseHeldWalkRepeat(){
         // Gate only automatic repeats, never Busy or the magnet animation clock.
@@ -182,7 +191,7 @@ public sealed partial class GridPlayground:MonoBehaviour {
             bufferedSteps.Enqueue(new BufferedStep{direction=direction,time=Time.unscaledTime});
         if(!Busy&&bufferedSteps.Count>0&&!TryStep(bufferedSteps.Dequeue().direction))bufferedSteps.Clear();
     }
-    void OnDisable(){ClearMovementInput();ClearPushPresentations();}
+    void OnDisable(){ClearMagnetHover();ClearMovementInput();ClearPushPresentations();}
     void OnApplicationFocus(bool focused){if(!focused)ClearMovementInput();}
     // Non-zero initial speed makes the first frame responsive; the end settles softly.
     static float MovementProgress(float progress){float p=Mathf.Clamp01(progress);return p+p*p-p*p*p;}
@@ -224,8 +233,8 @@ public sealed partial class GridPlayground:MonoBehaviour {
         return true;
     }
     void ClearWalkInterrupt(){reversibleWalk=false;completingWalkForTurn=false;}
-    void BeginPushInterrupt(Vector2Int direction,bool feedbackOnly=false){if(!feedbackOnly)PlayMagnetPushSound();interruptiblePush=true;pushFeedbackOnly=feedbackOnly;pushDirection=direction;pushUndo=null;}
-    void EndPushInterrupt(){interruptiblePush=false;pushFeedbackOnly=false;pushUndo=null;}
+    void BeginPushInterrupt(Vector2Int direction,bool feedbackOnly=false){pushHoverParticipants.Clear();if(!feedbackOnly)PlayMagnetPushSound();interruptiblePush=true;pushFeedbackOnly=feedbackOnly;pushDirection=direction;pushUndo=null;}
+    void EndPushInterrupt(){pushHoverParticipants.Clear();interruptiblePush=false;pushFeedbackOnly=false;pushUndo=null;}
     bool CanInterruptPush(Vector2Int direction){
         return Busy&&interruptiblePush&&(pushUndo!=null||pushFeedbackOnly)&&direction!=pushDirection&&Mathf.Abs(direction.x)+Mathf.Abs(direction.y)==1;
     }

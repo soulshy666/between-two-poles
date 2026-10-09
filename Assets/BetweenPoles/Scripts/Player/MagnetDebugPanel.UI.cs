@@ -8,7 +8,7 @@ public sealed partial class MagnetDebugPanel {
     void Label(Rect r,string s,Color color,int size=14,TextAnchor align=TextAnchor.MiddleLeft){textStyle.normal.textColor=color;textStyle.fontSize=size;textStyle.alignment=align;GUI.Label(r,s,textStyle);}
     bool Button(Rect r,string title,bool active=false){Fill(new Rect(r.x+3,r.y+3,r.width,r.height),Color.black);Fill(r,Color.black);Fill(new Rect(r.x+2,r.y+2,r.width-4,r.height-4),active?accent:paper);Label(r,title,active?Color.white:ink,14,TextAnchor.MiddleCenter);return GUI.Button(r,GUIContent.none,GUIStyle.none);}
     void SelectCell(Vector2Int p){
-        selected=p;var m=board.MagnetAt(p);if(!m){var tile=board.TileAt(p);shape=tile&&tile.blocked?9:8;return;}
+        selected=p;var m=board.MagnetAt(p);if(!m){var tile=board.TileAt(p);shape=tile&&tile.blocked?9:8;if(shape==9)rockStyle=tile.rockStyle;return;}
         shape=m.product==MagnetProduct.None?(m.shape==MagnetShape.Bar?0:1):(int)m.product+1;
         pole=(m.product==MagnetProduct.Lift||m.product==MagnetProduct.Bridge||m.product==MagnetProduct.BridgeHalf?m.baseNorth:m.north)?0:1;
         yaw=Mathf.RoundToInt(m.transform.eulerAngles.y/90)%4;
@@ -34,9 +34,19 @@ public sealed partial class MagnetDebugPanel {
         var lab=board.GetComponent<MagnetTestLayouts>();
         if(section==0&&lab){string[] names={"冰面宽桥","悬空十字","圆环","反冲","单层磁流","两格桥","十字拨动","两层磁流","竖立接收 · 十字","竖立接收 · 宽桥"};for(int i=0;i<names.Length;i++)if(Button(new Rect(16,120+i*43,246,35),names[i])){lab.Load(i);pan=Vector2Int.zero;SelectCell(board.PlayerCell);status=lab.instruction;}Label(new Rect(16,560,244,160),lab.instruction,ink);}
         if(section==1){for(int row=0;row<kinds.Length;row++){int i=row==8?9:row==9?8:row;var r=new Rect(16,114+row*38,246,33);bool clicked=Button(r,"",shape==i);Icon(new Rect(r.x+10,r.y+3,35,27),i,pole==0,0);Label(new Rect(r.x+54,r.y,185,r.height),kinds[i],shape==i?Color.white:ink);if(clicked)Pick(i);}
+            if(shape==9){
+                Label(new Rect(16,510,240,24),"石头样式",ink);
+                for(int i=0;i<2;i++)if(Button(new Rect(16+i*129,540,117,38),i==0?"圆石头":"高石头",rockStyle==i)){
+                    rockStyle=i;var tile=board.TileAt(selected);
+                    if(tile&&tile.blocked){tile.rockStyle=i;IceRockVisuals.Apply(board);status="已切换为"+(i==0?"圆石头":"高石头")+"。";}
+                    else ApplySelectedStyle();
+                }
+                Label(new Rect(16,590,244,65),"选择样式后立即更新所选石头；新放置的石头使用当前样式。",ink,13);
+            }else{
             Label(new Rect(16,510,240,24),"极性",ink);if(Button(new Rect(16,540,117,32),"N / 红",pole==0)){pole=0;if(shape<8)ApplySelectedStyle();}if(Button(new Rect(145,540,117,32),"S / 蓝",pole==1)){pole=1;if(shape<8)ApplySelectedStyle();}
             Label(new Rect(16,578,240,22),"朝向",ink);for(int i=0;i<4;i++)if(Button(new Rect(16+i*63,604,57,32),i*90+"°",yaw==i)){yaw=i;if(shape<8)ApplySelectedStyle();}
             Label(new Rect(16,645,240,22),shape<2?"姿态":"成品使用固定配方姿态",ink,13);GUI.enabled=shape<2;string[] poses=shape==1?new[]{"正面平躺","反面平躺"}:new[]{"平躺","竖立","倒立"};float poseWidth=252f/poses.Length;for(int i=0;i<poses.Length;i++)if(Button(new Rect(16+i*poseWidth,672,poseWidth-6,32),poses[i],pose==i)){pose=i;ApplySelectedStyle();}GUI.enabled=true;
+            }
         }
         if(section==2){string[] names={"主角移到该格","地面 / 0 层","高台 / 1 层","高台 / 2 层","石头障碍"};for(int i=0;i<5;i++)if(Button(new Rect(16,120+i*52,246,40),names[i])){if(i==0)Teleport();else SetFloor(i==4?0:i-1,i==4);}Label(new Rect(16,410,245,90),"选择右侧格子，再修改地形。磁铁清除请在物品中选择“空”。",ink);}
         Label(new Rect(305,74,width-600,36),"选中格  ("+selected.x+", "+selected.y+")   /   先选格子，再选左侧样式",Color.white,17);

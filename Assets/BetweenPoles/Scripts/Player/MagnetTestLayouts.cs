@@ -37,8 +37,19 @@ public sealed class MagnetTestLayouts:MonoBehaviour {
             if(preset==6){add(1,0,MagnetShape.Bar,true,vertical);playerCell=new Vector2Int(-1,0);instruction="向右推十字：十字不移位，右边竖直长条向外拨一格。";}
             else{add(-1,0,MagnetShape.Horseshoe,true,Quaternion.Euler(0,90,0));add(1,0,MagnetShape.Horseshoe,false,Quaternion.Euler(0,-90,0));playerCell=new Vector2Int(0,-1);instruction="左右异极 U 开口相向：十字持续转动。向上走入磁流，再向上走到两层高台。";}
         }
-        board.magnets=pieces.ToArray();board.player.position=new Vector3(playerCell.x*board.cellSize,0,playerCell.y*board.cellSize);board.CaptureInitialState();
-        var window=board.GetComponent<FiveIslandWindow>();if(window){window.rooms[0].surfaces=runtimeRoot.GetComponentsInChildren<Renderer>(true);window.RefreshLayout();}
+        board.magnets=pieces.ToArray();board.player.position=new Vector3(playerCell.x*board.cellSize,0,playerCell.y*board.cellSize);
+        // CaptureInitialState rebuilds edge artwork, which calls FiveIslandWindow.Show.
+        // Replace the visibility list FIRST, otherwise Show re-enables the original
+        // finely curved island underneath the coarse test cells. The intersecting
+        // surfaces produce a circular patch in each cell, unrelated to shadows.
+        var window=board.GetComponent<FiveIslandWindow>();
+        if(window){
+            foreach(var room in window.rooms)if(room.center==center)
+                room.surfaces=runtimeRoot.GetComponentsInChildren<Renderer>(true);
+            window.RefreshLayout();
+        }
+        board.CaptureInitialState();
+
     }
     void Start(){Load(0);var panel=GetComponent<MagnetDebugPanel>();if(!panel)panel=gameObject.AddComponent<MagnetDebugPanel>();if(!panel.IsOpen)panel.Toggle();}
 }

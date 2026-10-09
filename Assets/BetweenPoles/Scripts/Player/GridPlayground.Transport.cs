@@ -54,6 +54,9 @@ public sealed partial class GridPlayground {
     bool TravelSurface(Vector2Int from,float height,Vector2Int to,MagnetPiece moving,out float landing){
         landing=height;var tile=Tile(to);var deck=Deck(to,moving);var source=Deck(from,moving);
         if((tile&&tile.blocked)||!BridgePassage(from,to,moving))return false;
+        // A two-cell bridge is a route only on its unsupported cells, including
+        // when a material is pushed across it and the player follows behind.
+        if(tile&&deck&&deck.product==MagnetProduct.Bridge)return false;
         bool onDeck=source&&SameHeight(height,DeckHeight(source));
         if(deck){
             landing=DeckHeight(deck);
@@ -79,7 +82,7 @@ public sealed partial class GridPlayground {
     Vector3 PushPlayerEnd(Vector2Int cell,MagnetPiece moving){
         if(cell==Cell(player))return player.position;
         var deck=Deck(cell,moving);var end=Position(cell,deck?DeckHeight(deck):GroundHeight(cell));
-        if(deck&&(deck.product==MagnetProduct.Bridge||deck.product==MagnetProduct.Ring)){
+        if(deck&&deck.product==MagnetProduct.Ring){
             var side=deck.transform.forward;float sign=Vector3.Dot(player.position-deck.transform.position,side)>=0?1:-1;
             end+=side*.48f*sign;
         }
