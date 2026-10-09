@@ -56,6 +56,9 @@ public sealed partial class GridPlayground {
         bool bothStanding=incomingStanding&&receiverStanding;
         bool parallelRail=product==MagnetProduct.WideBar&&incomingStanding&&!receiverStanding;
         bool fallingReceiverRail=product==MagnetProduct.WideBar&&receiverStanding&&!incomingStanding;
+        bool axialFlatRails=product==MagnetProduct.WideBar&&!incomingStanding&&!receiverStanding
+            &&Mathf.Abs(Vector3.Dot(incomingPose*Vector3.right,push))>.95f
+            &&Mathf.Abs(Vector3.Dot(receiverPose*Vector3.right,push))>.95f;
         Bounds railStart=startIncoming;
         var railSide=Vector3.Cross(Vector3.up,push);
         railStart.center+=railSide*Vector3.Dot(endIncoming.center-startIncoming.center,railSide);
@@ -67,8 +70,19 @@ public sealed partial class GridPlayground {
         // Bar pairs snap together quickly; retain the same accelerating path and player timing.
         float seconds=AttractionDuration(Mathf.Max(joinSeconds,(incomingStanding||receiverStanding)?1.6f:1.35f))*.6f;
         for(float elapsed=0;elapsed<seconds;elapsed+=MovementDeltaTime){
-            follow?.Invoke(BarAttractionProgress(Mathf.Clamp01(elapsed/seconds)));
             float p=Mathf.Clamp01(elapsed/seconds);
+            follow?.Invoke(axialFlatRails?BarAssemblyPhase(p,.30f,1):BarAttractionProgress(p));
+            if(axialFlatRails){
+                // End-to-end bars initially touch. Establish the full side-by-side
+                // clearance before their lengths overlap, then slide along the lanes.
+                float lane=Mathf.SmoothStep(0,1,Mathf.InverseLerp(0,.30f,p));
+                float advance=BarAssemblyPhase(p,.30f,1);
+                Vector3 inLane=startIncoming.center+railSide*Vector3.Dot(endIncoming.center-startIncoming.center,railSide)*lane;
+                Vector3 recvLane=startReceiver.center+railSide*Vector3.Dot(endReceiver.center-startReceiver.center,railSide)*lane;
+                PlaceAssemblyBody(incoming,incomingPose,incomingScale,Vector3.Lerp(inLane,endIncoming.center,advance));
+                PlaceAssemblyBody(receiver,receiverPose,receiverScale,Vector3.Lerp(recvLane,endReceiver.center,advance));
+                yield return null;continue;
+            }
             if(fallingReceiverRail){
                 // Separate the rail lanes before approaching or tipping the
                 // receiver; neither body sweeps through the other rail.
@@ -309,6 +323,32 @@ public sealed partial class GridPlayground {
             &&Mathf.Abs(Vector3.Dot(poseReceiver*Vector3.right,endPoseReceiver*Vector3.right))>.95f)
             endPoseReceiver=poseReceiver;
         var scaleIncoming=incoming.geometry.localScale;var scaleReceiver=receiver.geometry.localScale;
+        if((product==MagnetProduct.BridgeHalf||product==MagnetProduct.Lift)&&incoming.shape==MagnetShape.Bar){
+            // Lift vertically before crossing the U, align above it, and descend
+            // only once over the final rail or lift-column socket. The vertical
+            // extents keep the whole upright bar above the U during flight.
+            float clearance=Mathf.Max(startReceiver.max.y,endReceiver.max.y)
+                +Mathf.Max(startIncoming.extents.y,endIncoming.extents.y)+.35f;
+            float height=Mathf.Max(clearance,startIncoming.center.y+.85f);
+            float duration=.85f/Mathf.Clamp(attractionAnimationSpeed,1f,2f);
+            for(float elapsed=0;elapsed<duration;elapsed+=MovementDeltaTime){
+                float p=Mathf.Clamp01(elapsed/duration);
+                float lift=Mathf.SmoothStep(0,1,Mathf.InverseLerp(0,.28f,p));
+                float flight=Mathf.SmoothStep(0,1,Mathf.InverseLerp(.28f,.78f,p));
+                float land=Mathf.SmoothStep(0,1,Mathf.InverseLerp(.78f,1,p));
+                var center=Vector3.Lerp(startIncoming.center,endIncoming.center,flight);
+                center.y=p<.28f?Mathf.Lerp(startIncoming.center.y,height,lift)
+                    :Mathf.Lerp(height,endIncoming.center.y,land)+Mathf.Sin(flight*Mathf.PI)*cellSize*.22f;
+                PlaceAssemblyBody(incoming,Quaternion.Slerp(poseIncoming,endPoseIncoming,flight),scaleIncoming,center);
+                PlaceAssemblyBody(receiver,Quaternion.Slerp(poseReceiver,endPoseReceiver,flight),scaleReceiver,
+                    Vector3.Lerp(startReceiver.center,endReceiver.center,flight));
+                onSlideProgress?.Invoke(p);yield return null;
+            }
+            PlaceAssemblyBody(incoming,endPoseIncoming,scaleIncoming,endIncoming.center);
+            PlaceAssemblyBody(receiver,endPoseReceiver,scaleReceiver,endReceiver.center);
+            onSlideProgress?.Invoke(1);AssemblyContact(incoming,receiver);
+            yield return null;yield break;
+        }
         float rollDegrees;var rolled=MagnetPiece.Rolled(incoming.shape,poseIncoming,direction,out rollDegrees);
         var rollAxis=new Vector3(direction.y,0,-direction.x);
         var forward=new Vector3(direction.x,0,direction.y);var lateral=Vector3.Cross(Vector3.up,forward);

@@ -6,11 +6,11 @@ namespace BetweenPoles {
 public sealed partial class GridPlayground:MonoBehaviour {
     public float cellSize=1.5f;
     public float stepSeconds=.22f;
-    [Range(.12f,.3f)] public float walkSeconds=.18f;
+    [Range(.12f,.3f)] public float walkSeconds=.25f;
     [Tooltip("Time to turn 90 degrees before walking; a half-turn takes slightly longer.")]
-    [Range(.04f,.16f)] public float turnSeconds=.09f;
+    [Range(.04f,.16f)] public float turnSeconds=.05f;
     [Tooltip("Short landing pause between automatically repeated walking steps; fresh key presses bypass it.")]
-    [Range(0f,.1f)] public float heldStepPauseSeconds=.015f;
+    [Range(0f,.1f)] public float heldStepPauseSeconds=.02f;
     [Range(.3f,.8f)] public float barPushSeconds=.46f;
     [Range(.2f,2f)] public float uRollSeconds=.7f;
     [Range(.6f,2.5f)] public float joinSeconds=1.35f;
@@ -42,6 +42,8 @@ public sealed partial class GridPlayground:MonoBehaviour {
     readonly Stack<IEnumerator> movementStack=new Stack<IEnumerator>();
     Coroutine movementPlayback;
     bool finishingMovement;
+    bool deferPushLanding;
+    Vector2Int? deferredPushLanding;
     float MovementDeltaTime {get{return recordingPush?PushSampleSeconds:finishingMovement?10f:Time.deltaTime;}}
     void StartMovement(IEnumerator action){
         movementStack.Push(action);movementPlayback=StartCoroutine(PlayMovement());
@@ -79,6 +81,7 @@ public sealed partial class GridPlayground:MonoBehaviour {
     Vector3 Position(Vector2Int p,float y=0){return new Vector3(p.x*cellSize,y,p.y*cellSize);}
     bool Floor(Vector2Int p){var t=Tile(p);return t&&!t.blocked;}
     void Awake(){
+        if(player)PlayerPushPose.EnsureIdle(player);
         CaptureInitialState();
     }
     public void CaptureInitialState(){
@@ -116,6 +119,10 @@ public sealed partial class GridPlayground:MonoBehaviour {
         LastRule="测试跳转：房间 "+(next+1)+" / "+centers.Count;return true;
     }
     void Update(){
+        if(player&&(Input.anyKey||Input.mouseScrollDelta.sqrMagnitude>0
+            ||Mathf.Abs(Input.GetAxisRaw("Mouse X"))+Mathf.Abs(Input.GetAxisRaw("Mouse Y"))>.001f)){
+            var pose=player.GetComponent<PlayerPushPose>();if(pose)pose.CancelIdle();
+        }
         if(OpeningCinematic){ClearMovementInput();return;}
         var panel=GetComponent<MagnetDebugPanel>();
         if((panel&&panel.enabled&&panel.IsOpen)||Time.timeScale<=0){ClearMovementInput();return;}
@@ -155,7 +162,7 @@ public sealed partial class GridPlayground:MonoBehaviour {
     void ClearMovementInput(){
         bufferedSteps.Clear();heldDirection=Vector2Int.zero;nextHeldStep=0;
         completingWalkForTurn=false;
-        var pose=player?player.GetComponent<PlayerPushPose>():null;if(pose)pose.EndEdgeBalance();
+        var pose=player?player.GetComponent<PlayerPushPose>():null;if(pose){pose.CancelIdle();pose.EndEdgeBalance();}
     }
     void PauseHeldWalkRepeat(){
         // Gate only automatic repeats, never Busy or the magnet animation clock.
@@ -223,8 +230,24 @@ public sealed partial class GridPlayground:MonoBehaviour {
         return Busy&&interruptiblePush&&(pushUndo!=null||pushFeedbackOnly)&&direction!=pushDirection&&Mathf.Abs(direction.x)+Mathf.Abs(direction.y)==1;
     }
     bool InterruptPush(Vector2Int direction){
-        bufferedSteps.Clear();FinishPushWithPresentation();TryStep(direction);
+        bufferedSteps.Clear();
+        var start=player.position;var facing=player.rotation;
+        deferredPushLanding=null;deferPushLanding=true;
+        try{FinishPushWithPresentation();}finally{deferPushLanding=false;}
+        var end=player.position;var landing=deferredPushLanding;deferredPushLanding=null;
+        if((end-start).sqrMagnitude<.000001f){if(landing.HasValue)NotifyLanding(landing.Value);TryStep(direction);return true;}
+        player.SetPositionAndRotation(start,facing);
+        bufferedSteps.Enqueue(new BufferedStep{direction=direction,time=Time.unscaledTime});
+        Busy=true;StartMovement(CompleteInterruptedPush(end,landing));
         return true;
+    }
+    IEnumerator CompleteInterruptedPush(Vector3 end,Vector2Int? landing){
+        var pose=PlayerPushPose.BeginWalk(player,cellSize);
+        // Finish the visible remainder quickly, before evaluating the next step.
+        // Magnet render tracks continue independently at their original speed.
+        float seconds=Mathf.Clamp(Vector3.Distance(player.position,end)/cellSize*walkSeconds/1.6f,.04f,.18f);
+        try{yield return Slide(player,end,seconds);}finally{if(pose)pose.End();}
+        if(landing.HasValue)NotifyLanding(landing.Value);Busy=false;
     }
     IEnumerator MovePlayer(Vector2Int p){
         Busy=true;

@@ -1,0 +1,2 @@
+PASS: 112 sampled assemblies (factory/prefab x four directions x two polarities x seven docking cases), recipes, simultaneous player movement, final states, snapshot restore
+PASS: runtime regression completed

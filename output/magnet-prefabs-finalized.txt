@@ -1,0 +1,1 @@
+PASS: scenes use shared prefabs with enlarged shader culling bounds; final geometry validation passed.

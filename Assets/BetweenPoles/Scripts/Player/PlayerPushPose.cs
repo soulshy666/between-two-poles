@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using UnityEngine;
 namespace BetweenPoles {
 // A visual-only pose for the static astronaut mesh; grid movement owns the player root.
-public sealed class PlayerPushPose:MonoBehaviour {
+public sealed partial class PlayerPushPose:MonoBehaviour {
     Transform visual; Vector3 restPosition; Quaternion restRotation;
     MeshFilter body; Mesh original,posed;
     Vector3[] vertices,normals,workVertices,workNormals;
@@ -24,7 +24,7 @@ public sealed class PlayerPushPose:MonoBehaviour {
     static PlayerPushPose GetPose(Transform player){
         var pose=player.GetComponent<PlayerPushPose>();
         if(!pose)pose=player.gameObject.AddComponent<PlayerPushPose>();
-        pose.Initialize();return pose;
+        pose.Initialize();pose.CancelIdle();pose.StopBreathing();return pose;
     }
     public static PlayerPushPose Begin(Transform player){
         var pose=GetPose(player);pose.EndEdgeBalance();pose.walking=false;pose.pushing=true;pose.Sample(0);return pose;
@@ -53,6 +53,23 @@ public sealed class PlayerPushPose:MonoBehaviour {
             var pivot=new Vector3(side*.235f,.635f,0);
             Quaternion turn=Quaternion.AngleAxis(Mathf.Lerp(45,-55,sweep)*weight,Vector3.up)
                 *Quaternion.Euler(-80*weight,0,0);
+            workVertices[i]=arms[i]?pivot+turn*(vertices[i]-pivot):vertices[i];
+            if(i<normals.Length)workNormals[i]=arms[i]?turn*normals[i]:normals[i];
+        }
+        posed.vertices=workVertices;if(normals.Length==vertices.Length)posed.normals=workNormals;
+    }
+    public void SampleBridgeThrow(float progress){
+        if(!visual)return;
+        float lift=Mathf.SmoothStep(0,1,Mathf.InverseLerp(0,.28f,progress));
+        float release=Mathf.SmoothStep(0,1,Mathf.InverseLerp(.28f,.48f,progress));
+        float recover=Mathf.SmoothStep(0,1,Mathf.InverseLerp(.55f,1,progress));
+        float weight=1-recover;
+        visual.localRotation=restRotation*Quaternion.Euler(Mathf.Lerp(-8,12,release)*lift*weight,0,0);
+        visual.localPosition=restPosition+new Vector3(0,-.025f*Mathf.Sin(lift*Mathf.PI)*weight,.035f*release*weight);
+        if(!posed)return;
+        var turn=Quaternion.Euler(Mathf.Lerp(-135*lift,-65,release)*weight,0,0);
+        for(int i=0;i<vertices.Length;i++){
+            var pivot=new Vector3(Mathf.Sign(vertices[i].x)*.235f,.635f,0);
             workVertices[i]=arms[i]?pivot+turn*(vertices[i]-pivot):vertices[i];
             if(i<normals.Length)workNormals[i]=arms[i]?turn*normals[i]:normals[i];
         }
@@ -160,6 +177,8 @@ public sealed class PlayerPushPose:MonoBehaviour {
         posed.vertices=workVertices;if(normals.Length==vertices.Length)posed.normals=workNormals;
     }
     public void End(){
+        idlePlaying=false;idleElapsed=0;idleWait=0;
+        breathing=false;breathingElapsed=0;
         if(walking&&walkDistance>.001f){
             int steps=Mathf.Max(1,Mathf.RoundToInt(walkDistance/walkCellSize));
             nextWalkFoot=steps%2==0?walkFoot:-walkFoot;
@@ -191,6 +210,7 @@ public sealed class PlayerPushPose:MonoBehaviour {
         posed.vertices=workVertices;if(normals.Length==vertices.Length)posed.normals=workNormals;
     }
     void LateUpdate(){
+        UpdateIdle();
         if(balancing){
             if(board&&board.Busy){End();return;}
             balanceTime+=Time.deltaTime;

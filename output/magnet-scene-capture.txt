@@ -1,0 +1,1 @@
+PASS: Chapter02 game camera captured; original scene setup restored.
