@@ -16,6 +16,14 @@ namespace BetweenPoles.EditorTools {
         }
         static void Check(bool ok,string message){if(!ok)throw new Exception(message);}
         static object Call(GridPlayground board,string name,params object[] args){return typeof(GridPlayground).GetMethod(name,Flags).Invoke(board,args);}
+        static void CheckFlush(GridPlayground board,MagnetPiece bridge){
+            Check(Mathf.Abs((float)Call(board,"DeckHeight",bridge))<.001f,"Bridge walking surface is above shore");
+            var original=bridge.geometry.position;board.enabled=true;
+            Call(board,"UpdateMagnetHover");Call(board,"RenderMagnetHover",new object[]{null});
+            Check(Mathf.Abs((float)Call(board,"MagnetGeometryTop",bridge))<.001f,"Rendered bridge top is above shore");
+            Call(board,"RestoreMagnetHover",new object[]{null});board.enabled=false;
+            Check(Vector3.Distance(original,bridge.geometry.position)<.001f,"Bridge display offset leaked into geometry");
+        }
         static void Drain(IEnumerator routine,Action sample){
             var stack=new Stack<IEnumerator>();stack.Push(routine);int frames=0;
             while(stack.Count>0){var top=stack.Peek();if(!top.MoveNext()){stack.Pop();continue;}if(top.Current is IEnumerator child){stack.Push(child);continue;}sample?.Invoke();Check(++frames<1000,"Animation timeout");}
@@ -44,15 +52,16 @@ namespace BetweenPoles.EditorTools {
                     tiles.Add(tile(-1));tiles.Add(tile(2));b.tiles=tiles.ToArray();
                     b.player.position=-axis*1.5f;b.player.rotation=Quaternion.LookRotation(axis);root.SetActive(true);
                     b.CaptureInitialState();typeof(GridPlayground).GetField("recordingPush",Flags).SetValue(b,true);
+                    CheckFlush(b,bridge);checks++;
                     // The actual movement routine must remain on the centerline at every sample.
                     for(int cell=0;cell<=2;cell++){
                         var target=dir*cell;
-                        Drain((IEnumerator)Call(b,"MovePlayer",target),()=>Check(Mathf.Abs(Vector3.Dot(b.player.position,side))<.0001f,"Side drift during bridge walking"));
+                        Drain((IEnumerator)Call(b,"MovePlayer",target),()=>Check(Mathf.Abs(Vector3.Dot(b.player.position,side))<.0001f&&Mathf.Abs(b.player.position.y)<.001f,"Side or height drift during bridge walking"));
                         Check((new Vector2(b.player.position.x,b.player.position.z)-(Vector2)target*1.5f).sqrMagnitude<.0001f,"Wrong center landing");checks++;
                     }
                     b.player.position=-axis*1.5f;
                     var follow=(Vector3)Call(b,"PushPlayerEnd",Vector2Int.zero,null);
-                    Check(Mathf.Abs(Vector3.Dot(follow,side))<.0001f&&Mathf.Abs(follow.y-.24f)<.0001f,"Push-follow offset");checks++;
+                    Check(Mathf.Abs(Vector3.Dot(follow,side))<.0001f&&Mathf.Abs(follow.y)<.0001f,"Push-follow offset");checks++;
                     object[] travel={-dir,0f,Vector2Int.zero,null,0f};
                     Check((bool)Call(b,"TravelSurface",travel),"Gap bridge entry rejected");checks++;
                     // Reject either bridge cell on land, even via the object-top shortcut.
@@ -70,6 +79,8 @@ namespace BetweenPoles.EditorTools {
                     bridge.product=MagnetProduct.Ring;bridge.walkable=true;
                     var rim=(Vector3)Call(b,"Support",Vector2Int.zero,b.player.position);
                     Check(Mathf.Abs(Vector3.Dot(rim,side))>.4f,"Ring rim traversal changed");checks++;
+                    MagnetVisuals.Product(bridge,MagnetProduct.WideBar,1.5f,yaw,true);
+                    tiles.Add(tile(1));b.tiles=tiles.ToArray();CheckFlush(b,bridge);checks++;
                     UnityEngine.Object.DestroyImmediate(host);root.SetActive(false);
                 }
                 File.WriteAllText(Report,"PASS: "+checks+" assertions; four directions; centered bridge walking/exit and push-follow; both land cells block players/materials; gap entry; half bridge blocked; ring rim preserved.");

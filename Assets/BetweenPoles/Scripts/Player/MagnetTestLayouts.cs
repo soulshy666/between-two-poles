@@ -6,8 +6,28 @@ namespace BetweenPoles {
 public sealed class MagnetTestLayouts:MonoBehaviour {
     public GridPlayground board;public Transform center;public string instruction;
     GameObject runtimeRoot;GridTile[] originalTiles;Renderer[] originalSurfaces;
+    Material portalMaterial;
+    public static BlackHolePortal[] Portals(GridPlayground board){
+        return board.tiles.Where(t=>t&&t.gameObject.activeInHierarchy)
+            .SelectMany(t=>t.GetComponentsInChildren<BlackHolePortal>()).Where(p=>p.board==board).ToArray();
+    }
+    public BlackHolePortal PlacePortal(GridTile tile){
+        if(!tile||tile.blocked||board.MagnetAt(new Vector2Int(Mathf.RoundToInt(tile.transform.position.x/board.cellSize),Mathf.RoundToInt(tile.transform.position.z/board.cellSize))))return null;
+        var existing=tile.GetComponentInChildren<BlackHolePortal>();if(existing)return existing;
+        if(!portalMaterial)portalMaterial=new Material(Shader.Find("BetweenPoles/BlackHolePortal"));
+        var go=GameObject.CreatePrimitive(PrimitiveType.Quad);go.name="测试黑洞";go.transform.SetParent(tile.transform,false);
+        go.transform.position=new Vector3(tile.transform.position.x,tile.surfaceHeight+.035f,tile.transform.position.z);
+        go.transform.localRotation=Quaternion.Euler(90,0,0);go.transform.localScale=Vector3.one*(board.cellSize*.85f);
+        Destroy(go.GetComponent<Collider>());var renderer=go.GetComponent<Renderer>();renderer.sharedMaterial=portalMaterial;
+        renderer.shadowCastingMode=UnityEngine.Rendering.ShadowCastingMode.Off;
+        var portal=go.AddComponent<BlackHolePortal>();portal.board=board;portal.tile=tile;
+        var binding=go.AddComponent<IslandSurfaceAnchor>();var owner=tile.GetComponentInParent<IslandSurfaceAnchor>();binding.center=owner?owner.center:center;binding.Apply();
+        return portal;
+    }
+    void OnDestroy(){if(portalMaterial)Destroy(portalMaterial);}
     public void Load(int preset){
-        if(!Application.isPlaying||board.Busy)return;
+        if(!Application.isPlaying||board.Busy||BlackHoleTravel.Selecting||BlackHoleTravel.InTransit)return;
+        foreach(var portal in Portals(board)){portal.gameObject.SetActive(false);Destroy(portal.gameObject);}
         if(originalTiles==null){originalTiles=board.tiles;var anchor=center.parent;originalSurfaces=anchor.GetComponentsInChildren<Renderer>(true);}
         if(runtimeRoot){runtimeRoot.SetActive(false);Destroy(runtimeRoot);}
         foreach(var r in originalSurfaces)if(r)r.enabled=false;
@@ -26,6 +46,13 @@ public sealed class MagnetTestLayouts:MonoBehaviour {
         System.Func<int,int,MagnetShape,bool,Quaternion,MagnetPiece> add=(x,z,shape,north,pose)=>{var m=MagnetVisuals.Create(runtimeRoot.transform,new Vector3(x*board.cellSize,0,z*board.cellSize),shape,north,pose,board.cellSize,center);pieces.Add(m);return m;};
         Quaternion flat=Quaternion.identity,vertical=Quaternion.Euler(0,0,90),alongZ=Quaternion.Euler(0,90,0);
         var playerCell=new Vector2Int(-2,0);
+        if(preset>=10&&preset<=12){
+            // Clear the old occupants before creating the two reusable test portals.
+            board.magnets=new MagnetPiece[0];
+            PlacePortal(board.TileAt(new Vector2Int(-1,0)));PlacePortal(board.TileAt(new Vector2Int(2,0)));
+            if(preset>10){add(-2,0,MagnetShape.Bar,false,preset==11?flat:vertical);playerCell=new Vector2Int(-3,0);}
+            instruction=preset==10?"走入黑洞后，移动镜头、点击出口并确认。WASD 移动视野，滚轮缩放，Esc 返回。":preset==11?"向右将平躺蓝条推入黑洞，再向右走入。选择右侧出口：蓝条保持平躺先出来，玩家随后踩上蓝条。":"向右将竖直蓝条推入黑洞，再向右走入。选择右侧出口：蓝条竖直先出来，玩家将它向前踢倒一格，并占据蓝条原来的位置。";
+        }
         if(preset==0){add(-1,0,MagnetShape.Bar,true,alongZ);add(0,0,MagnetShape.Bar,false,flat);instruction="向右推：两条长轴垂直，接收格有冰面，按蓝色接收条的朝向对齐成一格宽桥。";}
         if(preset==1){add(-1,0,MagnetShape.Bar,true,alongZ);add(0,0,MagnetShape.Bar,false,flat);instruction="向右推：同样的垂直长条，接收格没有冰面；蓝条下沉、红条叠上，形成十字。再次推会原地旋转。";}
         if(preset==8||preset==9){add(-1,0,MagnetShape.Bar,true,preset==8?alongZ:flat);add(0,0,MagnetShape.Bar,false,vertical);instruction=preset==8?"向右推：蓝色接收条竖立，沿推动方向倒下；与红条长轴垂直，在冰面上也能叠成十字。":"向右推：蓝色接收条沿推动方向倒下；红条翻滚后也沿同一轴向落平，合成一格宽桥。";}

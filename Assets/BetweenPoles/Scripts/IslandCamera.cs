@@ -29,6 +29,10 @@ public sealed class IslandCamera : MonoBehaviour {
         focus=islandCenters[current].position;Apply();
     }
     public void SelectCurrentIsland(){current=Nearest();}
+    public void PreviewNavigation(Vector3 point){
+        if(islandCenters==null)return;float best=float.PositiveInfinity;
+        for(int i=0;i<islandCenters.Length;i++)if(islandCenters[i]){float d=(islandCenters[i].position-point).sqrMagnitude;if(d<best){best=d;current=i;}}
+    }
     // Coordinate-frame handoff only; normal island tracking and easing stay in charge.
     public void RebaseFocus(Vector3 delta){focus+=delta;Apply();}
     int Nearest() {

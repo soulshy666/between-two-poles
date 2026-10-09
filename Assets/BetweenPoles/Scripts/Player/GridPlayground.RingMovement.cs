@@ -8,6 +8,7 @@ public sealed partial class GridPlayground {
     }
     bool BeginPushRing(MagnetPiece ring,Vector2Int dir,Vector2Int origin){
         if(!Supported(ring))return Reject("边缘外的磁铁无法直接推动");
+        var portal=BlackHolePortal.At(this,origin+dir);if(portal)return BeginPortalPush(ring,portal,dir);
         bool flat=MagnetPiece.FlatU(ring.Pose);
         Vector3 forward=new Vector3(dir.x,0,dir.y);
         // A push along the wheel axle tips the upright ring onto its flat face.
@@ -19,6 +20,7 @@ public sealed partial class GridPlayground {
         // Roll off the last supported cell, then hover at the first gap.
         if(!tip)while(cells<tiles.Length+magnets.Length*2){
             var cell=origin+dir*cells;float nextHeight;
+            if(BlackHolePortal.At(this,cell+dir))break;
             if(!(Floor(cell)||Deck(cell,ring))||!RingCanEnter(ring,cell,height,cell+dir,out nextHeight))break;
             height=nextHeight;cells++;
         }

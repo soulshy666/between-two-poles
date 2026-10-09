@@ -7,6 +7,32 @@ public sealed partial class GridPlayground {
     readonly HashSet<MagnetPiece> pushHoverParticipants=new HashSet<MagnetPiece>();
     readonly Dictionary<Transform,Vector3> hoverRenderPositions=new Dictionary<Transform,Vector3>();
     readonly List<MagnetPiece> expiredHovers=new List<MagnetPiece>();
+    readonly Dictionary<MagnetPiece,float> hoverLevels=new Dictionary<MagnetPiece,float>();
+    readonly List<Vector3> hoverVertices=new List<Vector3>();
+    float EdgeHoverLevel(MagnetPiece m){
+        if(ShoreLevelBridge(m))return DeckHeight(m)-MagnetGeometryTop(m);
+        if(m.combined||m.product!=MagnetProduct.None)return 0;
+        var cell=Cell(m.transform);
+        foreach(var dir in new[]{Vector2Int.right,Vector2Int.left,Vector2Int.up,Vector2Int.down}){
+            var neighbor=Piece(cell+dir);
+            if(neighbor&&!neighbor.combined&&neighbor.product==MagnetProduct.None&&neighbor.north==m.north
+                &&SameHeight(neighbor.transform.position.y,m.transform.position.y)&&Supported(neighbor))return 0;
+        }
+        // Chapter meshes deliberately enlarge their culling bounds for the planet
+        // shader. Measure actual vertices, never Renderer.bounds or Mesh.bounds.
+        // Logical Y remains the shore level; only the displayed body sits lower.
+        return m.transform.position.y-MagnetGeometryTop(m);
+    }
+    float MagnetGeometryTop(MagnetPiece m){
+        float top=float.NegativeInfinity;
+        foreach(var filter in m.geometry.GetComponentsInChildren<MeshFilter>()){
+            if(!filter.sharedMesh)continue;
+            var renderer=filter.GetComponent<Renderer>();if(renderer&&!renderer.enabled)continue;
+            filter.sharedMesh.GetVertices(hoverVertices);
+            foreach(var vertex in hoverVertices)top=Mathf.Max(top,filter.transform.TransformPoint(vertex).y);
+        }
+        return float.IsNegativeInfinity(top)?m.transform.position.y:top;
+    }
     void OnEnable(){Camera.onPreCull+=RenderMagnetHover;Camera.onPostRender+=RestoreMagnetHover;}
     bool HoverPassage(MagnetPiece m){
         if(!m.walkable)return false;
@@ -42,10 +68,13 @@ public sealed partial class GridPlayground {
         expiredHovers.Clear();
         foreach(var entry in hoveringMagnets)
             if(!ShouldHover(entry.Key))expiredHovers.Add(entry.Key);
-        foreach(var m in expiredHovers)hoveringMagnets.Remove(m);
+        foreach(var m in expiredHovers){hoveringMagnets.Remove(m);hoverLevels.Remove(m);}
         foreach(var m in magnets){
             if(!ShouldHover(m))continue;
             if(!hoveringMagnets.ContainsKey(m))hoveringMagnets.Add(m,0);
+            float target=EdgeHoverLevel(m);
+            if(!hoverLevels.ContainsKey(m))hoverLevels[m]=0;
+            hoverLevels[m]=Mathf.MoveTowards(hoverLevels[m],target,Time.deltaTime*.8f);
             // Docking/rolling has priority; restart gently once the push settles.
             hoveringMagnets[m]=Busy&&interruptiblePush&&pushHoverParticipants.Contains(m)
                 ?0:hoveringMagnets[m]+Time.deltaTime;
@@ -57,11 +86,20 @@ public sealed partial class GridPlayground {
         foreach(var entry in hoveringMagnets){
             var m=entry.Key;if(!m||!m.geometry||!m.gameObject.activeInHierarchy)continue;
             float t=entry.Value;
-            float offset=MagnetHoverAmplitude*Mathf.Sin(t*Mathf.PI*2/MagnetHoverPeriod)
+            float offset=(hoverLevels.TryGetValue(m,out float level)?level:0)+MagnetHoverAmplitude*Mathf.Sin(t*Mathf.PI*2/MagnetHoverPeriod)
                 *Mathf.SmoothStep(0,1,Mathf.Clamp01(t/.4f));
             var geometry=m.geometry;
             hoverRenderPositions[geometry]=geometry.position;
             geometry.position+=Vector3.up*offset;
+        }
+        // Connected bridges do not bob, but their deck must still sit flush with
+        // the shore. Keep this display offset out of assembly and undo data.
+        foreach(var m in magnets){
+            if(!m||!m.enabled||!m.gameObject.activeInHierarchy||!m.geometry
+                ||hoveringMagnets.ContainsKey(m)||!ShoreLevelBridge(m)||MagnetStillAnimating(m))continue;
+            float offset=DeckHeight(m)-MagnetGeometryTop(m);
+            hoverRenderPositions[m.geometry]=m.geometry.position;
+            m.geometry.position+=Vector3.up*offset;
         }
     }
     // Render-only offsets never enter movement, assembly bounds or undo snapshots.
@@ -71,7 +109,7 @@ public sealed partial class GridPlayground {
     }
     void ClearMagnetHover(){
         Camera.onPreCull-=RenderMagnetHover;Camera.onPostRender-=RestoreMagnetHover;
-        RestoreMagnetHover(null);hoveringMagnets.Clear();
+        RestoreMagnetHover(null);hoveringMagnets.Clear();hoverLevels.Clear();
     }
 }
 }

@@ -69,7 +69,7 @@ public sealed partial class GridPlayground {
     }
     Transform Owner(GridTile tile){var a=tile?tile.GetComponentInParent<IslandSurfaceAnchor>():null;return a?a.center:null;}
     Transform Owner(MagnetPiece m){var tile=Tile(Cell(m.transform));if(tile)return Owner(tile);var a=m.GetComponent<IslandSurfaceAnchor>();return a?a.center:null;}
-    Snapshot SavePiece(MagnetPiece m){return new Snapshot{parent=m.transform.parent,position=m.transform.position,rotation=m.transform.rotation,geometry=m.geometry,pose=m.geometry.localRotation,geoPosition=m.geometry.localPosition,scale=m.geometry.localScale,combined=m.combined,walkable=m.walkable,enabled=m.enabled,active=m.gameObject.activeSelf,product=m.product,baseNorth=m.baseNorth,bridgeDirection=m.bridgeDirection,north=m.north,shape=m.shape,owner=Owner(m)};}
+    Snapshot SavePiece(MagnetPiece m){return new Snapshot{storedInPortal=m.storedInPortal,parent=m.transform.parent,position=m.transform.position,rotation=m.transform.rotation,geometry=m.geometry,pose=m.geometry.localRotation,geoPosition=m.geometry.localPosition,scale=m.geometry.localScale,combined=m.combined,walkable=m.walkable,enabled=m.enabled,active=m.gameObject.activeSelf,product=m.product,baseNorth=m.baseNorth,bridgeDirection=m.bridgeDirection,north=m.north,shape=m.shape,owner=Owner(m)};}
     WorldState SaveWorld(){
         var s=new WorldState{pieces=new Snapshot[magnets.Length],arrivals=recoilArrivals.ToArray(),playerPosition=player.position,playerRotation=player.rotation,island=currentIsland,entryPosition=islandEntry,entryRotation=islandEntryRotation,goal=ReachedGoal,goalMaterial=goalLight?goalLight.sharedMaterial:null};
         s.knockPoints=knockCheckpoints.ToArray();s.knockFlights=knockedFlights.ToArray();
@@ -87,7 +87,7 @@ public sealed partial class GridPlayground {
             var m=magnets[i];var s=saved[i];m.transform.SetParent(s.parent,true);m.transform.SetPositionAndRotation(s.position,s.rotation);
             if(m.geometry!=s.geometry){recordedGeometry.Add(m.geometry);m.geometry.gameObject.SetActive(false);m.geometry=s.geometry;}
             m.geometry.gameObject.SetActive(true);m.geometry.localPosition=s.geoPosition;m.geometry.localRotation=s.pose;m.geometry.localScale=s.scale;
-            m.product=s.product;m.baseNorth=s.baseNorth;m.bridgeDirection=s.bridgeDirection;m.north=s.north;m.shape=s.shape;
+            m.storedInPortal=s.storedInPortal;m.product=s.product;m.baseNorth=s.baseNorth;m.bridgeDirection=s.bridgeDirection;m.north=s.north;m.shape=s.shape;
             m.combined=s.combined;m.walkable=s.walkable;m.enabled=s.enabled;m.gameObject.SetActive(s.active);
             var binding=m.GetComponent<IslandSurfaceAnchor>();if(binding){binding.center=s.owner;binding.Apply();}
         }

@@ -8,13 +8,15 @@ public sealed class BlackHolePortal : MonoBehaviour {
     bool armed;
     Vector2Int lastOutside;
     public Vector2Int EntryDirection {get;private set;}
+    public MagnetPiece Cargo {get{if(board)foreach(var m in board.magnets)if(m&&m.storedInPortal==this)return m;return null;}}
+    public static BlackHolePortal At(GridPlayground board,Vector2Int cell){var tile=board.TileAt(cell);return tile?tile.GetComponentInChildren<BlackHolePortal>():null;}
     public string Room { get { var a=tile.GetComponentInParent<IslandSurfaceAnchor>(true);return a&&a.center?a.center.name:""; } }
     void OnEnable(){foreach(var r in GetComponentsInChildren<Renderer>())r.localBounds=new Bounds(Vector3.zero,Vector3.one*300);}
     public Vector2Int Cell {get{return new Vector2Int(Mathf.RoundToInt(tile.transform.position.x/board.cellSize),Mathf.RoundToInt(tile.transform.position.z/board.cellSize));}}
     public bool CanArrive {get{if(!tile||tile.blocked)return false;foreach(var m in board.magnets)if(m&&m.enabled&&m.gameObject.activeSelf&&m.Occupies(Cell,board.cellSize))return false;return true;}}
     public bool TryExit(Vector2Int direction,out GridTile exit){Vector3 landing;return TryExitLanding(direction,out exit,out landing);}
     public bool TryExitLanding(Vector2Int direction,out GridTile exit,out Vector3 landing){
-        exit=null;landing=Vector3.zero;if(Mathf.Abs(direction.x)+Mathf.Abs(direction.y)!=1||!CanArrive)return false;
+        exit=null;landing=Vector3.zero;if(Mathf.Abs(direction.x)+Mathf.Abs(direction.y)!=1||!CanArrive||Cargo)return false;
         return TrySurface(board,Cell+direction,out exit,out landing);
     }
     public static bool TrySurface(GridPlayground board,Vector2Int cell,out GridTile exit,out Vector3 landing){
@@ -49,6 +51,7 @@ public sealed class BlackHolePortal : MonoBehaviour {
     }
     void Update(){
         if(!Application.isPlaying||!board||!tile||!board.player)return;
+        var panel=board.GetComponent<MagnetDebugPanel>();if(panel&&panel.IsOpen)return;
         // A new arrival must leave the cell before it can activate again.
         if(board.Busy||!board.enabled)return;
         if(board.PlayerCell!=Cell){lastOutside=board.PlayerCell;armed=true;return;}

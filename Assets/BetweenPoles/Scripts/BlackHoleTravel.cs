@@ -1,10 +1,11 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 namespace BetweenPoles {
 // Retain visited gameplay scenes during a portal trip so magnets and undo history survive.
-public sealed class BlackHoleTravel : MonoBehaviour {
+public sealed partial class BlackHoleTravel : MonoBehaviour {
     public const string Showcase="Assets/BetweenPoles/Scenes/PlanetChapterShowcase.unity";
     static BlackHoleTravel instance;
     public static bool Selecting {get;private set;}
@@ -21,7 +22,8 @@ public sealed class BlackHoleTravel : MonoBehaviour {
     public static void Begin(BlackHolePortal portal){
         if(Selecting||!portal.CanArrive)return;
         if(!instance){instance=new GameObject("黑洞穿梭").AddComponent<BlackHoleTravel>();DontDestroyOnLoad(instance.gameObject);}
-        instance.StartCoroutine(instance.Depart(portal));
+        if(portal.board.GetComponent<MagnetTestLayouts>()||MagnetTestLayouts.Portals(portal.board).Length>1)instance.StartCoroutine(instance.TestTravel(portal));
+        else instance.StartCoroutine(instance.Depart(portal));
     }
     void Suspend(Scene scene){var roots=new List<GameObject>();foreach(var root in scene.GetRootGameObjects())if(root.activeSelf){roots.Add(root);root.SetActive(false);}suspended[scene.handle]=roots;}
     void Resume(Scene scene){List<GameObject> roots;if(suspended.TryGetValue(scene.handle,out roots)){foreach(var root in roots)if(root)root.SetActive(true);suspended.Remove(scene.handle);}}
@@ -43,7 +45,7 @@ public sealed class BlackHoleTravel : MonoBehaviour {
     }
     public static bool IsAvailable(string scene,string room){
         var loaded=SceneManager.GetSceneByPath(scene);if(!loaded.isLoaded)return true;
-        foreach(var root in loaded.GetRootGameObjects())foreach(var p in root.GetComponentsInChildren<BlackHolePortal>(true)){GridTile exit;if(p.Room==room&&p.CanArrive&&(!instance||p.TryExit(instance.entryDirection,out exit)))return true;}
+        foreach(var root in loaded.GetRootGameObjects())foreach(var p in root.GetComponentsInChildren<BlackHolePortal>(true)){ExitPlan plan;if(p.Room==room&&p.CanArrive&&(!instance||PlanExit(p,instance.entryDirection,instance.origin?instance.origin.Cargo:null,out plan)))return true;}
         return false;
     }
     public static void Choose(string scene,string room){if(instance&&!instance.busy&&Selecting)instance.StartCoroutine(instance.Arrive(scene,room));}
@@ -59,12 +61,23 @@ public sealed class BlackHoleTravel : MonoBehaviour {
         }
         scene=SceneManager.GetSceneByPath(path);
         BlackHolePortal target=null;
-        GridTile exitTile=null;Vector3 exitPosition=Vector3.zero;var exitDirection=cancel?-entryDirection:entryDirection;
-        foreach(var root in scene.GetRootGameObjects())foreach(var p in root.GetComponentsInChildren<BlackHolePortal>(true))if(p.Room==room&&p.TryExitLanding(exitDirection,out exitTile,out exitPosition)){target=p;break;}
+        ExitPlan plan=new ExitPlan();var exitDirection=cancel?-entryDirection:entryDirection;var cargo=cancel?null:origin.Cargo;
+        foreach(var root in scene.GetRootGameObjects())foreach(var p in root.GetComponentsInChildren<BlackHolePortal>(true))if(p.Room==room&&(cancel?CancelPlan(p,exitDirection,out plan):PlanExit(p,exitDirection,cargo,out plan))){target=p;break;}
         if(!target){if(!suspended.ContainsKey(scene.handle))Suspend(scene);effect.Hide();busy=false;var atlas=FindObjectOfType<ChapterAtlas>();if(atlas)atlas.ShowPortalBlocked();yield break;}
         Selecting=false;ChapterAtlas.ReturnChapter=-1;
         Resume(scene);SceneManager.SetActiveScene(scene);
         var board=target.board;board.enabled=false;SharedPlayer.Bind(board,true);target.Disarm();
+        bool transferred=cargo&&origin.board!=board;
+        if(transferred){
+            var sourceBoard=origin.board;
+            var carried=sourceBoard.magnets.Where(m=>m&&m.transform.IsChildOf(cargo.transform)).ToArray();
+            sourceBoard.magnets=sourceBoard.magnets.Except(carried).ToArray();
+            sourceBoard.ReleasePortalGeometry(carried);
+            cargo.transform.SetParent(board.transform,true);
+            board.magnets=board.magnets.Concat(carried).ToArray();
+            // Cross-scene ownership changes establish a new checkpoint on both boards.
+            sourceBoard.CaptureInitialState();
+        }
         board.player.position=new Vector3(target.tile.transform.position.x,target.tile.surfaceHeight,target.tile.transform.position.z);
         board.player.rotation=entryFacing;
         board.SendMessage("NotifyLanding",target.Cell);
@@ -72,11 +85,10 @@ public sealed class BlackHoleTravel : MonoBehaviour {
         var showcase=SceneManager.GetSceneByPath(Showcase);if(showcase.isLoaded){var unload=SceneManager.UnloadSceneAsync(showcase);while(!unload.isDone)yield return null;}
         // Let the new chapter's Start methods finish before restoring input.
         yield return null;
-        yield return effect.Emerge(target);
-        // Preserve travel direction and glide out onto the adjacent, validated floor.
-        var start=board.player.position;var end=exitPosition;
-        for(float t=0;t<.48f;t+=Time.unscaledDeltaTime){float a=Mathf.Clamp01(t/.48f);float move=1-Mathf.Pow(1-a,3);var raised=start;raised.y=Mathf.Max(start.y,end.y);board.player.position=a<.35f?Vector3.Lerp(start,raised,Mathf.SmoothStep(0,1,a/.35f)):Vector3.Lerp(raised,end,Mathf.SmoothStep(0,1,(a-.35f)/.65f));yield return null;}
-        board.player.position=end;board.SendMessage("NotifyLanding",target.Cell+exitDirection);
+        var scale=board.player.localScale;board.player.localScale=Vector3.zero;
+        yield return effect.Emerge(target);board.player.localScale=scale;
+        yield return Eject(target,exitDirection,cargo,plan);
+        if(transferred)board.CaptureInitialState();
         board.enabled=true;busy=false;
     }
 }
