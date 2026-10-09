@@ -1,0 +1,8 @@
+Assets/BetweenPoles/Scenes\Chapter01_IceWorld.unity: PASS 26 actual scene magnets match test factory; astronaut mesh present
+Assets/BetweenPoles/Scenes\Chapter02_VerdantWorld.unity: PASS 4 actual scene magnets match test factory; astronaut mesh present
+Assets/BetweenPoles/Scenes\Chapter03_RingWorld.unity: PASS 4 actual scene magnets match test factory; astronaut mesh present
+Assets/BetweenPoles/Scenes\Chapter04_LavaWorld.unity: PASS 4 actual scene magnets match test factory; astronaut mesh present
+Bar N: PASS canonical geometry
+Bar S: PASS canonical geometry
+U N: PASS canonical geometry
+U S: PASS canonical geometry

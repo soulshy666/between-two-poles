@@ -1,0 +1,10 @@
+Backup: output/magnet-scene-consistency-backup/20261009-105132
+Assets/BetweenPoles/Scenes/Chapter01_IceWorld.unity: 26 singles normalized
+Assets/BetweenPoles/Scenes/Chapter02_VerdantWorld.unity: 4 singles normalized
+Assets/BetweenPoles/Scenes/Chapter03_RingWorld.unity: 4 singles normalized
+Assets/BetweenPoles/Scenes/Chapter04_LavaWorld.unity: 4 singles normalized
+Assets/BetweenPoles/Prefabs/Bar N.prefab: normalized
+Assets/BetweenPoles/Prefabs/Bar S.prefab: normalized
+Assets/BetweenPoles/Prefabs/U N.prefab: normalized
+Assets/BetweenPoles/Prefabs/U S.prefab: normalized
+PASS: migration complete

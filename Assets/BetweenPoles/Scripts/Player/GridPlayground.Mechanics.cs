@@ -64,6 +64,7 @@ public sealed partial class GridPlayground {
         return Mathf.Abs((bar*Vector3.right).y)<.05f?MagnetProduct.BridgeHalf:MagnetProduct.None;
     }
     public bool TryStep(Vector2Int dir) {
+        var idlePose=player.GetComponent<PlayerPushPose>();if(idlePose)idlePose.CancelIdle();
         if(OpeningCinematic)return false;
         if(CanInterruptPush(dir))return InterruptPush(dir);
         if(TryReverseWalk(dir))return true;
@@ -395,11 +396,23 @@ public sealed partial class GridPlayground {
         // equivalent long-axis direction that keeps it on its approach side.
         if(product==MagnetProduct.WideBar&&Vector3.Dot(start-target.transform.position,yaw*Vector3.forward)<-.01f)
             yaw=Quaternion.AngleAxis(180,Vector3.up)*yaw;
+        // For end-to-end flat rails, let the receiver yield to the push's right
+        // (screen down when pushing right), regardless of either bar's reversed pose.
+        var pushAxis=new Vector3(dir.x,0,dir.y);
+        if(product==MagnetProduct.WideBar&&!MagnetPiece.VerticalBar(old)&&!MagnetPiece.VerticalBar(receiverStart)
+            &&Mathf.Abs(Vector3.Dot(old*Vector3.right,pushAxis))>.95f
+            &&Mathf.Abs(Vector3.Dot(receiverStart*Vector3.right,pushAxis))>.95f)
+            yaw=Yaw(pushAxis);
         Vector3 playerStart=player.position,playerEnd=PushPlayerEnd(next,incoming);
         var pushPose=PlayerPushPose.Begin(player);
         player.rotation=Quaternion.LookRotation(new Vector3(dir.x,0,dir.y));
         // Every recipe drives the player during docking, not with a later Walk.
-        System.Action<float> follow=progress=>{player.position=Vector3.Lerp(playerStart,playerEnd,progress);pushPose.Sample(progress);};
+        bool throwing=(product==MagnetProduct.BridgeHalf||product==MagnetProduct.Lift)&&incoming.shape==MagnetShape.Bar;
+        System.Action<float> follow=progress=>{
+            float travel=throwing?Mathf.SmoothStep(0,1,Mathf.InverseLerp(.3f,1,progress)):progress;
+            player.position=Vector3.Lerp(playerStart,playerEnd,travel);
+            if(throwing)pushPose.SampleBridgeThrow(progress);else pushPose.Sample(progress);
+        };
         yield return AnimateAssembly(incoming,target,dir,product,yaw,bridgeDir,uNorth,tippedReceiver,tippedIncoming,receiverEnd,follow);
         EndPushInterrupt();
         if(pushPose)pushPose.End();
@@ -433,7 +446,7 @@ public sealed partial class GridPlayground {
         yield return TurnPlayer(target-player.position);
         yield return Slide(player,target,walkSeconds);NotifyLanding(cell);
     }
-    void NotifyLanding(Vector2Int p){var t=Tile(p);if(t&&t.goal){ReachedGoal=true;if(goalLight&&goalCompleteMaterial)goalLight.sharedMaterial=goalCompleteMaterial;}if(t){TrackIsland(t);Landed?.Invoke(t);}}
+    void NotifyLanding(Vector2Int p){if(deferPushLanding){deferredPushLanding=p;return;}var t=Tile(p);if(t&&t.goal){ReachedGoal=true;if(goalLight&&goalCompleteMaterial)goalLight.sharedMaterial=goalCompleteMaterial;}if(t){TrackIsland(t);Landed?.Invoke(t);}}
     public bool RotorActive(MagnetPiece cross){
         if(!cross||cross.product!=MagnetProduct.Cross)return false;var c=Cell(cross.transform);
         foreach(var axis in new[]{Vector2Int.right,Vector2Int.up}){
