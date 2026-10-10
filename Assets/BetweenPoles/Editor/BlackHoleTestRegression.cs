@@ -21,6 +21,7 @@ namespace BetweenPoles.EditorTools {
             var root=new GameObject("Black hole isolated regression");root.SetActive(false);int checks=0;bool asynchronous=false;
             try{
                 checks+=CargoCases();
+                checks+=ExitObstacleCases();
                 var board=root.AddComponent<GridPlayground>();board.enabled=false;board.magnets=new MagnetPiece[0];
                 var player=new GameObject("Player");player.transform.SetParent(root.transform);board.player=player.transform;
                 var center=new GameObject("Center");center.transform.SetParent(root.transform);
@@ -72,6 +73,7 @@ namespace BetweenPoles.EditorTools {
                         }
                         Check(chosen,"Travel ended before selection");
                         Check(board.PlayerCell==(phase==1||phase==4?source.Cell-Vector2Int.right:target.Cell+Vector2Int.right),"Incorrect travel/cancel landing");checks++;
+                        Check(Vector3.Dot(board.player.forward,(phase==1||phase==4)?Vector3.left:Vector3.right)>.99f,"Travel/cancel facing opposite to exit direction");checks++;
                         if(phase==2)Check(board.player.position.y>0&&!source.Cargo,"Flat cargo runtime landing failed");
                         if(phase==3)Check(!MagnetPiece.VerticalBar(board.magnets[0].Pose)&&Mathf.Abs(board.magnets[0].transform.position.x-6)<.001f,"Upright cargo runtime kick failed");
                         if(phase==4)Check(source.Cargo==board.magnets[0]&&!source.Cargo.gameObject.activeSelf,"Cancel lost stored cargo");

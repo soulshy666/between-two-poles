@@ -33,7 +33,7 @@ namespace BetweenPoles.EditorTools {
                     var rotation=kind==1?Quaternion.Euler(0,0,90):Quaternion.identity;
                     var m=MagnetVisuals.Create(root.transform,new Vector3(-dir.x*4.5f,0,-dir.y*4.5f),kind==2?MagnetShape.Horseshoe:MagnetShape.Bar,pole==0,yaw*rotation,1.5f,center.transform);
                     if(kind>=3){MagnetVisuals.Product(m,MagnetProduct.Ring,1.5f,yaw,pole==0);if(kind==4){m.geometry.rotation=yaw*Quaternion.Euler(90,0,0);MagnetVisuals.Ground(m);m.walkable=false;}}
-                    b.magnets=new[]{m};player.transform.position=new Vector3(-dir.x*6,0,-dir.y*6);root.SetActive(true);b.CaptureInitialState();var original=m.Pose;
+                    b.magnets=new[]{m};player.transform.position=new Vector3(-dir.x*6,0,-dir.y*6);root.SetActive(true);b.CaptureInitialState();var original=m.Pose;var originalScale=m.geometry.localScale;
                     Check(b.TryStep(dir),"Deposit rejected "+b.LastRule);typeof(GridPlayground).GetMethod("FinishMovement",Private).Invoke(b,null);
                     Check(source.Cargo==m&&!m.gameObject.activeSelf&&Quaternion.Angle(m.Pose,original)<.01f,"Deposit changed pose or lost cargo");checks++;
                     Check(b.PlayerCell==-dir*3,"Push moved player inside portal prematurely");checks++;
@@ -49,7 +49,7 @@ namespace BetweenPoles.EditorTools {
                     var host=new GameObject("Ejection runner");host.transform.SetParent(root.transform);var travel=host.AddComponent<BlackHoleTravel>();
                     bool sawCargoFirst=false;int frames=0;
                     Drain((IEnumerator)typeof(BlackHoleTravel).GetMethod("Eject",Private).Invoke(travel,new object[]{target,dir,m,plan}),()=>{
-                        frames++;if(m.gameObject.activeSelf&&player.transform.localScale.sqrMagnitude<.001f){sawCargoFirst=true;Check(Quaternion.Angle(m.Pose,original)<.01f,"Cargo rotated before player emerged");}
+                        frames++;Check(Vector3.Distance(m.geometry.localScale,originalScale)<.001f,"Cargo changed size during ejection");if(m.gameObject.activeSelf&&player.transform.localScale.sqrMagnitude<.001f){sawCargoFirst=true;Check(Quaternion.Angle(m.Pose,original)<.01f,"Cargo rotated before player emerged");}
                     });
                     Check(sawCargoFirst&&frames>0,"Cargo/player order untested");checks++;
                     Check(b.PlayerCell==dir,"Player left through wrong side");checks++;

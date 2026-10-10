@@ -5,6 +5,7 @@ using UnityEngine;
 namespace BetweenPoles {
 public sealed partial class GridPlayground:MonoBehaviour {
     public float cellSize=1.5f;
+    public float LayerHeight {get{return cellSize*.5f;}}
     public float stepSeconds=.22f;
     [Range(.12f,.3f)] public float walkSeconds=.25f;
     [Tooltip("Time to turn 90 degrees before walking; a half-turn takes slightly longer.")]
@@ -68,7 +69,7 @@ public sealed partial class GridPlayground:MonoBehaviour {
         try{while(AdvanceMovement()){}}
         finally{finishingMovement=false;}
     }
-    struct Snapshot { public BlackHolePortal storedInPortal; public Transform parent,owner; public Vector3 position,scale; public Quaternion rotation; public bool combined,walkable,enabled,active,north; public Transform geometry; public Quaternion pose; public Vector3 geoPosition; public MagnetShape shape; public MagnetProduct product; public bool baseNorth; public Vector2Int bridgeDirection; }
+    struct Snapshot { public BlackHolePortal storedInPortal; public Transform parent,owner; public Vector3 position,scale,portalEntryPosition; public Quaternion rotation; public bool combined,walkable,enabled,active,north; public Transform geometry; public Quaternion pose; public Vector3 geoPosition; public MagnetShape shape; public MagnetProduct product; public bool baseNorth; public Vector2Int bridgeDirection; }
     Vector2Int Cell(Transform t){return new Vector2Int(Mathf.RoundToInt(t.position.x/cellSize),Mathf.RoundToInt(t.position.z/cellSize));}
     GridTile Tile(Vector2Int p){foreach(var t in tiles)if(t&&Cell(t.transform)==p)return t;return null;}
     MagnetPiece Piece(Vector2Int p,MagnetPiece ignore=null){

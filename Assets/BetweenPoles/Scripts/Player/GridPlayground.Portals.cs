@@ -2,6 +2,17 @@ using System.Collections;
 using UnityEngine;
 namespace BetweenPoles {
 public sealed partial class GridPlayground {
+    IEnumerator JumpIntoPortal(BlackHolePortal portal,Vector2Int direction){
+        var start=player.position;var end=Position(portal.Cell,portal.tile.surfaceHeight);
+        yield return TurnPlayer(new Vector3(direction.x,0,direction.y));
+        var pose=PlayerPushPose.Begin(player);
+        for(float t=0;t<.95f;t+=MovementDeltaTime){
+            float a=Mathf.Clamp01(t/.95f);var position=Vector3.Lerp(start,end,Mathf.SmoothStep(0,1,a));
+            position.y+=Mathf.Sin(a*Mathf.PI)*.85f;player.position=position;pose.SamplePortalEntry(a);yield return null;
+        }
+        player.position=end;pose.SamplePortalEntry(1);NotifyLanding(portal.Cell);Busy=false;
+        portal.Enter(direction);
+    }
     bool BeginPortalPush(MagnetPiece magnet,BlackHolePortal portal,Vector2Int dir){
         if(portal.Cargo)return Reject("黑洞中已有一块磁铁，请先进入黑洞完成传送");
         if(!portal.CanArrive||portal.tile.blocked||!SameHeight(magnet.transform.position.y,portal.tile.surfaceHeight))return Reject("黑洞入口被占据或高度不一致");
@@ -9,6 +20,7 @@ public sealed partial class GridPlayground {
     }
     IEnumerator PushIntoPortal(MagnetPiece magnet,BlackHolePortal portal,Vector2Int dir){
         Vector3 start=magnet.transform.position,playerStart=player.position;
+        magnet.portalEntryPosition=start;
         var vacated=Cell(magnet.transform);var end=Position(portal.Cell,portal.tile.surfaceHeight);
         var playerEnd=PushPlayerEnd(vacated,magnet);var pose=magnet.Pose;var scale=magnet.geometry.localScale;
         player.rotation=Quaternion.LookRotation(new Vector3(dir.x,0,dir.y));var push=PlayerPushPose.Begin(player);

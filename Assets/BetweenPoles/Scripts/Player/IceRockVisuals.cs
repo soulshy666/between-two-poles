@@ -6,6 +6,9 @@ public static class IceRockVisuals {
     const string MeshName="Ice rock obstacle";
     static Mesh mesh;
     static Mesh tallMesh;
+    static Mesh lowMesh;
+    static readonly Dictionary<int,Mesh[]> meshes=new Dictionary<int,Mesh[]>();
+    static readonly Dictionary<int,Material[]> palettes=new Dictionary<int,Material[]>();
     static Material[] materials;
     public static void Apply(GridPlayground board){
         foreach(var tile in board.tiles){
@@ -23,20 +26,25 @@ public static class IceRockVisuals {
         var filters=root.GetComponentsInChildren<MeshFilter>();
         if(filters.Length==0)return;
         var target=filters[0];var renderer=target.GetComponent<MeshRenderer>();if(!renderer)return;
-        if(!mesh)Build();
-        var selectedMesh=tile.rockStyle==1?tallMesh:mesh;
+        int theme=Mathf.Clamp(tile.rockTheme,0,4);
+        if(!meshes.ContainsKey(theme))Build(theme);
+        var selectedMesh=meshes[theme][Mathf.Clamp(tile.rockStyle,0,2)];
         if(target.sharedMesh==selectedMesh)return;
         // Reuse renderers registered with island visibility and curvature systems.
         foreach(var filter in filters)if(filter!=target)filter.sharedMesh=null;
-        target.sharedMesh=selectedMesh;renderer.sharedMaterials=materials;
+        target.sharedMesh=selectedMesh;renderer.sharedMaterials=palettes[theme];
         target.transform.position=new Vector3(tile.transform.position.x,tile.surfaceHeight,tile.transform.position.z);
         target.transform.rotation=Quaternion.identity;
         Vector3 scale=target.transform.parent?target.transform.parent.lossyScale:Vector3.one;
         float width=cell*.86f;
         target.transform.localScale=new Vector3(width/scale.x,1.12f/scale.y,width/scale.z);
     }
-    static void Build(){
+    static void Build(int theme){
         var colors=new[]{new Color(.25f,.30f,.33f),new Color(.34f,.40f,.43f),new Color(.44f,.49f,.51f),new Color(.90f,.95f,.97f)};
+        if(theme==0)colors=new[]{new Color(.27f,.29f,.30f),new Color(.38f,.40f,.40f),new Color(.50f,.51f,.50f),new Color(.50f,.51f,.50f)};
+        if(theme==2)colors=new[]{new Color(.23f,.28f,.22f),new Color(.36f,.40f,.29f),new Color(.49f,.51f,.36f),new Color(.31f,.48f,.12f)};
+        if(theme==3)colors=new[]{new Color(.43f,.29f,.17f),new Color(.62f,.45f,.27f),new Color(.76f,.60f,.39f),new Color(.88f,.74f,.50f)};
+        if(theme==4)colors=new[]{new Color(.15f,.12f,.17f),new Color(.24f,.20f,.26f),new Color(.36f,.30f,.34f),new Color(.29f,.24f,.29f)};
         materials=new Material[colors.Length];
         for(int i=0;i<colors.Length;i++){
             var m=new Material(Shader.Find("BetweenPoles/PaintedIceTrial")){name="Rock tone "+i,color=colors[i]};
@@ -96,12 +104,12 @@ public static class IceRockVisuals {
                 var edgeA=Vector3.Lerp(lowA,highA,Mathf.Clamp(depthA,.035f,.97f));
                 var edgeB=Vector3.Lerp(lowB,highB,Mathf.Clamp(depthB,.035f,.97f));
                 tri(lowA,edgeA,edgeB,upper);tri(lowA,edgeB,lowB,upper);
-                tri(edgeA,highA,highB,3);tri(edgeA,highB,edgeB,3);
+                tri(edgeA,highA,highB,theme==0?upper:3);tri(edgeA,highB,edgeB,theme==0?upper:3);
             }
         }
         for(int i=1;i<crown.Length-1;i++)tri(crown[0],crown[i+1],crown[i],3);
         // Overlapping, uneven banks hug most of the base, with small bare gaps.
-        for(int edge=0;edge<bottom.Length;edge++){
+        for(int edge=0;edge<bottom.Length&&(theme==1||theme==3);edge++){
             var outward=bottom[edge].normalized;
             var tangent=new Vector3(-outward.z,0,outward.x);
             var center=Vector3.Lerp(bottom[edge],bottom[(edge+1)%bottom.Length],.38f)+outward*.025f;
@@ -116,7 +124,24 @@ public static class IceRockVisuals {
                 tri(mound,p,q,3);
             }
         }
-        mesh=new Mesh{name=MeshName};mesh.SetVertices(vertices);mesh.subMeshCount=indices.Length;
+        // Thin surface-following ribbons: vines or hot cracks, not a snow recolour.
+        if(theme==2||theme==4){
+            var expanded=new Material[5];materials.CopyTo(expanded,0);
+            expanded[4]=new Material(materials[0]){name=theme==2?"Vines":"Lava fissures",color=theme==2?new Color(.14f,.27f,.07f):new Color(1,.28f,.025f)};
+            materials=expanded;System.Array.Resize(ref indices,5);indices[4]=new List<int>();
+            for(int face=0;face<bottom.Length;face+=2){
+                int next=(face+1)%bottom.Length;var normal=Vector3.Cross(shoulder[face]-bottom[face],bottom[next]-bottom[face]).normalized;
+                var across=(bottom[next]-bottom[face]).normalized*(theme==2?.022f:.012f);
+                for(int k=0;k<6;k++){
+                    float a=k/6f,b=(k+1)/6f;
+                    var p=Vector3.Lerp(Vector3.Lerp(bottom[face],bottom[next],.46f),Vector3.Lerp(shoulder[face],shoulder[next],.46f),a)+normal*.005f+across*Mathf.Sin(k*2);
+                    var q=Vector3.Lerp(Vector3.Lerp(bottom[face],bottom[next],.46f),Vector3.Lerp(shoulder[face],shoulder[next],.46f),b)+normal*.005f+across*Mathf.Sin((k+1)*2);
+                    tri(p-across,q-across,q+across,4);tri(p-across,q+across,p+across,4);
+                    if(theme==2&&k%2==1){var leaf=p+across*4+Vector3.up*.025f;tri(p,leaf,p+Vector3.up*.08f,3);tri(p,p+Vector3.up*.08f,leaf,3);}
+                }
+            }
+        }
+        mesh=new Mesh{name=MeshName+" theme "+theme};mesh.SetVertices(vertices);mesh.subMeshCount=indices.Length;
         for(int i=0;i<indices.Length;i++)mesh.SetTriangles(indices[i],i);
         mesh.RecalculateNormals();mesh.RecalculateBounds();
         // A narrower, taller mass with a high sloping crown, retaining the
@@ -129,6 +154,17 @@ public static class IceRockVisuals {
             v.z*=.88f;v.y*=1.8f;tallVertices[i]=v;
         }
         tallMesh.vertices=tallVertices;tallMesh.RecalculateNormals();tallMesh.RecalculateBounds();
+        lowMesh=Object.Instantiate(mesh);lowMesh.name="Low flat-topped rock theme "+theme;
+        var lowVertices=lowMesh.vertices;
+        for(int i=0;i<lowVertices.Length;i++){
+            var v=lowVertices[i];
+            // Flatten the entire crown to 0.55 world units; broaden it for a future foothold.
+            float top=Mathf.Clamp01((v.y-.70f)/.06f);
+            v.x*=Mathf.Lerp(1,1.16f,top);v.z*=Mathf.Lerp(1,1.16f,top);
+            v.y=Mathf.Min(v.y/.76f,1)*(.55f/1.12f);lowVertices[i]=v;
+        }
+        lowMesh.vertices=lowVertices;lowMesh.RecalculateNormals();lowMesh.RecalculateBounds();
+        meshes[theme]=new[]{mesh,tallMesh,lowMesh};palettes[theme]=materials;
     }
 }
 }

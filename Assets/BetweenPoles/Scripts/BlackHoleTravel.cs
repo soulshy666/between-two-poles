@@ -36,7 +36,10 @@ public sealed partial class BlackHoleTravel : MonoBehaviour {
         entryDirection=Mathf.Abs(facing.x)>Mathf.Abs(facing.z)?new Vector2Int(facing.x>=0?1:-1,0):new Vector2Int(0,facing.z>=0?1:-1);
         if(Mathf.Abs(recorded.x)+Mathf.Abs(recorded.y)==1)entryDirection=recorded;
         entryFacing=Quaternion.LookRotation(new Vector3(entryDirection.x,0,entryDirection.y));
+        portal.board.SetPortalBusy(true);
         yield return effect.Absorb(BlackHoleScreenEffect.ScreenCenter(portal),2.80f,portal);
+        var entryPose=portal.board.player.GetComponent<PlayerPushPose>();if(entryPose)entryPose.End();
+        portal.board.SetPortalBusy(false);
         portal.board.enabled=true;
         ChapterAtlas.ReturnChapter=-1;Suspend(portal.gameObject.scene);
         if(SharedPlayer.Instance)SharedPlayer.Instance.gameObject.SetActive(false);

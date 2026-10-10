@@ -26,6 +26,7 @@ public sealed class BlackHolePortal : MonoBehaviour {
         bool support=exit&&!exit.blocked;
         if(exit&&exit.blocked){
             var anchor=exit.GetComponentInParent<IslandSurfaceAnchor>(true);
+            support|=FindTop(board,exit.transform,cell,ref landing);
             if(anchor)support|=FindTop(board,anchor.transform,cell,ref landing);
         }
         // Portals can place a player on any magnetic shape, including upright pieces.
@@ -59,6 +60,7 @@ public sealed class BlackHolePortal : MonoBehaviour {
         EntryDirection=Cell-lastOutside;
         armed=false;BlackHoleTravel.Begin(this);
     }
+    public void Enter(Vector2Int direction){EntryDirection=direction;armed=false;BlackHoleTravel.Begin(this);}
     public void Disarm(){armed=false;}
 }
 }

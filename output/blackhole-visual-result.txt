@@ -1,1 +1,1 @@
-PASS: Actual test scene, flat/upright presets, real walk-in, camera pan, destination preview/confirm, cargo-first arrival and player landing. Screenshots captured.
+PASS: Actual test scene, flat/upright/merge/stone-bounce presets, real walk-in, camera pan, destination preview/confirm, cargo-first arrival and player landing. Screenshots captured.

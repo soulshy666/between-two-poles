@@ -178,6 +178,7 @@ public sealed partial class PlayerPushPose:MonoBehaviour {
         posed.vertices=workVertices;if(normals.Length==vertices.Length)posed.normals=workNormals;
     }
     public void End(){
+        ResetPortalEntry();
         ResetStonePush();
         idlePlaying=false;idleElapsed=0;idleWait=0;
         breathing=false;breathingElapsed=0;

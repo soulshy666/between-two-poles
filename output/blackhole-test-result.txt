@@ -1,1 +1,1 @@
-PASS: 504 checks: placement/removal, duplicates, four directions, void/elevated exits, occupied portal, editor suppression, presets, full local travel and cancel with screen effects.
+PASS: 621 checks: placement/removal, duplicates, four directions, void/elevated exits, occupied portal, editor suppression, presets, full local travel and cancel with screen effects.
