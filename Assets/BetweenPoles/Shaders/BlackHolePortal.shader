@@ -10,7 +10,9 @@ Shader "BetweenPoles/BlackHolePortal" {
  float _IslandRigidLayout,_RecoilFlying; float3 _IceCurveFocus,_RecoilDisplayOffset;
  // One continuous arc for terrain, bridges and actors: no separate shore offsets.
  float _IslandFlatEnabled;float4 _IslandFlatBounds;
- float3 surfaceFrame(float3 p,out float3 axis,out float a){
+ float _IslandPlanar;
+  float3 surfaceFrame(float3 p,out float3 axis,out float a){
+   if(_IslandPlanar>.5){axis=float3(0,0,1);a=0;return _IceFocus.xyz+(p-_IceFocus.xyz)*max(1,_IslandDisplayScale);}
   float3 basePoint=_IceCurveFocus;
   if(_IslandFlatEnabled>.5)basePoint=float3(clamp(p.x,_IslandFlatBounds.x,_IslandFlatBounds.z),_IceCurveFocus.y,clamp(p.z,_IslandFlatBounds.y,_IslandFlatBounds.w));
   float3 q=(p-basePoint)*max(1,_IslandDisplayScale);

@@ -3,6 +3,7 @@ namespace BetweenPoles {
  [ExecuteAlways,DefaultExecutionOrder(100)] public class CurvedTrialCamera:MonoBehaviour {
   public IslandCamera island;
   public Transform planet;
+  public bool PlanarChapter {get{return island&&island.board&&island.board.gameObject.scene.name.StartsWith("Chapter0");}}
   public Vector3 editFocus=new Vector3(-3.75f,0,0);
   [Range(5.5f,12),InspectorName("最小观察范围")] public float planningSize=7.4f;
   [InspectorName("随主岛大小扩大视野")] public bool fitIsland=true;
@@ -40,7 +41,7 @@ namespace BetweenPoles {
   bool flatInitialized;
   readonly Vector4[] anchors=new Vector4[16];
   void OnEnable(){Apply(editFocus);}
-  void OnDisable(){Shader.SetGlobalFloat("_IslandRigidLayout",0);Shader.SetGlobalFloat("_IslandFlatEnabled",0);flatInitialized=false;}
+  void OnDisable(){Shader.SetGlobalFloat("_IslandPlanar",0);Shader.SetGlobalFloat("_IslandRigidLayout",0);Shader.SetGlobalFloat("_IslandFlatEnabled",0);flatInitialized=false;}
   void UpdateFlatIsland(FiveIslandWindow window,Vector3 focus){
    bool valid=island&&island.board&&island.islandCenters!=null&&island.islandCenters.Length>0;
    if(!valid){Shader.SetGlobalFloat("_IslandFlatEnabled",0);flatInitialized=false;return;}
@@ -85,6 +86,9 @@ namespace BetweenPoles {
   public void Apply(Vector3 focus){
    // Share the physical camera offset in edit mode and during island transitions.
    if(island)island.ApplyView(focus);
+   bool planar=PlanarChapter;
+   Shader.SetGlobalFloat("_IslandPlanar",planar?1:0);
+   if(planar&&planet&&planet.gameObject.activeSelf)planet.gameObject.SetActive(false);
    Shader.SetGlobalFloat("_IceRadius",planetRadius);
    var layoutWindow=island&&island.board?island.board.GetComponent<FiveIslandWindow>():null;
    UpdateFlatIsland(layoutWindow,focus);
@@ -106,25 +110,27 @@ namespace BetweenPoles {
    Shader.SetGlobalFloat("_IslandEdgeLayout",0);
    Shader.SetGlobalVectorArray("_IslandAnchors",anchors);Shader.SetGlobalInt("_IslandCount",count);
    Vector3 rotationFocus=(fixedDisplayOrigin?displayOrigin+(focus-displayOrigin)/Mathf.Max(1,displayScale):focus)-rotationOrigin;
-   Quaternion rotation=Quaternion.FromToRotation(SphereNormal(rotationFocus,planetRadius),Vector3.up);Shader.SetGlobalMatrix("_IceRotation",Matrix4x4.Rotate(rotation));
+   Quaternion rotation=planar?Quaternion.identity:Quaternion.FromToRotation(SphereNormal(rotationFocus,planetRadius),Vector3.up);Shader.SetGlobalMatrix("_IceRotation",Matrix4x4.Rotate(rotation));
    float visibleRadius=displayRadius>0?displayRadius*globeDisplayScale:planetRadius;
-   if(planet&&!recoil&&(!fixedDisplayOrigin||settlingFlight)){
+   if(planet&&!planar&&!recoil&&(!fixedDisplayOrigin||settlingFlight)){
     Vector3 destination=centeredGlobe?focus+transform.forward*(planetRadius+1.5f):new Vector3(focus.x,-planetRadius-.15f,focus.z);
     if(displayRadius>0)destination=focus+transform.forward*(visibleRadius+1.5f)+transform.up*globeVerticalOffset;
     float follow=settlingFlight?Mathf.SmoothStep(0,1,Mathf.Clamp01(settleElapsed/Mathf.Max(.8f,island.transitionSeconds*2))):1;
     planet.position=Vector3.Lerp(settlingFlight?settlePlanet:planet.position,destination,follow);planet.rotation=Quaternion.Slerp(settlingFlight?settleRotation:planet.rotation,rotation,follow);planet.localScale=Vector3.one*(visibleRadius/10);
    }
-   Shader.SetGlobalFloat("_IceDiskRadius",displayRadius>0?visibleRadius:0);
+   Shader.SetGlobalFloat("_IceDiskRadius",!planar&&displayRadius>0?visibleRadius:0);
    if(planet)Shader.SetGlobalVector("_IceDiskCenter",planet.position);
    Shader.SetGlobalVector("_IceDiskRight",transform.right);Shader.SetGlobalVector("_IceDiskUp",transform.up);
    var camera=GetComponent<Camera>();if(camera){
-    float size=planningSize;
+    // Flat chapters no longer need the wide margin reserved for the globe.
+    float size=planningSize*(planar?.8f:1f);
+    float framingMargin=planar?1.4f:2.8f;
     if(fitIsland&&count>0&&island.board){
      int selected=0;for(int j=window?count:1;j<count;j++)if(((Vector3)anchors[j]-focus).sqrMagnitude<((Vector3)anchors[selected]-focus).sqrMagnitude)selected=j;
      Vector3 center=anchors[selected];
      foreach(var tile in island.board.tiles){if(!tile||!tile.gameObject.activeInHierarchy)continue;Vector3 p=tile.transform.position;int owner=0;for(int j=1;j<count;j++)if((p-(Vector3)anchors[j]).sqrMagnitude<(p-(Vector3)anchors[owner]).sqrMagnitude)owner=j;var binding=tile.GetComponentInParent<IslandSurfaceAnchor>();if(binding&&binding.center){if(window&&binding.center!=centers[selected])continue;for(int j=0;j<count;j++)if(centers[j]==binding.center){owner=j;break;}}if(owner!=selected)continue;
       Vector3 delta=(p-center)*displayScale;float pad=island.board.cellSize*.72f*displayScale;
-      size=Mathf.Max(size,Mathf.Abs(Vector3.Dot(transform.up,delta))+pad+2.8f,(Mathf.Abs(Vector3.Dot(transform.right,delta))+pad+2.8f)/Mathf.Max(.5f,camera.aspect));
+      size=Mathf.Max(size,Mathf.Abs(Vector3.Dot(transform.up,delta))+pad+framingMargin,(Mathf.Abs(Vector3.Dot(transform.right,delta))+pad+framingMargin)/Mathf.Max(.5f,camera.aspect));
      }
     }
     // Start at the correct framing; subsequent island changes ease both ways.
