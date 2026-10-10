@@ -8,7 +8,7 @@ public sealed partial class MagnetDebugPanel {
     void Label(Rect r,string s,Color color,int size=14,TextAnchor align=TextAnchor.MiddleLeft){textStyle.normal.textColor=color;textStyle.fontSize=size;textStyle.alignment=align;GUI.Label(r,s,textStyle);}
     bool Button(Rect r,string title,bool active=false){Fill(new Rect(r.x+3,r.y+3,r.width,r.height),Color.black);Fill(r,Color.black);Fill(new Rect(r.x+2,r.y+2,r.width-4,r.height-4),active?accent:paper);Label(r,title,active?Color.white:ink,14,TextAnchor.MiddleCenter);return GUI.Button(r,GUIContent.none,GUIStyle.none);}
     void SelectCell(Vector2Int p){
-        selected=p;if(PortalAt(p)){shape=10;return;}var m=board.MagnetAt(p);if(!m){var tile=board.TileAt(p);shape=tile&&tile.blocked?9:8;if(shape==9)rockStyle=tile.rockStyle;return;}
+        selected=p;if(PortalAt(p)){shape=10;return;}var m=board.MagnetAt(p);if(!m){var tile=board.TileAt(p);shape=tile&&tile.blocked?9:8;if(shape==9){rockStyle=tile.rockStyle;rockTheme=tile.rockTheme;}return;}
         shape=m.product==MagnetProduct.None?(m.shape==MagnetShape.Bar?0:1):(int)m.product+1;
         pole=(m.product==MagnetProduct.Lift||m.product==MagnetProduct.Bridge||m.product==MagnetProduct.BridgeHalf?m.baseNorth:m.north)?0:1;
         yaw=Mathf.RoundToInt(m.transform.eulerAngles.y/90)%4;
@@ -33,17 +33,17 @@ public sealed partial class MagnetDebugPanel {
         Fill(new Rect(0,62,280,height-62),paper);Fill(new Rect(280,62,4,height-62),Color.black);
         Fill(new Rect(0,62,280,42),ink);Label(new Rect(18,66,240,34),section==0?"/ 测试布局":section==1?"/ 物品样式":"/ 格子操作",Color.white,17);
         var lab=board.GetComponent<MagnetTestLayouts>();
-        if(section==0&&lab){string[] names={"冰面宽桥","悬空十字","圆环","反冲","单层磁流","两格桥","十字拨动","两层磁流","竖立接收 · 十字","竖立接收 · 宽桥","两黑洞传送","黑洞 · 平躺磁铁","黑洞 · 竖直磁铁"};layoutScroll=GUI.BeginScrollView(new Rect(8,114,264,414),layoutScroll,new Rect(0,0,242,names.Length*38));for(int i=0;i<names.Length;i++)if(Button(new Rect(8,i*38,230,33),names[i])){lab.Load(i);pan=Vector2Int.zero;SelectCell(board.PlayerCell);status=lab.instruction;}GUI.EndScrollView();Label(new Rect(16,540,244,160),lab.instruction,ink);}
+        if(section==0&&lab){string[] names={"冰面宽桥","悬空十字","圆环","反冲","单层磁流","两格桥","十字拨动","两层磁流","竖立接收 · 十字","竖立接收 · 宽桥","两黑洞传送","黑洞 · 平躺磁铁","黑洞 · 竖直磁铁","黑洞 · 出口组合登高","黑洞 · 石头反弹登高"};layoutScroll=GUI.BeginScrollView(new Rect(8,114,264,414),layoutScroll,new Rect(0,0,242,names.Length*38));for(int i=0;i<names.Length;i++)if(Button(new Rect(8,i*38,230,33),names[i])){lab.Load(i);pan=Vector2Int.zero;SelectCell(board.PlayerCell);status=lab.instruction;}GUI.EndScrollView();Label(new Rect(16,540,244,160),lab.instruction,ink);}
         if(section==1){for(int row=0;row<kinds.Length;row++){int i=row==8?9:row==9?10:row==10?8:row;var r=new Rect(16,114+row*34,246,30);bool clicked=Button(r,"",shape==i);Icon(new Rect(r.x+10,r.y+3,35,27),i,pole==0,0);Label(new Rect(r.x+54,r.y,185,r.height),kinds[i],shape==i?Color.white:ink);if(clicked)Pick(i);}
             if(shape==10){Label(new Rect(16,510,244,180),"先放置至少两个黑洞。磁铁可保持姿态推入，再让玩家进入。移动镜头选出口：平躺磁铁先出，玩家踩上；竖直磁铁先出，再被玩家踢倒一格。",ink,14);}
             else if(shape==9){
-                Label(new Rect(16,510,240,24),"石头样式",ink);
-                for(int i=0;i<2;i++)if(Button(new Rect(16+i*129,540,117,38),i==0?"圆石头":"高石头",rockStyle==i)){
-                    rockStyle=i;var tile=board.TileAt(selected);
-                    if(tile&&tile.blocked){tile.rockStyle=i;IceRockVisuals.Apply(board);status="已切换为"+(i==0?"圆石头":"高石头")+"。";}
-                    else ApplySelectedStyle();
-                }
-                Label(new Rect(16,590,244,65),"选择样式后立即更新所选石头；新放置的石头使用当前样式。",ink,13);
+                string[] stones={"圆石头","高石头","矮石头"};
+                Label(new Rect(16,498,240,24),"石头形状",ink);
+                for(int i=0;i<3;i++)if(Button(new Rect(16+i*84,525,78,30),stones[i],rockStyle==i)){rockStyle=i;ApplySelectedStyle();}
+                Label(new Rect(16,563,240,24),"星球外观",ink);
+                string[] themes={"原石 · 无装饰","1 · 冰雪世界","2 · 丛林世界","3 · 星环沙岩","4 · 熔岩世界"};
+                for(int i=0;i<5;i++)if(Button(new Rect(16+(i%2)*126,590+(i/2)*34,120,30),themes[i],rockTheme==i)){rockTheme=i;ApplySelectedStyle();}
+                Label(new Rect(16,695,245,30),"矮石顶面平坦，踩踏机制后续接入。",ink,11);
             }else{
             Label(new Rect(16,510,240,24),"极性",ink);if(Button(new Rect(16,540,117,32),"N / 红",pole==0)){pole=0;if(shape<8)ApplySelectedStyle();}if(Button(new Rect(145,540,117,32),"S / 蓝",pole==1)){pole=1;if(shape<8)ApplySelectedStyle();}
             Label(new Rect(16,578,240,22),"朝向",ink);for(int i=0;i<4;i++)if(Button(new Rect(16+i*63,604,57,32),i*90+"°",yaw==i)){yaw=i;if(shape<8)ApplySelectedStyle();}
@@ -67,7 +67,7 @@ public sealed partial class MagnetDebugPanel {
             if(t&&t.blocked){Fill(new Rect(r.x+11,r.y+11,26,26),new Color(.4f,.47f,.52f));Fill(new Rect(r.x+14,r.y+8,23,8),new Color(.62f,.68f,.72f));}
             var portal=PortalAt(p);if(portal){Icon(new Rect(r.x+6,r.y+6,36,36),10,false,0);if(portal.Cargo)Label(new Rect(r.x,r.yMax-15,r.width,15),"有磁铁",ink,10,TextAnchor.MiddleCenter);}
             if(m)TopView(r,m,p);
-            if(t&&t.surfaceHeight>.1f)Label(new Rect(r.x+1,r.y,20,16),Mathf.RoundToInt(t.surfaceHeight/board.cellSize)+"H",ink,10);
+            if(t&&t.surfaceHeight>.1f)Label(new Rect(r.x+1,r.y,20,16),Mathf.RoundToInt(t.surfaceHeight/board.LayerHeight)+"H",ink,10);
             if(p==board.PlayerCell){Fill(new Rect(r.center.x-8,r.center.y-8,16,16),new Color(1,.72f,.08f));Fill(new Rect(r.center.x-6,r.center.y-6,12,12),new Color(1,.9f,.5f));}
             if(p==selected){Fill(new Rect(r.x,r.y,size,3),accent);Fill(new Rect(r.x,r.y,3,size),accent);Fill(new Rect(r.xMax-3,r.y,3,size),accent);Fill(new Rect(r.x,r.yMax-3,size,3),accent);}
             if(GUI.Button(r,GUIContent.none,GUIStyle.none)){SelectCell(p);status="已选中 ("+p.x+", "+p.y+")，点击左侧样式即可修改。";}

@@ -5,7 +5,7 @@ using UnityEngine;
 namespace BetweenPoles {
 public sealed partial class MagnetDebugPanel:MonoBehaviour {
     public bool IsOpen {get;private set;}
-    GridPlayground board;Vector2Int selected;int shape=8,pole,yaw,pose,rockStyle;string status="先选择画布中的格子，再点击左侧样式。";
+    GridPlayground board;Vector2Int selected;int shape=8,pole,yaw,pose,rockStyle,rockTheme=1;string status="先选择画布中的格子，再点击左侧样式。";
     public void Toggle(){if(!board)board=GetComponent<GridPlayground>();if(board.Busy||BlackHoleTravel.Selecting||BlackHoleTravel.InTransit)return;IsOpen=!IsOpen;if(IsOpen)SelectCell(board.PlayerCell);}
     public bool Place(){
         if(board.Busy||BlackHoleTravel.Selecting||BlackHoleTravel.InTransit)return false;
@@ -16,7 +16,7 @@ public sealed partial class MagnetDebugPanel:MonoBehaviour {
             lab.PlacePortal(ground);board.CaptureInitialState();status="已放置黑洞。至少放置两个，开始游玩后走入黑洞即可选择出口。";return true;
         }
         if(PortalAt(selected)){status="请先清除这个格子的黑洞，再放置其他物品。";return false;}
-        if(shape==9){var ground=board.TileAt(selected);if(!ground||selected==board.PlayerCell||board.MagnetAt(selected)){status="石头需要空的地面格，不能覆盖主角或磁铁。";return false;}SetFloor(Mathf.RoundToInt(ground.surfaceHeight/board.cellSize),true);return true;}
+        if(shape==9){var ground=board.TileAt(selected);if(!ground||selected==board.PlayerCell||board.MagnetAt(selected)){status="石头需要空的地面格，不能覆盖主角或磁铁。";return false;}SetFloor(Mathf.RoundToInt(ground.surfaceHeight/board.LayerHeight),true);return true;}
         var existing=board.MagnetAt(selected);
         if(selected==board.PlayerCell){status="主角所在格不能放置磁铁。";return false;}
         var tile=board.TileAt(selected);if(tile&&tile.blocked){status="石头挡住这个格子。";return false;}
@@ -43,7 +43,7 @@ public sealed partial class MagnetDebugPanel:MonoBehaviour {
     }
     void Erase(){
         var portal=PortalAt(selected);if(portal&&portal.Cargo){status="黑洞中还有磁铁，请先完成传送或撤销入洞，再清除黑洞。";return;}if(portal){portal.gameObject.SetActive(false);Destroy(portal.gameObject);board.CaptureInitialState();status="已清除黑洞。";return;}
-        var m=board.MagnetAt(selected);if(!m){var ground=board.TileAt(selected);if(ground&&ground.blocked){SetFloor(Mathf.RoundToInt(ground.surfaceHeight/board.cellSize),false);status="已清除石头。";}else status="该格没有可清除的物品。";return;}
+        var m=board.MagnetAt(selected);if(!m){var ground=board.TileAt(selected);if(ground&&ground.blocked){SetFloor(Mathf.RoundToInt(ground.surfaceHeight/board.LayerHeight),false);status="已清除石头。";}else status="该格没有可清除的物品。";return;}
         if(selected==board.PlayerCell){
             Vector2Int[] dirs={Vector2Int.right,Vector2Int.left,Vector2Int.up,Vector2Int.down};
             var safe=dirs.Select(d=>selected+d).FirstOrDefault(p=>{var t=board.TileAt(p);return t&&!t.blocked&&board.MagnetAt(p)==null;});
@@ -57,8 +57,8 @@ public sealed partial class MagnetDebugPanel:MonoBehaviour {
     void SetFloor(int layer,bool blocked){
         if(PortalAt(selected)){status="请先清除黑洞，再修改其地块高度或障碍。";return;}
         var t=board.TileAt(selected);if(!t||selected==board.PlayerCell||board.MagnetAt(selected)){status="请选择没有主角或磁铁的已有地面格。";return;}
-        t.surfaceHeight=layer*board.cellSize;t.blocked=blocked;if(blocked)t.rockStyle=rockStyle;
-        var previous=t.transform.Find("调试高台");if(previous){previous.gameObject.SetActive(false);Destroy(previous.gameObject);}
+        t.surfaceHeight=layer*board.LayerHeight;t.blocked=blocked;if(blocked){t.rockStyle=rockStyle;t.rockTheme=rockTheme;}
+        var previous=t.transform.Find("调试高台");if(previous){previous.name="待清理高台";previous.gameObject.SetActive(false);Destroy(previous.gameObject);}
         float height=blocked?t.surfaceHeight+.8f:t.surfaceHeight;if(height>.01f){var g=GameObject.CreatePrimitive(PrimitiveType.Cube);g.name="调试高台";g.transform.SetParent(t.transform,false);g.transform.localPosition=Vector3.up*height*.5f;g.transform.localScale=new Vector3(board.cellSize*.96f,height,board.cellSize*.96f);Destroy(g.GetComponent<Collider>());var mat=new Material(Shader.Find("BetweenPoles/PaintedIceTrial"));mat.color=blocked?new Color(.3f,.5f,.6f):new Color(.72f,.85f,.92f);g.GetComponent<Renderer>().sharedMaterial=mat;var binding=g.AddComponent<IslandSurfaceAnchor>();var owner=t.GetComponentInParent<IslandSurfaceAnchor>();if(owner){binding.center=owner.center;binding.Apply();}}
         board.CaptureInitialState();status=blocked?"已加入测试障碍。":"已设置 "+layer+" 层高台。";
     }

@@ -18,7 +18,10 @@ public sealed partial class BlackHoleTravel {
             }
             entryFacing=Quaternion.LookRotation(new Vector3(entryDirection.x,0,entryDirection.y));
             board.RecordPortalJourney();
-            yield return effect.Absorb(BlackHoleScreenEffect.ScreenCenter(source),2.8f,source);
+            source.board.SetPortalBusy(true);
+        yield return effect.Absorb(BlackHoleScreenEffect.ScreenCenter(source),2.8f,source);
+        var entryPose=source.board.player.GetComponent<PlayerPushPose>();if(entryPose)entryPose.End();
+        source.board.SetPortalBusy(false);
             board.player.localScale=Vector3.zero;
             testPortals=MagnetTestLayouts.Portals(board);testDestination=null;previewPortal=null;testCancel=false;
             BeginNavigation(board);
@@ -56,7 +59,7 @@ public sealed partial class BlackHoleTravel {
     bool SelectTestPortal(BlackHolePortal portal,bool cancel){
         ExitPlan plan;
         bool valid=portal&&(cancel?CancelPlan(portal,-entryDirection,out plan):portal!=origin&&PlanExit(portal,entryDirection,origin.Cargo,out plan));
-        if(!valid){testMessage="出口空间不足：检查黑洞、出洞格及竖直磁铁向前倒下的一格。";return false;}
+        if(!valid){testMessage="出口无法安全落脚或组合：检查出口、竖直磁铁倒下的一格，以及磁铁弹回入口的位置。";return false;}
         testDestination=portal;testCancel=cancel;return true;
     }
 }

@@ -38,7 +38,7 @@ public sealed class MagnetTestLayouts:MonoBehaviour {
         for(int z=-3;z<=3;z++)for(int x=-4;x<=4;x++){
             if((preset==5&&z==0&&(x==0||x==1))||(preset==1&&x==0&&z==0))continue;
             var g=new GameObject("测试格 "+x+","+z);g.transform.SetParent(runtimeRoot.transform,false);g.transform.position=new Vector3(x*board.cellSize,0,z*board.cellSize);
-            var t=g.AddComponent<GridTile>();float height=preset==4&&x==1&&z==0?board.cellSize:preset==7&&x==0&&z==1?2*board.cellSize:0;t.surfaceHeight=height;
+            var t=g.AddComponent<GridTile>();float height=(preset==13||preset==14)&&x==4&&z==0?board.LayerHeight:preset==4&&x==1&&z==0?board.LayerHeight:preset==7&&x==0&&z==1?2*board.LayerHeight:0;t.surfaceHeight=height;
             var box=GameObject.CreatePrimitive(PrimitiveType.Cube);box.transform.SetParent(g.transform,false);box.transform.localPosition=Vector3.up*(height*.5f-.08f);box.transform.localScale=new Vector3(board.cellSize-.02f,height+.16f,board.cellSize-.02f);Destroy(box.GetComponent<Collider>());box.GetComponent<Renderer>().sharedMaterial=floorMat;
             var binding=g.AddComponent<IslandSurfaceAnchor>();binding.center=center;binding.Apply();tiles.Add(t);
         }
@@ -46,12 +46,18 @@ public sealed class MagnetTestLayouts:MonoBehaviour {
         System.Func<int,int,MagnetShape,bool,Quaternion,MagnetPiece> add=(x,z,shape,north,pose)=>{var m=MagnetVisuals.Create(runtimeRoot.transform,new Vector3(x*board.cellSize,0,z*board.cellSize),shape,north,pose,board.cellSize,center);pieces.Add(m);return m;};
         Quaternion flat=Quaternion.identity,vertical=Quaternion.Euler(0,0,90),alongZ=Quaternion.Euler(0,90,0);
         var playerCell=new Vector2Int(-2,0);
-        if(preset>=10&&preset<=12){
+        if(preset>=10&&preset<=14){
             // Clear the old occupants before creating the two reusable test portals.
             board.magnets=new MagnetPiece[0];
             PlacePortal(board.TileAt(new Vector2Int(-1,0)));PlacePortal(board.TileAt(new Vector2Int(2,0)));
-            if(preset>10){add(-2,0,MagnetShape.Bar,false,preset==11?flat:vertical);playerCell=new Vector2Int(-3,0);}
+            if(preset>10){add(-2,0,MagnetShape.Bar,false,preset==12?vertical:flat);playerCell=new Vector2Int(-3,0);}
             instruction=preset==10?"走入黑洞后，移动镜头、点击出口并确认。WASD 移动视野，滚轮缩放，Esc 返回。":preset==11?"向右将平躺蓝条推入黑洞，再向右走入。选择右侧出口：蓝条保持平躺先出来，玩家随后踩上蓝条。":"向右将竖直蓝条推入黑洞，再向右走入。选择右侧出口：蓝条竖直先出来，玩家将它向前踢倒一格，并占据蓝条原来的位置。";
+        }
+        if(preset==13||preset==14){
+            if(preset==13)add(3,0,MagnetShape.Bar,true,flat);
+            else {var tile=board.TileAt(new Vector2Int(3,0));tile.blocked=true;tile.rockStyle=2;
+                var stone=GameObject.CreatePrimitive(PrimitiveType.Cube);stone.name="调试高台";stone.transform.SetParent(tile.transform,false);stone.GetComponent<Renderer>().sharedMaterial=floorMat;Destroy(stone.GetComponent<Collider>());}
+            instruction=preset==13?"向右推磁铁入洞，再走入并选择右侧黑洞。磁铁先与出口红条合成宽条，玩家向上抛出落在宽条上，再向右走上一层平台。":"向右推磁铁入洞，再走入并选择右侧黑洞。磁铁碰石头弹回原入口的入洞前位置；玩家随后抛出落在矮石头上，再向右走上一层平台。";
         }
         if(preset==0){add(-1,0,MagnetShape.Bar,true,alongZ);add(0,0,MagnetShape.Bar,false,flat);instruction="向右推：两条长轴垂直，接收格有冰面，按蓝色接收条的朝向对齐成一格宽桥。";}
         if(preset==1){add(-1,0,MagnetShape.Bar,true,alongZ);add(0,0,MagnetShape.Bar,false,flat);instruction="向右推：同样的垂直长条，接收格没有冰面；蓝条下沉、红条叠上，形成十字。再次推会原地旋转。";}
