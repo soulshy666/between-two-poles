@@ -69,9 +69,10 @@ public sealed partial class GridPlayground {
         return deck.transform.position.y+.24f;
     }
     bool Supported(MagnetPiece m){
-        var cell=Cell(m.transform);var tile=Tile(cell);var deck=Deck(cell,m);
-        return (tile&&!tile.blocked&&SameHeight(tile.surfaceHeight,m.transform.position.y))
-            ||(deck&&(!GapWideBar(deck)||WideBarConnected(deck))&&SameHeight(DeckHeight(deck),m.transform.position.y));
+        var cell=Cell(m.transform);var tile=Tile(cell);
+        if(tile&&!tile.blocked&&SameHeight(tile.surfaceHeight,m.transform.position.y))return true;
+        var deck=Deck(cell,m);
+        return deck&&(!GapWideBar(deck)||WideBarConnected(deck))&&SameHeight(DeckHeight(deck),m.transform.position.y);
     }
     bool TravelSurface(Vector2Int from,float height,Vector2Int to,MagnetPiece moving,out float landing){
         landing=height;var tile=Tile(to);var deck=Deck(to,moving);var source=Deck(from,moving);

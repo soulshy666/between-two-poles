@@ -125,6 +125,7 @@ public sealed class ChapterRecoilTravel:MonoBehaviour {
         var desiredInner=new Vector2Int(Mathf.FloorToInt(actor.position.x/cellSize)-16,Mathf.RoundToInt(actor.position.z/cellSize));
         var shiftCell=desiredInner-innerCell;var shift=new Vector3(shiftCell.x*cellSize,0,shiftCell.y*cellSize);
         foreach(var root in destination.GetRootGameObjects())root.transform.position+=shift;
+        board.InvalidateTileLookup();
         shore+=shiftCell;innerCell+=shiftCell;
         var targetIsland=targetView.island;var targetCenters=targetIsland.islandCenters;
         var targetPlanet=targetView.planet;

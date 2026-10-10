@@ -35,6 +35,7 @@ namespace BetweenPoles {
    settlePlanet=planet?planet.position:Vector3.zero;settleRotation=planet?planet.rotation:Quaternion.identity;
    settleElapsed=0;settlingFlight=true;
   }
+  float fittedSize,nextFitTime;Transform fittedCenter;
   float zoomVelocity;
   bool zoomInitialized;
   Vector4 flatBounds;
@@ -91,7 +92,7 @@ namespace BetweenPoles {
    if(planar&&planet&&planet.gameObject.activeSelf)planet.gameObject.SetActive(false);
    Shader.SetGlobalFloat("_IceRadius",planetRadius);
    var layoutWindow=island&&island.board?island.board.GetComponent<FiveIslandWindow>():null;
-   UpdateFlatIsland(layoutWindow,focus);
+   if(planar)Shader.SetGlobalFloat("_IslandFlatEnabled",0);else UpdateFlatIsland(layoutWindow,focus);
    bool edgeLayout=layoutWindow&&layoutWindow.enabled;
    bool recoil=island&&island.board&&island.board.RecoilFlying;
    Vector3 renderFocus=fixedDisplayOrigin?displayOrigin:recoil?island.board.RecoilOrigin:focus;
@@ -128,11 +129,16 @@ namespace BetweenPoles {
     if(fitIsland&&count>0&&island.board){
      int selected=0;for(int j=window?count:1;j<count;j++)if(((Vector3)anchors[j]-focus).sqrMagnitude<((Vector3)anchors[selected]-focus).sqrMagnitude)selected=j;
      Vector3 center=anchors[selected];
+     bool cached=Application.isPlaying&&fittedCenter==centers[selected]&&Time.unscaledTime<nextFitTime;
+     if(cached)size=fittedSize;
+     else {
      foreach(var tile in island.board.tiles){if(!tile||!tile.gameObject.activeInHierarchy)continue;Vector3 p=tile.transform.position;int owner=0;for(int j=1;j<count;j++)if((p-(Vector3)anchors[j]).sqrMagnitude<(p-(Vector3)anchors[owner]).sqrMagnitude)owner=j;var binding=tile.GetComponentInParent<IslandSurfaceAnchor>();if(binding&&binding.center){if(window&&binding.center!=centers[selected])continue;for(int j=0;j<count;j++)if(centers[j]==binding.center){owner=j;break;}}if(owner!=selected)continue;
       Vector3 delta=(p-center)*displayScale;float pad=island.board.cellSize*.72f*displayScale;
       size=Mathf.Max(size,Mathf.Abs(Vector3.Dot(transform.up,delta))+pad+framingMargin,(Mathf.Abs(Vector3.Dot(transform.right,delta))+pad+framingMargin)/Mathf.Max(.5f,camera.aspect));
      }
-    }
+     }
+     if(!cached){fittedSize=size;fittedCenter=centers[selected];nextFitTime=Time.unscaledTime+.25f;}
+     }
     // Start at the correct framing; subsequent island changes ease both ways.
     if(!Application.isPlaying||!zoomInitialized){
      camera.orthographicSize=size;zoomVelocity=0;zoomInitialized=Application.isPlaying;

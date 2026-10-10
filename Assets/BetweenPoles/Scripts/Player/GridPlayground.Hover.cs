@@ -9,12 +9,26 @@ public sealed partial class GridPlayground {
     readonly List<MagnetPiece> expiredHovers=new List<MagnetPiece>();
     readonly Dictionary<MagnetPiece,float> hoverLevels=new Dictionary<MagnetPiece,float>();
     readonly List<Vector3> hoverVertices=new List<Vector3>();
+    readonly Dictionary<Vector2Int,MagnetPiece> hoverNeighbors=new Dictionary<Vector2Int,MagnetPiece>();
+    void IndexHoverNeighbors(){
+        hoverNeighbors.Clear();
+        foreach(var m in magnets){
+            if(!m||!m.enabled||!m.gameObject.activeInHierarchy||IsKnockedFlying(m))continue;
+            var cell=Cell(m.transform);IndexHoverCell(cell,m);
+            if(m.product==MagnetProduct.Bridge||m.product==MagnetProduct.BridgeHalf)IndexHoverCell(cell+m.bridgeDirection,m);
+        }
+    }
+    void IndexHoverCell(Vector2Int cell,MagnetPiece m){
+        hoverNeighbors.TryGetValue(cell,out var previous);
+        if(!previous||m.transform.position.y>previous.transform.position.y+.01f
+            ||(SameHeight(m.transform.position.y,previous.transform.position.y)&&previous.walkable&&!m.walkable))hoverNeighbors[cell]=m;
+    }
     float EdgeHoverLevel(MagnetPiece m){
         if(ShoreLevelBridge(m))return DeckHeight(m)-MagnetGeometryTop(m);
         if(m.combined||m.product!=MagnetProduct.None)return 0;
         var cell=Cell(m.transform);
         foreach(var dir in new[]{Vector2Int.right,Vector2Int.left,Vector2Int.up,Vector2Int.down}){
-            var neighbor=Piece(cell+dir);
+            hoverNeighbors.TryGetValue(cell+dir,out var neighbor);
             if(neighbor&&!neighbor.combined&&neighbor.product==MagnetProduct.None&&neighbor.north==m.north
                 &&SameHeight(neighbor.transform.position.y,m.transform.position.y)&&Supported(neighbor))return 0;
         }
@@ -29,7 +43,9 @@ public sealed partial class GridPlayground {
             if(!filter.sharedMesh)continue;
             var renderer=filter.GetComponent<Renderer>();if(renderer&&!renderer.enabled)continue;
             filter.sharedMesh.GetVertices(hoverVertices);
-            foreach(var vertex in hoverVertices)top=Mathf.Max(top,filter.transform.TransformPoint(vertex).y);
+            // Read the transform once per mesh, not once for every vertex.
+            var matrix=filter.transform.localToWorldMatrix;
+            foreach(var vertex in hoverVertices)top=Mathf.Max(top,matrix.m10*vertex.x+matrix.m11*vertex.y+matrix.m12*vertex.z+matrix.m13);
         }
         return float.IsNegativeInfinity(top)?m.transform.position.y:top;
     }
@@ -65,6 +81,7 @@ public sealed partial class GridPlayground {
     }
     void UpdateMagnetHover(){
         RestoreMagnetHover(null);
+        IndexHoverNeighbors();
         expiredHovers.Clear();
         foreach(var entry in hoveringMagnets)
             if(!ShouldHover(entry.Key))expiredHovers.Add(entry.Key);

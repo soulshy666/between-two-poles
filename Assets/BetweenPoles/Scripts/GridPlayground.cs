@@ -71,7 +71,18 @@ public sealed partial class GridPlayground:MonoBehaviour {
     }
     struct Snapshot { public BlackHolePortal storedInPortal; public Transform parent,owner; public Vector3 position,scale,portalEntryPosition; public Quaternion rotation; public bool combined,walkable,enabled,active,north; public Transform geometry; public Quaternion pose; public Vector3 geoPosition; public MagnetShape shape; public MagnetProduct product; public bool baseNorth; public Vector2Int bridgeDirection; }
     Vector2Int Cell(Transform t){return new Vector2Int(Mathf.RoundToInt(t.position.x/cellSize),Mathf.RoundToInt(t.position.z/cellSize));}
-    GridTile Tile(Vector2Int p){foreach(var t in tiles)if(t&&Cell(t.transform)==p)return t;return null;}
+    readonly System.Collections.Generic.Dictionary<Vector2Int,GridTile> frameTiles=new System.Collections.Generic.Dictionary<Vector2Int,GridTile>();
+    int tileFrame=-1;GridTile[] indexedTiles;Vector3 indexedBoardPosition;float indexedCellSize;
+    public void InvalidateTileLookup(){tileFrame=-1;}
+    GridTile Tile(Vector2Int p){
+        // Rebuild at most once per frame, preserving the authored first tile at each cell.
+        // Array replacement and chapter translation invalidate even in the same frame.
+        if(!Application.isPlaying||tileFrame!=Time.frameCount||indexedTiles!=tiles||indexedBoardPosition!=transform.position||indexedCellSize!=cellSize){
+            frameTiles.Clear();foreach(var t in tiles)if(t){var key=Cell(t.transform);if(!frameTiles.ContainsKey(key))frameTiles.Add(key,t);}
+            tileFrame=Time.frameCount;indexedTiles=tiles;indexedBoardPosition=transform.position;indexedCellSize=cellSize;
+        }
+        return frameTiles.TryGetValue(p,out var found)&&found?found:null;
+    }
     MagnetPiece Piece(Vector2Int p,MagnetPiece ignore=null){
         MagnetPiece result=null;
         foreach(var m in magnets)if(m&&m.enabled&&m!=ignore&&!IsKnockedFlying(m)&&m.gameObject.activeInHierarchy&&m.Occupies(p,cellSize))
@@ -87,6 +98,7 @@ public sealed partial class GridPlayground:MonoBehaviour {
         CaptureInitialState();
     }
     public void CaptureInitialState(){
+        InvalidateTileLookup();
         IslandEdgeDressing.Refresh(this);
         IceRockVisuals.Apply(this);
         recoilArrivals.Clear();
