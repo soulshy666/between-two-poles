@@ -41,6 +41,17 @@ public sealed class ChapterRecoilTravel:MonoBehaviour {
     }
     bool SourceHasLeftScreen(){
         var camera=view.GetComponent<Camera>();var planet=view.planet;
+        if(view.PlanarChapter){
+            // Wait until the departing island, rather than a hidden globe, is off screen.
+            float scale=Mathf.Max(1,Shader.GetGlobalFloat("_IslandDisplayScale"));
+            float left=float.PositiveInfinity;var window=source.GetComponent<FiveIslandWindow>();
+            foreach(var tile in source.tiles){if(!tile)continue;var owner=tile.GetComponentInParent<IslandSurfaceAnchor>();
+                if(window&&(!owner||owner.center!=window.rooms[window.CurrentRoom].center))continue;
+                var p=source.RecoilOrigin+(tile.transform.position-source.RecoilOrigin)*scale;
+                left=Mathf.Min(left,Vector3.Dot(p-camera.transform.position,camera.transform.right)-source.cellSize*scale);
+            }
+            return left>camera.orthographicSize*camera.aspect+source.cellSize;
+        }
         if(!planet)return true;
         float radius=view.displayRadius>0?view.displayRadius*view.globeDisplayScale:view.planetRadius;
         float right=Vector3.Dot(planet.position-camera.transform.position,camera.transform.right);
