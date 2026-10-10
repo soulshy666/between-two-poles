@@ -3,6 +3,7 @@ using UnityEngine;
 namespace BetweenPoles {
 public sealed class MagneticLinkPulse:MonoBehaviour {
     float begin,end,lane;
+    public bool horizontalOnly;
     Transform[] waveSegments,pulses;
 
     public void Configure(float start,float finish,float z) {
@@ -35,7 +36,7 @@ public sealed class MagneticLinkPulse:MonoBehaviour {
         }
         for(int i=0;i<pulses.Length;i++){
             float progress=Mathf.Repeat(time*1.25f+i/(float)pulses.Length,1);
-            pulses[i].localPosition=WavePoint(progress,time)+Vector3.up*.025f;
+            pulses[i].localPosition=WavePoint(progress,time)+Vector3.up*(horizontalOnly?0:.025f);
             float strength=.78f+Mathf.Sin(progress*Mathf.PI)*.3f;
             pulses[i].localScale=new Vector3(.17f*strength,.085f*strength,.12f*strength);
         }
@@ -45,7 +46,7 @@ public sealed class MagneticLinkPulse:MonoBehaviour {
         // The envelope reaches zero at both sockets, so the animated current never disconnects.
         float envelope=Mathf.Sin(progress*Mathf.PI);
         float wave=Mathf.Sin(progress*Mathf.PI*4-time*8f)*envelope;
-        return new Vector3(Mathf.Lerp(begin,end,progress),.16f+wave*.025f,lane+wave*.065f);
+        return new Vector3(Mathf.Lerp(begin,end,progress),.16f+(horizontalOnly?0:wave*.025f),lane+wave*.065f);
     }
 }
 }

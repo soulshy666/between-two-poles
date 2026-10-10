@@ -1,0 +1,1 @@
+PASS: four orientations; anchored perpendicular branch, forward/reverse walking, pushing red onward, sideways shore blocked, open branch blocked; animated links created at correct sockets, deduplicated, removed on disconnection.

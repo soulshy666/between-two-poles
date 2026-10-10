@@ -7,6 +7,7 @@ public sealed class MagnetTestLayouts:MonoBehaviour {
     public GridPlayground board;public Transform center;public string instruction;
     GameObject runtimeRoot;GridTile[] originalTiles;Renderer[] originalSurfaces;
     Material portalMaterial;
+    Material editableFloorMaterial;
     public static BlackHolePortal[] Portals(GridPlayground board){
         return board.tiles.Where(t=>t&&t.gameObject.activeInHierarchy)
             .SelectMany(t=>t.GetComponentsInChildren<BlackHolePortal>()).Where(p=>p.board==board).ToArray();
@@ -34,7 +35,7 @@ public sealed class MagnetTestLayouts:MonoBehaviour {
         foreach(var m in board.magnets)if(m)m.gameObject.SetActive(false);
         runtimeRoot=new GameObject("临时机制测试布局");runtimeRoot.transform.SetParent(transform,false);
         var tiles=new List<GridTile>();var pieces=new List<MagnetPiece>();
-        var floorMat=new Material(Shader.Find("BetweenPoles/PaintedIceTrial"));floorMat.color=new Color(.76f,.88f,.94f);floorMat.SetFloat("_Grid",1);floorMat.SetFloat("_Painted",1);
+        var floorMat=new Material(Shader.Find("BetweenPoles/PaintedIceTrial"));floorMat.color=new Color(.76f,.88f,.94f);floorMat.SetFloat("_Grid",1);floorMat.SetFloat("_Painted",1);editableFloorMaterial=floorMat;
         for(int z=-3;z<=3;z++)for(int x=-4;x<=4;x++){
             if((preset==5&&z==0&&(x==0||x==1))||(preset==1&&x==0&&z==0))continue;
             var g=new GameObject("测试格 "+x+","+z);g.transform.SetParent(runtimeRoot.transform,false);g.transform.position=new Vector3(x*board.cellSize,0,z*board.cellSize);
@@ -83,6 +84,32 @@ public sealed class MagnetTestLayouts:MonoBehaviour {
         }
         board.CaptureInitialState();
 
+    }
+    public bool EditTile(Vector2Int cell,bool add,out string message){
+        message="";
+        if(!Application.isPlaying||!runtimeRoot||board.Busy||BlackHoleTravel.Selecting||BlackHoleTravel.InTransit){message="请先打开测试布局，等待动作结束后编辑地块。";return false;}
+        var tile=board.TileAt(cell);
+        if(add&&tile){message="这里已经有地块，可用层高按钮修改。";return false;}
+        if(!add&&!tile){message="这里已经是空地。";return false;}
+        if(cell==board.PlayerCell){message="请先把主角移到其他地块。";return false;}
+        if(board.MagnetAt(cell)||board.IsWreckCell(cell)){message="请先清除该格的磁铁或障碍，再增删地块。";return false;}
+        if(tile&&tile.GetComponentInChildren<BlackHolePortal>(true)){message="请先清除该格黑洞，再删除地块。";return false;}
+        if(add){
+            var go=new GameObject("测试格 "+cell.x+","+cell.y);go.transform.SetParent(runtimeRoot.transform,false);
+            go.transform.position=new Vector3(cell.x*board.cellSize,0,cell.y*board.cellSize);tile=go.AddComponent<GridTile>();
+            var box=GameObject.CreatePrimitive(PrimitiveType.Cube);box.name="测试地面";box.transform.SetParent(go.transform,false);
+            box.transform.localPosition=Vector3.down*.08f;box.transform.localScale=new Vector3(board.cellSize-.02f,.16f,board.cellSize-.02f);
+            Destroy(box.GetComponent<Collider>());box.GetComponent<Renderer>().sharedMaterial=editableFloorMaterial;
+            var binding=go.AddComponent<IslandSurfaceAnchor>();binding.center=center;binding.Apply();
+            board.tiles=board.tiles.Where(t=>t).Concat(new[]{tile}).ToArray();
+        }else{
+            board.tiles=board.tiles.Where(t=>t&&t!=tile).ToArray();tile.gameObject.SetActive(false);Destroy(tile.gameObject);
+        }
+        var window=board.GetComponent<FiveIslandWindow>();
+        if(window){foreach(var room in window.rooms)if(room.center==center)room.surfaces=runtimeRoot.GetComponentsInChildren<Renderer>();window.RefreshLayout();}
+        board.CaptureInitialState();
+        message=add?"已增加 0 层地块，可继续设置为一层或两层高台。":"已删除地块，形成空隙。当前岛屿形状已作为测试起点。";
+        return true;
     }
     void Start(){Load(0);var panel=GetComponent<MagnetDebugPanel>();if(!panel)panel=gameObject.AddComponent<MagnetDebugPanel>();if(!panel.IsOpen)panel.Toggle();}
 }

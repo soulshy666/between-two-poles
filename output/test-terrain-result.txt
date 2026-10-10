@@ -1,0 +1,1 @@
+PASS: add/delete/recreate, duplicates, detached tile, player/magnet/portal guards, movement across new floor, deleted gap blocked, reset preserves custom terrain; UI captured.

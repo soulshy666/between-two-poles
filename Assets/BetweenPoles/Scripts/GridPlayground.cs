@@ -194,7 +194,7 @@ public sealed partial class GridPlayground:MonoBehaviour {
             bufferedSteps.Enqueue(new BufferedStep{direction=direction,time=Time.unscaledTime});
         if(!Busy&&bufferedSteps.Count>0&&!TryStep(bufferedSteps.Dequeue().direction))bufferedSteps.Clear();
     }
-    void OnDisable(){ClearMagnetHover();ClearMovementInput();ClearPushPresentations();}
+    void OnDisable(){ClearBridgeJunctionLinks();ClearMagnetHover();ClearMovementInput();ClearPushPresentations();}
     void OnApplicationFocus(bool focused){if(!focused)ClearMovementInput();}
     // Non-zero initial speed makes the first frame responsive; the end settles softly.
     static float MovementProgress(float progress){float p=Mathf.Clamp01(progress);return p+p*p-p*p*p;}

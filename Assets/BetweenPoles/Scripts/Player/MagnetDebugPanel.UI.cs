@@ -8,7 +8,7 @@ public sealed partial class MagnetDebugPanel {
     void Label(Rect r,string s,Color color,int size=14,TextAnchor align=TextAnchor.MiddleLeft){textStyle.normal.textColor=color;textStyle.fontSize=size;textStyle.alignment=align;GUI.Label(r,s,textStyle);}
     bool Button(Rect r,string title,bool active=false){Fill(new Rect(r.x+3,r.y+3,r.width,r.height),Color.black);Fill(r,Color.black);Fill(new Rect(r.x+2,r.y+2,r.width-4,r.height-4),active?accent:paper);Label(r,title,active?Color.white:ink,14,TextAnchor.MiddleCenter);return GUI.Button(r,GUIContent.none,GUIStyle.none);}
     void SelectCell(Vector2Int p){
-        selected=p;if(PortalAt(p)){shape=10;return;}var m=board.MagnetAt(p);if(!m){var tile=board.TileAt(p);shape=tile&&tile.blocked?9:8;if(shape==9){rockStyle=tile.rockStyle;rockTheme=tile.rockTheme;}return;}
+        selected=p;if(PortalAt(p)){shape=10;return;}var m=board.MagnetAt(p);if(!m){var tile=board.TileAt(p);shape=tile&&tile.blocked?9:8;if(shape==9){rockStyle=tile.rockStyle;rockTheme=tile.rockTheme;lowRockVariant=tile.lowRockVariant;}return;}
         shape=m.product==MagnetProduct.None?(m.shape==MagnetShape.Bar?0:1):(int)m.product+1;
         pole=(m.product==MagnetProduct.Lift||m.product==MagnetProduct.Bridge||m.product==MagnetProduct.BridgeHalf?m.baseNorth:m.north)?0:1;
         yaw=Mathf.RoundToInt(m.transform.eulerAngles.y/90)%4;
@@ -34,23 +34,51 @@ public sealed partial class MagnetDebugPanel {
         Fill(new Rect(0,62,280,42),ink);Label(new Rect(18,66,240,34),section==0?"/ 测试布局":section==1?"/ 物品样式":"/ 格子操作",Color.white,17);
         var lab=board.GetComponent<MagnetTestLayouts>();
         if(section==0&&lab){string[] names={"冰面宽桥","悬空十字","圆环","反冲","单层磁流","两格桥","十字拨动","两层磁流","竖立接收 · 十字","竖立接收 · 宽桥","两黑洞传送","黑洞 · 平躺磁铁","黑洞 · 竖直磁铁","黑洞 · 出口组合登高","黑洞 · 石头反弹登高"};layoutScroll=GUI.BeginScrollView(new Rect(8,114,264,414),layoutScroll,new Rect(0,0,242,names.Length*38));for(int i=0;i<names.Length;i++)if(Button(new Rect(8,i*38,230,33),names[i])){lab.Load(i);pan=Vector2Int.zero;SelectCell(board.PlayerCell);status=lab.instruction;}GUI.EndScrollView();Label(new Rect(16,540,244,160),lab.instruction,ink);}
-        if(section==1){for(int row=0;row<kinds.Length;row++){int i=row==8?9:row==9?10:row==10?8:row;var r=new Rect(16,114+row*34,246,30);bool clicked=Button(r,"",shape==i);Icon(new Rect(r.x+10,r.y+3,35,27),i,pole==0,0);Label(new Rect(r.x+54,r.y,185,r.height),kinds[i],shape==i?Color.white:ink);if(clicked)Pick(i);}
+        if(section==1){for(int row=0;row<13;row++){
+            bool stone=row>=8&&row<=10;
+            int stoneStyle=row==8?2:row==9?0:1;
+            int i=stone?9:row==11?10:row==12?8:row;
+            bool active=shape==i&&(!stone||rockStyle==stoneStyle);
+            string title=stone?(stoneStyle==2?"矮石头":stoneStyle==0?"圆石头":"高石头"):kinds[i];
+            var r=new Rect(16,114+row*29,246,26);
+            bool clicked=Button(r,"",active);
+            if(stone){
+                float h=stoneStyle==2?10:stoneStyle==0?16:21;
+                var stoneColor=new Color(.4f,.47f,.52f);
+                Fill(new Rect(r.x+14,r.y+24-h,27,h-3),stoneColor);
+                Fill(new Rect(r.x+17,r.y+21-h,21,5),new Color(.62f,.68f,.72f));
+            }else Icon(new Rect(r.x+10,r.y+1,35,24),i,pole==0,0);
+            Label(new Rect(r.x+54,r.y,185,r.height),title,active?Color.white:ink);
+            if(clicked){if(stone)rockStyle=stoneStyle;Pick(i);}
+        }
             if(shape==10){Label(new Rect(16,510,244,180),"先放置至少两个黑洞。磁铁可保持姿态推入，再让玩家进入。移动镜头选出口：平躺磁铁先出，玩家踩上；竖直磁铁先出，再被玩家踢倒一格。",ink,14);}
             else if(shape==9){
-                string[] stones={"圆石头","高石头","矮石头"};
-                Label(new Rect(16,498,240,24),"石头形状",ink);
-                for(int i=0;i<3;i++)if(Button(new Rect(16+i*84,525,78,30),stones[i],rockStyle==i)){rockStyle=i;ApplySelectedStyle();}
-                Label(new Rect(16,563,240,24),"星球外观",ink);
+                if(rockStyle==2){
+                    Label(new Rect(16,502,240,24),"矮石造型",ink);
+                    string[] variants={"原款","4 号 · 岩肩","5 号 · 风蚀"};
+                    for(int v=0;v<3;v++)if(Button(new Rect(16+v*84,531,78,30),variants[v],lowRockVariant==v)){lowRockVariant=v;ApplySelectedStyle();}
+                }
+                float themeY=rockStyle==2?575:510;
+                Label(new Rect(16,themeY,240,24),"场景装饰",ink);
                 string[] themes={"原石 · 无装饰","1 · 冰雪世界","2 · 丛林世界","3 · 星环沙岩","4 · 熔岩世界"};
-                for(int i=0;i<5;i++)if(Button(new Rect(16+(i%2)*126,590+(i/2)*34,120,30),themes[i],rockTheme==i)){rockTheme=i;ApplySelectedStyle();}
-                Label(new Rect(16,695,245,30),"矮石顶面平坦，踩踏机制后续接入。",ink,11);
+                for(int i=0;i<5;i++)if(Button(new Rect(16+(i%2)*126,themeY+30+(i/2)*34,120,30),themes[i],rockTheme==i)){rockTheme=i;ApplySelectedStyle();}
+                string[] decorations={"保留岩石本体，不附加场景装饰。","冰雪覆盖、岩脚积雪。","青苔覆盖、藤蔓附着。","暖色沙岩、岩脚积沙。","暗色火山岩、熔岩裂纹。"};
+                Label(new Rect(16,themeY+136,245,20),rockStyle==2?"高度 0.55 · 中央保留落脚区域":decorations[Mathf.Clamp(rockTheme,0,4)],ink,11);
             }else{
             Label(new Rect(16,510,240,24),"极性",ink);if(Button(new Rect(16,540,117,32),"N / 红",pole==0)){pole=0;if(shape<8)ApplySelectedStyle();}if(Button(new Rect(145,540,117,32),"S / 蓝",pole==1)){pole=1;if(shape<8)ApplySelectedStyle();}
             Label(new Rect(16,578,240,22),"朝向",ink);for(int i=0;i<4;i++)if(Button(new Rect(16+i*63,604,57,32),i*90+"°",yaw==i)){yaw=i;if(shape<8)ApplySelectedStyle();}
             Label(new Rect(16,645,240,22),shape<2?"姿态":"成品使用固定配方姿态",ink,13);GUI.enabled=shape<2;string[] poses=shape==1?new[]{"正面平躺","反面平躺"}:new[]{"平躺","竖立","倒立"};float poseWidth=252f/poses.Length;for(int i=0;i<poses.Length;i++)if(Button(new Rect(16+i*poseWidth,672,poseWidth-6,32),poses[i],pose==i)){pose=i;ApplySelectedStyle();}GUI.enabled=true;
             }
         }
-        if(section==2){string[] names={"主角移到该格","地面 / 0 层","高台 / 1 层","高台 / 2 层","石头障碍"};for(int i=0;i<5;i++)if(Button(new Rect(16,120+i*52,246,40),names[i])){if(i==0)Teleport();else SetFloor(i==4?0:i-1,i==4);}Label(new Rect(16,410,245,90),"选择右侧格子，再修改地形。磁铁清除请在物品中选择“空”。",ink);}
+        if(section==2){
+            string[] names={"主角移到该格","＋ 增加地块","－ 删除地块","地面 / 0 层","高台 / 1 层","高台 / 2 层","石头障碍"};
+            for(int i=0;i<names.Length;i++)if(Button(new Rect(16,120+i*52,246,40),names[i])){
+                if(i==0)Teleport();
+                else if(i==1||i==2){if(lab)lab.EditTile(selected,i==1,out status);else status="增删地块仅用于磁铁机制测试场景。";}
+                else SetFloor(i==6?0:i-3,i==6);
+            }
+            Label(new Rect(16,500,245,115),"选择右侧空格后增加地块；选择已有地块后删除。\n鼠标中键拖动画布，可以编辑更远的格子。\n先移开主角、清除磁铁或黑洞，再删除其地块。",ink,13);
+        }
         Label(new Rect(305,74,width-600,36),"选中格  ("+selected.x+", "+selected.y+")   /   先选格子，再选左侧样式",Color.white,17);
         if(Button(new Rect(width-180,76,160,32),"定位当前岛屿"))pan=Vector2Int.zero;
         var canvas=new Rect(304,124,width-324,height-210);DrawCanvas(canvas);

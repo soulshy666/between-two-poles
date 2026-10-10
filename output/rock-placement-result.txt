@@ -1,1 +1,1 @@
-PASS: Runtime panel placement and immediate replacement of all 15 variants, actual low world height, selection readback and erase.
+PASS: Runtime panel placement and immediate replacement of all 25 combinations, actual low world height, shape/number/theme selection readback and erase.

@@ -1,1 +1,1 @@
-PASS: All 15 shape/theme variants, low height 0.55, bare geometry without coating/drifts, theme replacement and cached reapply. Preview images rendered.
+PASS: All 25 shape/variant/theme combinations, low height 0.55, bare geometry without coating/drifts, theme replacement and cached reapply. Preview images rendered.

@@ -545,6 +545,7 @@ public sealed partial class GridPlayground {
     }
     void LateUpdate(){
         UpdateMagnetHover();
+        UpdateBridgeJunctionLinks();
         TickKnockedMagnets();
         foreach(var m in magnets){if(!m||!m.enabled||!m.gameObject.activeInHierarchy)continue;
             bool active=m.product==MagnetProduct.Lift||(m.product==MagnetProduct.Cross&&RotorActive(m));

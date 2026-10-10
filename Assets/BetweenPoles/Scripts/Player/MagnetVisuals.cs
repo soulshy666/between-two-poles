@@ -32,7 +32,7 @@ public static class MagnetVisuals {
         bridgeTrim.SetFloat("_Painted",0);bridgeTrim.SetFloat("_Snow",0);bridgeTrim.SetFloat("_Grid",0);
         return bridgeTrim;
     }
-    static void MagneticLink(Transform parent,float z,float begin,float end) {
+    public static Transform MagneticLink(Transform parent,float z,float begin,float end) {
         var root=Group(parent,LinkName);
         const int waveSegments=12,pulseCount=3;
         for(int i=0;i<waveSegments;i++)Box(root,new Vector3(begin,.16f,z),new Vector3(.1f,.045f,.065f),LinkMaterial(),"波动磁流");
@@ -40,6 +40,7 @@ public static class MagnetVisuals {
         Box(root,new Vector3(end,.16f,z),new Vector3(.13f,.08f,.14f),LinkMaterial(),"长条接口");
         for(int i=0;i<pulseCount;i++)Box(root,new Vector3(begin,.18f,z),new Vector3(.17f,.085f,.12f),LinkMaterial(),"传输脉冲");
         root.gameObject.AddComponent<MagneticLinkPulse>().Configure(begin,end,z);
+        return root;
     }
     static void BridgeSurface(Transform parent,float begin,float end) {
         var root=Group(parent,BridgeSurfaceName);
