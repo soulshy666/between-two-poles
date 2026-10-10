@@ -1873,6 +1873,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   blocked: 1
+  rockStyle: 2
+  lowRockVariant: 0
+  rockTheme: 4
+  rockYaw: 280
   goal: 0
   surfaceHeight: 0
 --- !u!1001 &124691236
@@ -5864,6 +5868,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   blocked: 1
+  rockStyle: 2
+  lowRockVariant: 0
+  rockTheme: 4
+  rockYaw: 90
   goal: 0
   surfaceHeight: 0
 --- !u!1 &397174237
@@ -5912,6 +5920,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   blocked: 1
+  rockStyle: 2
+  lowRockVariant: 0
+  rockTheme: 4
+  rockYaw: 347
   goal: 0
   surfaceHeight: 0
 --- !u!1 &401356250

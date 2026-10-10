@@ -1,9 +1,10 @@
 using UnityEngine;
 namespace BetweenPoles {
 public sealed partial class PlayerPushPose {
-    const float IdleDelay=5f,IdleDuration=6f;
+    const float FirstIdleDelay=5f,RepeatIdleDelay=10f,IdleDuration=6f;
     float idleWait,idleElapsed;
     bool idlePlaying;
+    bool hasStartedIdleSpacewalk;
     const float BreathingPeriod=3.2f,BreathingRise=.035f;
     float breathingElapsed;
     bool breathing;
@@ -37,13 +38,16 @@ public sealed partial class PlayerPushPose {
             SampleIdleSpacewalk(idleElapsed);return;
         }
         if(!input)idleWait+=Time.deltaTime;
-        if(idleWait<IdleDelay){
+        float idleDelay=hasStartedIdleSpacewalk?RepeatIdleDelay:FirstIdleDelay;
+        if(idleWait<idleDelay){
             Initialize();breathing=true;breathingElapsed+=Time.deltaTime;
-            float blend=IdlePhase(breathingElapsed,0,.25f)*(1-IdlePhase(idleWait,IdleDelay-.35f,IdleDelay));
+            float blend=IdlePhase(breathingElapsed,0,.25f)*(1-IdlePhase(idleWait,idleDelay-.35f,idleDelay));
             SampleBreathing(breathingElapsed,blend);return;
         }
         StopBreathing();
         Initialize();idlePlaying=true;idleElapsed=0;
+        // Input and animation completion reset the timer, but not the first-use flag.
+        hasStartedIdleSpacewalk=true;
         idleRootPosition=transform.position;idleRootRotation=transform.rotation;
         SampleIdleSpacewalk(0);
     }

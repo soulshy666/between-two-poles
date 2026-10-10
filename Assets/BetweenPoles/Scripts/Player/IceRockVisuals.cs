@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using UnityEngine;
 namespace BetweenPoles {
 // Replace only obstacle artwork; retain tile ownership, renderer references and grid rules.
-public static class IceRockVisuals {
+public static partial class IceRockVisuals {
     const string MeshName="Ice rock obstacle";
     static Mesh mesh;
     static Mesh tallMesh;
@@ -29,12 +29,13 @@ public static class IceRockVisuals {
         int theme=Mathf.Clamp(tile.rockTheme,0,4);
         if(!meshes.ContainsKey(theme))Build(theme);
         var selectedMesh=meshes[theme][Mathf.Clamp(tile.rockStyle,0,2)];
+        if(tile.rockStyle==2&&tile.lowRockVariant>0)selectedMesh=LowVariant(theme,Mathf.Clamp(tile.lowRockVariant,1,2));
+        target.transform.rotation=Quaternion.Euler(0,tile.rockYaw,0);
         if(target.sharedMesh==selectedMesh)return;
         // Reuse renderers registered with island visibility and curvature systems.
         foreach(var filter in filters)if(filter!=target)filter.sharedMesh=null;
         target.sharedMesh=selectedMesh;renderer.sharedMaterials=palettes[theme];
         target.transform.position=new Vector3(tile.transform.position.x,tile.surfaceHeight,tile.transform.position.z);
-        target.transform.rotation=Quaternion.identity;
         Vector3 scale=target.transform.parent?target.transform.parent.lossyScale:Vector3.one;
         float width=cell*.86f;
         target.transform.localScale=new Vector3(width/scale.x,1.12f/scale.y,width/scale.z);

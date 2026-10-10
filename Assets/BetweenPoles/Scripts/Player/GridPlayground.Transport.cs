@@ -1,4 +1,5 @@
 using UnityEngine;
+using System.Collections.Generic;
 namespace BetweenPoles {
 public sealed partial class GridPlayground {
     bool GapWideBar(MagnetPiece m){
@@ -10,28 +11,42 @@ public sealed partial class GridPlayground {
             ?new Vector3(deck.bridgeDirection.x,0,deck.bridgeDirection.y):deck.Pose*Vector3.right;
         return Mathf.Abs(Vector3.Dot(axis.normalized,new Vector3(direction.x,0,direction.y)))>.95f;
     }
-    bool WideBarEndConnected(MagnetPiece bridge,Vector2Int direction){
+    bool WideBarEndConnected(MagnetPiece bridge,Vector2Int direction,HashSet<MagnetPiece> visiting){
         var cell=Cell(bridge.transform);float baseHeight=bridge.transform.position.y,top=DeckHeight(bridge);
-        // Follow end-to-end spans to a shore. A sideways bar, unfinished bridge,
-        // height mismatch or open end cannot anchor a walkable connection.
+        while(bridge.Occupies(cell+direction,cellSize))cell+=direction;
+        // Follow spans to a shore or an independently connected crossing span.
         for(int i=0;i<=magnets.Length*2;i++){
             cell+=direction;var tile=Tile(cell);
             if(tile)return !tile.blocked&&(SameHeight(tile.surfaceHeight,baseHeight)||SameHeight(tile.surfaceHeight,top));
             var deck=Deck(cell,bridge,true);
-            if(!deck||!AlongDeck(deck,direction)||!SameHeight(DeckHeight(deck),top)
+            if(!deck||visiting.Contains(deck)||!SameHeight(DeckHeight(deck),top)
                 ||(deck.product!=MagnetProduct.WideBar&&deck.product!=MagnetProduct.Bridge
                     &&!(deck.product==MagnetProduct.None&&deck.combined&&deck.shape==MagnetShape.Bar)))return false;
+            // A completed crosswise span can anchor a branch at its side.
+            // It must reach its own shores without relying on this branch.
+            if(!AlongDeck(deck,direction))return ConnectedSpan(deck,visiting);
         }
         return false;
     }
     bool WideBarConnected(MagnetPiece bridge){
-        var axis=Direction(bridge.Pose*Vector3.right);
-        return AlongDeck(bridge,axis)&&WideBarEndConnected(bridge,axis)&&WideBarEndConnected(bridge,-axis);
+        return ConnectedSpan(bridge,new HashSet<MagnetPiece>());
+    }
+    bool ConnectedSpan(MagnetPiece bridge,HashSet<MagnetPiece> visiting){
+        if(!bridge||!bridge.walkable||(bridge.product!=MagnetProduct.WideBar&&bridge.product!=MagnetProduct.Bridge
+            &&!(bridge.product==MagnetProduct.None&&bridge.combined&&bridge.shape==MagnetShape.Bar)))return false;
+        if(!visiting.Add(bridge))return false;
+        var axis=bridge.product==MagnetProduct.Bridge?bridge.bridgeDirection:Direction(bridge.Pose*Vector3.right);
+        bool connected=AlongDeck(bridge,axis)&&WideBarEndConnected(bridge,axis,visiting)&&WideBarEndConnected(bridge,-axis,visiting);
+        visiting.Remove(bridge);return connected;
     }
     bool BridgePassage(Vector2Int from,Vector2Int to,MagnetPiece moving=null){
         var direction=to-from;var source=Deck(from,moving,true);var destination=Deck(to,moving,true);
-        return (!GapWideBar(source)||(AlongDeck(source,direction)&&WideBarConnected(source)))
-            &&(!GapWideBar(destination)||(AlongDeck(destination,direction)&&WideBarConnected(destination)));
+        bool junction=source&&destination&&source!=destination
+            &&SameHeight(DeckHeight(source),DeckHeight(destination))
+            &&(AlongDeck(source,direction)||AlongDeck(destination,direction))
+            &&WideBarConnected(source)&&WideBarConnected(destination);
+        return (!GapWideBar(source)||((AlongDeck(source,direction)||junction)&&WideBarConnected(source)))
+            &&(!GapWideBar(destination)||((AlongDeck(destination,direction)||junction)&&WideBarConnected(destination)));
     }
     // A deck and the material travelling on it share a cell, but not a layer.
     MagnetPiece Deck(Vector2Int cell,MagnetPiece ignore=null,bool fixedOnly=false){
