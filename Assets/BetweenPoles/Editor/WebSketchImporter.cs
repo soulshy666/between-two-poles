@@ -11,6 +11,42 @@ using UnityEngine.SceneManagement;
 namespace BetweenPoles.Authoring {
 public static class WebSketchImporter {
     const float Cell=1.5f;
+    static int RockThemeForScene(string name){
+        switch(name){
+            case "Chapter01_IceWorld":return 1;
+            case "Chapter02_VerdantWorld":return 2;
+            case "Chapter03_RingWorld":return 3;
+            case "Chapter04_LavaWorld":return 4;
+            default:return 1;
+        }
+    }
+    static void SaveImportedRockVisuals(GridPlayground board,Transform root,string folder){
+        IceRockVisuals.Apply(board);
+        var meshes=new Dictionary<Mesh,Mesh>();var materials=new Dictionary<Material,Material>();
+        // Runtime rock artwork is shared and transient. Persist copies for edit-mode
+        // previews and reopening the scene without modifying the shared runtime cache.
+        foreach(var stone in root.GetComponentsInChildren<Transform>().Where(t=>t.name=="rock"&&t.parent&&t.parent.name!="rock")){
+            foreach(var filter in stone.GetComponentsInChildren<MeshFilter>()){
+                var source=filter.sharedMesh;if(!source||AssetDatabase.Contains(source))continue;
+                if(!meshes.TryGetValue(source,out var saved)){
+                    saved=UnityEngine.Object.Instantiate(source);
+                    AssetDatabase.CreateAsset(saved,AssetDatabase.GenerateUniqueAssetPath(folder+"/RockMesh.asset"));meshes.Add(source,saved);
+                }
+                filter.sharedMesh=saved;
+            }
+            foreach(var renderer in stone.GetComponentsInChildren<Renderer>()){
+                var palette=renderer.sharedMaterials;
+                for(int i=0;i<palette.Length;i++){
+                    var source=palette[i];if(!source||AssetDatabase.Contains(source))continue;
+                    if(!materials.TryGetValue(source,out var saved)){
+                        saved=new Material(source);AssetDatabase.CreateAsset(saved,AssetDatabase.GenerateUniqueAssetPath(folder+"/RockTone.mat"));materials.Add(source,saved);
+                    }
+                    palette[i]=saved;
+                }
+                renderer.sharedMaterials=palette;
+            }
+        }
+    }
     public class RoomData { public string id,name;public List<Vector2Int> cells=new List<Vector2Int>();public Vector2Int offset;public int[] neighbors=new int[0]; }
     public class PieceData { public int room;public string kind,pole;public Vector2Int cell;public int angle,vertical,w=1,h=1;public bool upright; }
     public class Layout { public List<RoomData> rooms=new List<RoomData>();public List<PieceData> pieces=new List<PieceData>();public List<string> warnings=new List<string>();public Vector2Int spawn;public int start; }
@@ -205,7 +241,7 @@ public static class WebSketchImporter {
             var island=Child(r.name,root.transform);var center=Child(r.id,island.transform).transform;center.position=Pos(new Vector2Int(0,0))+new Vector3((r.cells.Min(c=>c.x)+r.cells.Max(c=>c.x))*Cell*.5f,0,(r.cells.Min(c=>c.y)+r.cells.Max(c=>c.y))*Cell*.5f);
             var anchor=Undo.AddComponent<IslandSurfaceAnchor>(island);anchor.center=center;anchor.flatten=0;
             var surface=Child("冰面及外侧壁",island.transform);var mesh=IslandMesh(r.cells);AssetDatabase.CreateAsset(mesh,folder+"/Island-"+rooms.Count+".asset");Undo.AddComponent<MeshFilter>(surface).sharedMesh=mesh;Undo.AddComponent<MeshRenderer>(surface).sharedMaterial=ice;
-            foreach(var c in r.cells){var tile=Undo.AddComponent<GridTile>(Child("Cell "+c,island.transform));tile.transform.position=Pos(c);tiles.Add(c,tile);}
+            foreach(var c in r.cells){var tile=Undo.AddComponent<GridTile>(Child("Cell "+c,island.transform));tile.rockTheme=RockThemeForScene(scene.name);tile.transform.position=Pos(c);tiles.Add(c,tile);}
             anchor.enabled=false;anchor.enabled=true;
             rooms.Add(new FiveIslandWindow.Room{id=r.id,center=center,surfaces=new[]{surface.GetComponent<Renderer>()},neighbors=r.neighbors});
         }
@@ -264,6 +300,7 @@ public static class WebSketchImporter {
             }
         }
         board.tiles=tiles.Values.ToArray();board.magnets=magnets.ToArray();board.player.position=Pos(data.spawn);camera.player=board.player;camera.board=board;camera.islandCenters=rooms.Select(r=>r.center).ToArray();
+        SaveImportedRockVisuals(board,root.transform,folder);
         var playerBinding=playerCopy.GetComponent<IslandSurfaceAnchor>();if(playerBinding)Undo.RecordObject(playerBinding,"更新人物所属岛屿");else playerBinding=Undo.AddComponent<IslandSurfaceAnchor>(playerCopy);playerBinding.center=rooms[data.start].center;playerBinding.ground=board;
         foreach(var renderer in playerCopy.GetComponentsInChildren<Renderer>()){var mat=new Material(renderer.sharedMaterial);MatchSurface(mat,ice);Undo.RecordObject(renderer,"更新人物投影材质");AssetDatabase.CreateAsset(mat,AssetDatabase.GenerateUniqueAssetPath(folder+"/Player.mat"));renderer.sharedMaterial=mat;}
         var window=existingWindow?existingWindow:Undo.AddComponent<FiveIslandWindow>(board.gameObject);window.enabled=false;window.board=board;window.view=camera;window.rooms=rooms.ToArray();window.initialRoom=data.start;window.enabled=true;window.RefreshLayout();window.Show(data.start);
