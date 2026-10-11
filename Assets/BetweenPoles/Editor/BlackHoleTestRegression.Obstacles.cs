@@ -34,24 +34,27 @@ static partial class BlackHoleTestRegression {
                 b.player.position=Vector3.zero;var travel=root.AddComponent<BlackHoleTravel>();float peak=0;bool first=true;var originalScale=cargo.geometry.localScale;
                 Drain((IEnumerator)typeof(BlackHoleTravel).GetMethod("Eject",Private).Invoke(travel,new object[]{target,dir,cargo,plan}),()=>{
                     peak=Mathf.Max(peak,b.player.position.y);
-                    if(kind>0)Check(Vector3.Distance(cargo.geometry.localScale,originalScale)<.001f,"Bounce changed cargo scale");
+                    if(kind>0&&cargo.gameObject.activeSelf){
+                        float shrink=b.player.localScale.sqrMagnitude>.0001f&&Vector3.Distance(cargo.transform.position,original)>.01f?b.player.localScale.x:1;
+                        Check(Vector3.Distance(cargo.geometry.localScale,originalScale*shrink)<.001f,"Bounce absorption scale mismatch");
+                    }
                     if(b.player.localScale.sqrMagnitude>.01f){
                         if(kind==0)Check(receiver.product==MagnetProduct.WideBar,"Player emerged before assembly");
-                        else Check(Vector3.Distance(cargo.transform.position,original)<.001f,"Player emerged before cargo returned");
+                        else if(Vector3.Distance(cargo.transform.position,original)<.001f)Check(Vector3.Distance(cargo.geometry.localScale,originalScale)<.001f,"Returned cargo did not restore normal size");
                         first=false;
                     }
                 });
-                Check(!first&&peak>b.player.position.y+.5f&&b.PlayerCell==dir,"Throw arc or landing failed");checks++;
+                Check(!first&&peak>b.player.position.y+.5f&&b.PlayerCell==(kind==0?dir:-dir*3),"Throw arc or landing failed");checks++;
                 if(kind==0)Check(receiver.product==MagnetProduct.WideBar&&!cargo.gameObject.activeSelf&&Mathf.Abs(b.player.position.y-.24f)<.01f,"Wide bar landing wrong");
-                else Check(cargo.gameObject.activeSelf&&!source.Cargo&&Vector3.Distance(cargo.transform.position,original)<.001f&&b.player.position.y>.5f,"Stone bounce/landing wrong");checks++;
-                var platform=b.TileAt(dir*2);
+                else Check(cargo.gameObject.activeSelf&&!source.Cargo&&Vector3.Distance(cargo.transform.position,original)<.001f&&b.player.position.y>.1f&&b.player.forward==new Vector3(-dir.x,0,-dir.y),"Stone bounce/landing wrong");checks++;
+                var platformCell=kind==0?dir*2:-dir*2;var platform=b.TileAt(platformCell);
                 if(kind<3){platform.surfaceHeight=b.LayerHeight*2;Check(!b.TryStep(dir),"Climbed two layers from low support");}
                 platform.surfaceHeight=b.LayerHeight;
-                Check(b.TryStep(dir),"Cannot step to one-layer platform: "+b.LastRule);Drain((IEnumerator)typeof(GridPlayground).GetMethod("WalkOffObject",Private).Invoke(b,new object[]{dir*2,platform.transform.position+Vector3.up*b.LayerHeight}));b.StopAllCoroutines();
+                Check(b.TryStep(dir),"Cannot step to one-layer platform: "+b.LastRule);Drain((IEnumerator)typeof(GridPlayground).GetMethod("WalkOffObject",Private).Invoke(b,new object[]{platformCell,platform.transform.position+Vector3.up*b.LayerHeight}));b.StopAllCoroutines();
                 Check(Mathf.Abs(b.player.position.y-b.LayerHeight)<.01f,"Platform height wrong");checks++;
                 b.UndoStep();Check(b.UndoStep()&&source.Cargo==cargo&&!cargo.gameObject.activeSelf,"Journey undo lost cargo");checks++;
                 if(receiver)Check(receiver.product==MagnetProduct.None,"Undo retained merged receiver");
-                b.player.position=new Vector3(dir.x*1.5f,0,dir.y*1.5f);Check(!b.TryStep(dir),"Ground player climbed platform");checks++;
+                b.player.position=new Vector3((platformCell.x-dir.x)*1.5f,0,(platformCell.y-dir.y)*1.5f);Check(!b.TryStep(dir),"Ground player climbed platform");checks++;
             }finally{UnityEngine.Object.DestroyImmediate(root);}
         }
         return checks;
