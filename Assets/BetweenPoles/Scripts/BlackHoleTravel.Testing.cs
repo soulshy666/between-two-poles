@@ -54,7 +54,8 @@ public sealed partial class BlackHoleTravel {
         return PlanExit(source,direction,source.Cargo,out plan);
     }
     bool SelectTestPortal(BlackHolePortal portal,bool cancel){
-        cancel=cancel||portal==origin;
+        // Selecting the entrance is the same action as returning with Esc.
+        cancel|=portal&&portal==origin;
         ExitPlan plan;
         bool valid=portal&&(cancel?CancelPlan(portal,-entryDirection,out plan):portal!=origin&&PlanExit(portal,entryDirection,origin.Cargo,out plan));
         if(!valid){testMessage="出口无法安全落脚或组合：检查出口、竖直磁铁倒下的一格，以及磁铁弹回入口的位置。";return false;}

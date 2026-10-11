@@ -47,7 +47,7 @@ public static class WebSketchImporter {
             }
         }
     }
-    public class RoomData { public string id,name;public List<Vector2Int> cells=new List<Vector2Int>();public Vector2Int offset;public int[] neighbors=new int[0]; }
+    public class RoomData { public string id,name;public int roomNumber;public List<Vector2Int> cells=new List<Vector2Int>();public Vector2Int offset;public int[] neighbors=new int[0]; }
     public class PieceData { public int room;public string kind,pole;public Vector2Int cell;public int angle,vertical,w=1,h=1;public bool upright; }
     public class Layout { public List<RoomData> rooms=new List<RoomData>();public List<PieceData> pieces=new List<PieceData>();public List<string> warnings=new List<string>();public Vector2Int spawn;public int start; }
     static int Int(JToken t,string name){if(t==null||!double.TryParse(t.ToString(),out var n)||double.IsNaN(n)||double.IsInfinity(n)||n!=Math.Round(n)||Math.Abs(n)>100000)throw new Exception(name+" 必须是有效整数");return (int)n;}
@@ -63,6 +63,10 @@ public static class WebSketchImporter {
             int x=Int(r["x"],"房间X"),y=Int(r["y"],"房间Y"),w=Int(r["w"],"房间宽"),h=Int(r["h"],"房间高");
             if(x%40!=0||y%40!=0||w<1||h<1||w>100||h>100)throw new Exception("房间必须对齐网页40像素网格，尺寸为1–100格。");
             var room=new RoomData{id=id,name=(string)r["name"]??id,offset=new Vector2Int(x/40,-y/40)};
+            if(r["roomNumber"]!=null){
+                room.roomNumber=Int(r["roomNumber"],"房间编号");
+                if(room.roomNumber<1||data.rooms.Any(other=>other.roomNumber==room.roomNumber))throw new Exception("房间编号必须为正整数且不能重复："+room.name);
+            }
             var cells=r["cells"] as JObject;
             if(cells!=null){foreach(var p in cells.Properties()){if(p.Value.Type!=JTokenType.Boolean||!(bool)p.Value)continue;var xy=p.Name.Split(',');if(xy.Length!=2||!int.TryParse(xy[0],out int cx)||!int.TryParse(xy[1],out int cy)||cx<0||cy<0||cx>=w||cy>=h)throw new Exception("地块坐标超出房间范围："+room.name);room.cells.Add(room.offset+new Vector2Int(cx,-cy));}}
             else for(int cy=0;cy<h;cy++)for(int cx=0;cx<w;cx++)room.cells.Add(room.offset+new Vector2Int(cx,-cy));
@@ -243,7 +247,7 @@ public static class WebSketchImporter {
             var surface=Child("冰面及外侧壁",island.transform);var mesh=IslandMesh(r.cells);AssetDatabase.CreateAsset(mesh,folder+"/Island-"+rooms.Count+".asset");Undo.AddComponent<MeshFilter>(surface).sharedMesh=mesh;Undo.AddComponent<MeshRenderer>(surface).sharedMaterial=ice;
             foreach(var c in r.cells){var tile=Undo.AddComponent<GridTile>(Child("Cell "+c,island.transform));tile.rockTheme=RockThemeForScene(scene.name);tile.transform.position=Pos(c);tiles.Add(c,tile);}
             anchor.enabled=false;anchor.enabled=true;
-            rooms.Add(new FiveIslandWindow.Room{id=r.id,center=center,surfaces=new[]{surface.GetComponent<Renderer>()},neighbors=r.neighbors});
+            rooms.Add(new FiveIslandWindow.Room{id=r.id,roomNumber=r.roomNumber,center=center,surfaces=new[]{surface.GetComponent<Renderer>()},neighbors=r.neighbors});
         }
         foreach(var p in data.pieces){
             if(p.kind=="player")continue;var island=rooms[p.room].center.parent;

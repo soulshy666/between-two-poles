@@ -120,6 +120,18 @@ public sealed partial class GridPlayground:MonoBehaviour {
         if(!view||view.islandCenters==null)return Reject("当前场景没有可切换的房间");
         var centers=new List<Transform>();
         foreach(var center in view.islandCenters)if(center&&center.gameObject.activeInHierarchy&&!centers.Contains(center))centers.Add(center);
+        var roomNumbers=new Dictionary<Transform,int>();
+        foreach(var window in FindObjectsOfType<FiveIslandWindow>())if(window.board==this&&window.rooms!=null){
+            var usedNumbers=new HashSet<int>();bool validNumbers=true;
+            foreach(var room in window.rooms)if(room.center&&centers.Contains(room.center)){
+                if(room.roomNumber<1||!usedNumbers.Add(room.roomNumber)){validNumbers=false;break;}
+                roomNumbers[room.center]=room.roomNumber;
+            }
+            // Legacy or partially numbered scenes retain their authored order.
+            if(!validNumbers||roomNumbers.Count!=centers.Count)roomNumbers.Clear();
+            break;
+        }
+        if(roomNumbers.Count==centers.Count&&centers.Count>0)centers.Sort((a,b)=>roomNumbers[a].CompareTo(roomNumbers[b]));
         int current=centers.IndexOf(currentIsland);if(current<0)current=centers.IndexOf(Owner(Tile(Cell(player))));
         int next=current+direction;
         if(current<0||next<0||next>=centers.Count)return Reject(direction>0?"已经是最后一个房间":"已经是第一个房间");
@@ -134,7 +146,8 @@ public sealed partial class GridPlayground:MonoBehaviour {
         player.position=Position(Cell(landing.transform),landing.surfaceHeight);
         NotifyLanding(Cell(landing.transform));
         var anchor=player.GetComponent<IslandSurfaceAnchor>();if(anchor){anchor.center=centers[next];anchor.Apply();}
-        LastRule="测试跳转：房间 "+(next+1)+" / "+centers.Count;return true;
+        int targetNumber=roomNumbers.TryGetValue(centers[next],out var number)?number:next+1;
+        LastRule="测试跳转：房间编号 "+targetNumber+"（"+(next+1)+" / "+centers.Count+"）";return true;
     }
     void Update(){
         if(player&&(Input.anyKey||Input.mouseScrollDelta.sqrMagnitude>0

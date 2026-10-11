@@ -8,6 +8,8 @@ namespace BetweenPoles {
 public sealed class FiveIslandWindow : MonoBehaviour {
     [Serializable] public class Room {
         public string id;
+        [Min(1), Tooltip("网页编辑器的房间编号；0 表示旧关卡，按原数组顺序切换。")]
+        public int roomNumber;
         public Transform center;
         public Renderer[] surfaces;
         public int[] neighbors = new int[0];

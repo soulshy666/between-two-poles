@@ -23,10 +23,10 @@ public sealed partial class BlackHoleTravel : MonoBehaviour {
         if(!instance||!instance.origin||instance.origin.gameObject.scene.path!=scene||!instance.VisitedRoom(room))return false;
         return instance.testPortals!=null&&instance.testPortals.Any(p=>p&&p.Room==room&&PlanAvailable(p));
     }
-    static bool PlanAvailable(BlackHolePortal portal){ExitPlan plan;return PlanExit(portal,instance.entryDirection,instance.origin.Cargo,out plan);}
+    static bool PlanAvailable(BlackHolePortal portal){ExitPlan plan;return portal==instance.origin?instance.CancelPlan(portal,-instance.entryDirection,out plan):PlanExit(portal,instance.entryDirection,instance.origin.Cargo,out plan);}
     public static void Choose(string scene,string room){
         if(!instance||instance.busy||!Selecting||!instance.origin||instance.origin.gameObject.scene.path!=scene)return;
-        var portal=instance.testPortals.FirstOrDefault(p=>p&&p.Room==room&&p!=instance.origin&&PlanAvailable(p));
+        var portal=instance.testPortals.FirstOrDefault(p=>p&&p.Room==room&&PlanAvailable(p));
         if(portal)instance.SelectTestPortal(portal,false);
     }
     public static void Cancel(){if(instance&&!instance.busy&&Selecting&&instance.origin)instance.SelectTestPortal(instance.origin,true);}
