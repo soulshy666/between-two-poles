@@ -20,7 +20,8 @@ public sealed class ChapterRecoilExit:MonoBehaviour {
     void OnGUI(){if(ChapterRecoilTravel.Active)return;
         if(!Debug.isDebugBuild)return;var old=GUI.matrix;float scale=Mathf.Max(.7f,Screen.height/900f);GUI.matrix=Matrix4x4.Scale(new Vector3(scale,scale,1));
         GUI.enabled=!Board.Busy&&!BlackHoleTravel.InTransit;
-        if(GUI.Button(new Rect(22,74,200,38),"测试：冰雪末岛"))JumpToFinalIsland();
+        // Reserve the first two rows for returning to the island and star chart.
+        if(GUI.Button(new Rect(22,138,210,48),"测试：冰雪末岛"))JumpToFinalIsland();
         GUI.enabled=true;GUI.matrix=old;
     }
 }

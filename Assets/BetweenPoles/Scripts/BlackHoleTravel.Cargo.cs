@@ -10,7 +10,7 @@ public sealed partial class BlackHoleTravel {
         public MagnetProduct product;
     }
     public static bool PlanExit(BlackHolePortal target,Vector2Int direction,MagnetPiece cargo,out ExitPlan plan){
-        plan=new ExitPlan();if(!target||!target.CanArrive||target.Cargo||Mathf.Abs(direction.x)+Mathf.Abs(direction.y)!=1)return false;
+        plan=new ExitPlan();if(!target||!target.CanArrive||(target.Cargo&&target.Cargo!=cargo)||Mathf.Abs(direction.x)+Mathf.Abs(direction.y)!=1)return false;
         var board=target.board;var cell=target.Cell+direction;GridTile tile;Vector3 top;
         if(!cargo){if(!target.TryExitLanding(direction,out tile,out top))return false;plan.player=top;return true;}
         if(board.IsWreckCell(cell)||BlackHolePortal.At(board,cell))return false;
@@ -28,8 +28,8 @@ public sealed partial class BlackHoleTravel {
         if(receiver){
             if(cargo.combined||Mathf.Abs(receiver.transform.position.y-target.tile.surfaceHeight)>.01f)return false;
             var product=GridPlayground.Recipe(cargo,cargo.Pose,receiver,tile&&!tile.blocked,direction);
-            // Only a completed walking surface can safely receive the following player.
-            if(product!=MagnetProduct.WideBar&&product!=MagnetProduct.Ring&&product!=MagnetProduct.Bridge)return false;
+            // A cross can receive an airborne player even though it is not a walking bridge.
+            if(product!=MagnetProduct.WideBar&&product!=MagnetProduct.Cross&&product!=MagnetProduct.Ring&&product!=MagnetProduct.Bridge)return false;
             if(product==MagnetProduct.Bridge){
                 var second=cell+receiver.bridgeDirection;var ground=board.TileAt(second);var occupant=board.MagnetAt(second);
                 if(second==target.Cell||(ground&&(ground.blocked||Mathf.Abs(ground.surfaceHeight-receiver.transform.position.y)>.01f))||(occupant&&occupant!=receiver))return false;
@@ -140,6 +140,17 @@ public sealed partial class BlackHoleTravel {
         }finally{if(pose)pose.End();}
     }
     IEnumerator ThrowCargo(MagnetPiece cargo,Vector3 start,Vector3 end,Quaternion pose,Vector3 scale,float seconds,float arc){
+        // The destination preview may have hidden these renderers while the
+        // cargo still belonged to the entry island. The board stays disabled
+        // throughout travel, so its normal visibility refresh cannot restore them.
+        // Apply this for both the outgoing throw and a bounce back to the source.
+        var visibility=new MaterialPropertyBlock();
+        foreach(var renderer in cargo.GetComponentsInChildren<Renderer>(true)){
+            renderer.enabled=true;
+            renderer.GetPropertyBlock(visibility);
+            visibility.SetFloat("_IslandWindowClipEnabled",0);
+            renderer.SetPropertyBlock(visibility);
+        }
         cargo.geometry.localScale=scale;
         for(float t=0;t<seconds;t+=Time.unscaledDeltaTime){
             float a=Mathf.Clamp01(t/seconds);cargo.transform.position=Vector3.Lerp(start,end,a);
