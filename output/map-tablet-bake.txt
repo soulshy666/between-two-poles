@@ -1,0 +1,1 @@
+PASS: tablet flush against backpack; no mounting rail in shared astronaut prefab.

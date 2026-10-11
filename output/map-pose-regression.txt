@@ -1,0 +1,1 @@
+PASS: map toggle/hold/close, visible player while inspecting, input lock, unchanged grid position/facing, cancellation during draw, no chart on opening/inward zoom, outward zoom threshold and automatic transition, star chart suspension and animated return.

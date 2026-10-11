@@ -14,6 +14,9 @@ public static class SharedPlayer {
     }
     public static void Prepare(GridPlayground board){
         if(!Application.isPlaying||!board.gameObject.scene.name.StartsWith("Chapter0"))return;
+        // A preview chapter must not rebind or reposition the astronaut who is
+        // holding the map in the suspended game.
+        if(ChapterAtlas.IsInspectionScene(board.gameObject.scene))return;
         if(Instance&&(ChapterRecoilTravel.Active||BlackHoleTravel.Selecting)){
             if(board.player!=Instance)board.player.gameObject.SetActive(false);return;
         }

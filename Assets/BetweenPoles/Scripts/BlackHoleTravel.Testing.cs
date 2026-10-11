@@ -34,8 +34,7 @@ public sealed partial class BlackHoleTravel {
             }
             busy=true;var destination=testDestination;
             ExitPlan plan;var direction=testCancel?-entryDirection:entryDirection;
-            var cargo=testCancel?null:source.Cargo;
-            // Cancellation leaves stored material in the original portal.
+            var cargo=source.Cargo;
             bool valid=testCancel?CancelPlan(source,direction,out plan):PlanExit(destination,direction,cargo,out plan);
             if(!valid)yield break;
 
@@ -52,11 +51,10 @@ public sealed partial class BlackHoleTravel {
         }
     }
     bool CancelPlan(BlackHolePortal source,Vector2Int direction,out ExitPlan plan){
-        plan=new ExitPlan();GridTile tile;Vector3 landing;
-        if(!BlackHolePortal.TrySurface(source.board,source.Cell+direction,out tile,out landing))return false;
-        plan.player=landing;return true;
+        return PlanExit(source,direction,source.Cargo,out plan);
     }
     bool SelectTestPortal(BlackHolePortal portal,bool cancel){
+        cancel=cancel||portal==origin;
         ExitPlan plan;
         bool valid=portal&&(cancel?CancelPlan(portal,-entryDirection,out plan):portal!=origin&&PlanExit(portal,entryDirection,origin.Cargo,out plan));
         if(!valid){testMessage="出口无法安全落脚或组合：检查出口、竖直磁铁倒下的一格，以及磁铁弹回入口的位置。";return false;}

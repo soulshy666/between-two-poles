@@ -45,8 +45,9 @@ public sealed partial class ChapterAtlas : MonoBehaviour {
         BuildUI();CacheChartPlanets();if(ChartArrivalFrame)StartCoroutine(ArriveAtChart());
     }
     void Update(){
+        if(Input.GetKeyDown(KeyCode.M)){ReturnToGame();return;}
         if(chartTransitioning){if(Input.GetKeyDown(KeyCode.Escape))ReturnToGame();return;}
-        if(IsInspecting){if(!inspectionLoading){if(inspectionNavigation)inspectionNavigation.TickInspection();if(Input.GetKeyDown(KeyCode.Escape))CloseInspection();}return;}
+        if(IsInspecting){if(!inspectionLoading){if(inspectionNavigation){inspectionNavigation.TickInspection();if(inspectionNavigation.PlayerReturnRequested){ReturnToGame();return;}}if(Input.GetKeyDown(KeyCode.Escape))CloseInspection();}return;}
         if(Input.GetKeyDown(KeyCode.Escape)){ReturnToGame();return;}
         if(Input.GetMouseButtonDown(0)&&(!EventSystem.current||!EventSystem.current.IsPointerOverGameObject()))ClickPlanet(Input.mousePosition);
     }
@@ -77,7 +78,7 @@ public sealed partial class ChapterAtlas : MonoBehaviour {
             Label("0"+(i+1)+"  "+chapters[i].title,tab,Vector2.zero,new Vector2(305,48),22);
         }
         Label("点击星球，检视已经探索的小岛",root,new Vector2(0,-402),new Vector2(900,40),20);
-        string text=ChapterMapReturn.HasSuspendedGame?"返回游戏（Esc）":"进入游戏";
+        string text=ChapterMapReturn.HasSuspendedGame?"返回岛屿（M / Esc）":"进入游戏";
         var button=Box(text,root,new Vector2(645,385),new Vector2(220,52));button.gameObject.AddComponent<Image>().color=new Color(.07f,.13f,.18f,.95f);
         button.gameObject.AddComponent<Button>().onClick.AddListener(ReturnToGame);Label(text,button,Vector2.zero,new Vector2(220,52),21);
         locator=Box("主角当前位置",root,Vector2.zero,new Vector2(240,150));

@@ -13,7 +13,12 @@ public sealed partial class BlackHoleTravel {
     readonly Dictionary<Renderer,bool> navigationRenderers=new Dictionary<Renderer,bool>();
     GridPlayground inspectionBoard;
     Vector3? inspectionPosition;
-    public void BeginInspection(GridPlayground board){inspectionBoard=board;Vector3 position;inspectionPosition=ChapterMapReturn.TrySuspendedPosition(board.gameObject.scene.path,out position)?(Vector3?)position:null;BeginNavigation(board);if(inspectionPosition.HasValue){viewFocus=inspectionPosition.Value;ApplyNavigation();}}
+    bool allowChartZoom;
+    float chartZoomThreshold;
+    public bool ChartZoomRequested {get;private set;}
+    public bool PlayerReturnRequested {get;private set;}
+    bool playerReturnPressed;
+    public void BeginInspection(GridPlayground board,bool allowStarChartZoom=false){inspectionBoard=board;allowChartZoom=allowStarChartZoom;ChartZoomRequested=false;Vector3 position;inspectionPosition=ChapterMapReturn.TrySuspendedPosition(board.gameObject.scene.path,out position)?(Vector3?)position:null;BeginNavigation(board);chartZoomThreshold=Mathf.Clamp(viewSize*2.2f,24f,65f);if(inspectionPosition.HasValue){viewFocus=inspectionPosition.Value;ApplyNavigation();}}
     public System.Collections.IEnumerator PullBackInspection(){
         if(!viewCamera)yield break;float start=viewCamera.orthographicSize;
         navigationSmoothTime=.1f;if(navigationCurve)navigationCurve.navigationZoomSmoothTime=.1f;
@@ -29,8 +34,8 @@ public sealed partial class BlackHoleTravel {
         try{RenderTexture.active=buffer;var image=new Texture2D(buffer.width,buffer.height,TextureFormat.RGB24,false){filterMode=FilterMode.Point};image.ReadPixels(new Rect(0,0,buffer.width,buffer.height),0,0);image.Apply();return image;}
         finally{RenderTexture.active=previous;}
     }
-    public void TickInspection(){if(inspectionBoard)UpdateNavigation();}
-    public void FinishInspection(){EndNavigation();inspectionBoard=null;inspectionPosition=null;}
+    public void TickInspection(){PlayerReturnRequested=false;if(inspectionBoard)UpdateNavigation();}
+    public void FinishInspection(){EndNavigation();inspectionBoard=null;inspectionPosition=null;allowChartZoom=false;ChartZoomRequested=false;PlayerReturnRequested=false;playerReturnPressed=false;}
     bool VisitedRoom(string room){
         if(inspectionBoard)return PlayerPrefs.GetInt(ChapterAtlas.Key(inspectionBoard.gameObject.scene.path,room),0)>0;
         if(!origin)return false;
@@ -56,13 +61,15 @@ public sealed partial class BlackHoleTravel {
             var owner=m.GetComponent<IslandSurfaceAnchor>();bool show=!navigationWindow||owner&&owner.center&&VisitedRoom(owner.center.name);
             foreach(var renderer in m.GetComponentsInChildren<Renderer>())SetNavigationVisible(renderer,show);
         }
-        dragging=false;ApplyNavigation();
+        dragging=false;playerReturnPressed=false;PlayerReturnRequested=false;ApplyNavigation();
     }
     void SetNavigationVisible(Renderer renderer,bool show){
         if(!renderer)return;if(!navigationRenderers.ContainsKey(renderer))navigationRenderers.Add(renderer,renderer.enabled);renderer.enabled=show;
     }
     void ApplyNavigation(){
         if(!navigationCamera)return;
+        if(Input.GetMouseButtonDown(0))playerReturnPressed=HitInspectionPlayer(Input.mousePosition);
+        if(Input.GetMouseButton(1)||Input.GetMouseButton(2))playerReturnPressed=false;
         // Orthographic zoom widens the ground footprint without moving the lens.
         // Retreat along the same viewing direction so its near plane cannot slice that footprint.
         float depth=Mathf.Max(savedViewingOffset.magnitude,Mathf.Max(viewSize,viewCamera.orthographicSize)*1.5f+5f);
@@ -86,16 +93,35 @@ public sealed partial class BlackHoleTravel {
             lastMouse=mouse;
         }
         ApplyNavigationScroll(Input.mouseScrollDelta.y);ApplyNavigation();
-        if(inspectionBoard)return; // Inspection never selects or activates a portal.
+        if(inspectionBoard){
+            if(Input.GetMouseButtonUp(0)){
+                PlayerReturnRequested=playerReturnPressed&&!dragging&&(Input.mousePosition-pressPosition).sqrMagnitude<=36&&HitInspectionPlayer(Input.mousePosition);
+                playerReturnPressed=false;
+            }
+            return; // Inspection never selects or activates a portal.
+        }
         if(Input.GetMouseButtonUp(0)&&!dragging&&Input.mousePosition.y<Screen.height-88){
             BlackHolePortal selected=null;float best=38*38;
-            foreach(var portal in testPortals){if(!portal||portal==origin)continue;
+            foreach(var portal in testPortals){if(!portal)continue;
                 var screen=NavigationScreenPoint(portal.transform.position);
                 float d=((Vector2)screen-(Vector2)Input.mousePosition).sqrMagnitude;
                 if(screen.z>0&&d<best){selected=portal;best=d;}
             }
             if(selected)SelectTestPortal(selected,false);
         }
+    }
+    bool HitInspectionPlayer(Vector2 mouse){
+        if(!inspectionBoard||!inspectionPosition.HasValue||!viewCamera)return false;
+        var point=new Vector2(mouse.x,Screen.height-mouse.y);
+        float scale=Mathf.Max(.7f,Screen.height/900f);
+        // Leave the navigation buttons and header to their own UI handlers.
+        if(point.y<80*scale||new Rect(12*scale,12*scale,230*scale,184*scale).Contains(point))return false;
+        Vector2 marker,direction;bool offscreen;
+        if(!OriginIndicator(out marker,out direction,out offscreen)||offscreen)return false;
+        var player=NavigationScreenPoint(inspectionPosition.Value);
+        float radius=52*scale;
+        return (point-new Vector2(player.x,Screen.height-player.y)).sqrMagnitude<=radius*radius
+            ||new Rect(marker.x-48,marker.y-48,96,112).Contains(point);
     }
     void ApplyNavigationScroll(float scroll){
         if(Mathf.Abs(scroll)<.001f||!viewCamera)return;
@@ -104,6 +130,8 @@ public sealed partial class BlackHoleTravel {
         navigationSmoothTime=.1f;
         if(navigationCurve)navigationCurve.navigationZoomSmoothTime=navigationSmoothTime;
         viewSize=Mathf.Clamp(viewSize-scroll*1.5f,4,80);
+        // Only the local map opts in; portal selection and remote inspections stay local.
+        if(inspectionBoard&&allowChartZoom&&scroll<0&&viewSize>=chartZoomThreshold)ChartZoomRequested=true;
     }
     Vector3 NavigationScreenPoint(Vector3 world){
         // The world camera renders into a small pixel buffer, not the GUI-sized screen.

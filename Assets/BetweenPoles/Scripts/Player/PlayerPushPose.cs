@@ -102,7 +102,7 @@ public sealed partial class PlayerPushPose:MonoBehaviour {
         original=body.sharedMesh;posed=Instantiate(original);posed.name="Astronaut push pose";posed.MarkDynamic();
         vertices=original.vertices;normals=original.normals;
         workVertices=new Vector3[vertices.Length];workNormals=new Vector3[normals.Length];
-        arms=new bool[vertices.Length];legs=new bool[vertices.Length];
+        arms=new bool[vertices.Length];legs=new bool[vertices.Length];mapHead=new bool[vertices.Length];
         // Weld coincident face vertices to identify whole rigid model parts. This avoids
         // tearing shoulder faces or accidentally pulling the chest along with the hands.
         var parent=new int[vertices.Length];var welded=new Dictionary<Vector3,int>();
@@ -113,10 +113,12 @@ public sealed partial class PlayerPushPose:MonoBehaviour {
         for(int i=0;i<vertices.Length;i++){int root=Root(parent,i);if(!bounds.TryGetValue(root,out var b))b=new Bounds(vertices[i],Vector3.zero);else b.Encapsulate(vertices[i]);bounds[root]=b;}
         for(int i=0;i<vertices.Length;i++){
             var b=bounds[Root(parent,i)];
+            mapHead[i]=b.center.y>.74f;
             arms[i]=Mathf.Abs(b.center.x)>.20f&&b.min.y>.30f&&b.max.y<.74f;
             legs[i]=Mathf.Abs(b.center.x)>.045f&&b.max.y<.37f&&(b.min.x>0||b.max.x<0);
         }
         body.sharedMesh=posed;
+        BuildMapTablet();
     }
     static int Root(int[] parents,int i){while(parents[i]!=i){parents[i]=parents[parents[i]];i=parents[i];}return i;}
     static void Join(int[] parents,int a,int b){parents[Root(parents,b)]=Root(parents,a);}
@@ -178,6 +180,7 @@ public sealed partial class PlayerPushPose:MonoBehaviour {
         posed.vertices=workVertices;if(normals.Length==vertices.Length)posed.normals=workNormals;
     }
     public void End(){
+        readingMap=false;DockMapTablet();
         ResetPortalEntry();
         ResetStonePush();
         idlePlaying=false;idleElapsed=0;idleWait=0;
@@ -213,6 +216,7 @@ public sealed partial class PlayerPushPose:MonoBehaviour {
         posed.vertices=workVertices;if(normals.Length==vertices.Length)posed.normals=workNormals;
     }
     void LateUpdate(){
+        if(readingMap){SampleMap(mapProgress);return;}
         UpdateIdle();
         UpdateStonePush();
         if(balancing){
@@ -221,7 +225,7 @@ public sealed partial class PlayerPushPose:MonoBehaviour {
             if(balanceTime>=BalanceSeconds)End();else SampleBalance(balanceTime);
         }else if((pushing||walking)&&(!board||!board.Busy))End();
     }
-    void OnDisable(){End();}
-    void OnDestroy(){if(body&&original)body.sharedMesh=original;if(posed){if(Application.isPlaying)Destroy(posed);else DestroyImmediate(posed);}}
+    void OnDisable(){if(!readingMap)End();}
+    void OnDestroy(){DestroyMapMaterials();if(body&&original)body.sharedMesh=original;if(posed){if(Application.isPlaying)Destroy(posed);else DestroyImmediate(posed);}}
 }
 }

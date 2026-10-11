@@ -24,7 +24,7 @@ public sealed class ChapterMapReturn : MonoBehaviour {
         var tile=board.TileAt(board.PlayerCell);if(tile)Visit(tile);
     }
     void Visit(GridTile tile){var anchor=tile.GetComponentInParent<IslandSurfaceAnchor>();if(!anchor||!anchor.center)return;PlayerPrefs.SetInt(ChapterAtlas.WorldVisitKey(gameObject.scene.path),1);string key=ChapterAtlas.Key(gameObject.scene.path,anchor.center.name);if(PlayerPrefs.GetInt(key,0)==0){PlayerPrefs.SetInt(key,1);PlayerPrefs.Save();}}
-    void OnDestroy(){if(localOverview)CloseLocalOverview();if(board)board.Landed-=Visit;}
+    void OnDestroy(){if(localOverview)CloseLocalOverview();if(mapPose&&mapSession)mapPose.End();if(board)board.Landed-=Visit;}
     static ChapterMapReturn suspended;
     readonly System.Collections.Generic.List<GameObject> suspendedRoots=new System.Collections.Generic.List<GameObject>();
     bool playerWasActive,boardWasEnabled;
@@ -35,63 +35,93 @@ public sealed class ChapterMapReturn : MonoBehaviour {
     static void ResetNavigation(){suspended=null;}
     BlackHoleTravel localNavigation;
     bool localOverview;
+    bool mapAnimating,mapSession;
+    PlayerPushPose mapPose;
     public bool IsLocalOverview {get{return localOverview;}}
     public void OpenLocalOverview(){
-        if(localOverview||loading||!board||board.Busy||BlackHoleTravel.Selecting||BlackHoleTravel.InTransit||ChapterRecoilTravel.Active)return;
+        if(localOverview||loading||mapAnimating||!board||board.Busy||board.OpeningCinematic||BlackHoleTravel.Selecting||BlackHoleTravel.InTransit||ChapterRecoilTravel.Active)return;
+        StartCoroutine(OpenMapWithPose());
+    }
+    IEnumerator OpenMapWithPose(){
+        mapAnimating=true;mapSession=true;cancelMapOpening=false;
         suspended=this;playerWasActive=board.player.gameObject.activeSelf;boardWasEnabled=board.enabled;
         board.enabled=false;
+        mapPose=PlayerPushPose.BeginMap(board.player);
+        yield return mapPose.AnimateMap(true);
+        mapAnimating=false;
+        if(cancelMapOpening){StartCoroutine(StowMap());yield break;}
         if(!localNavigation)localNavigation=gameObject.AddComponent<BlackHoleTravel>();
-        localNavigation.BeginInspection(board);board.player.gameObject.SetActive(false);localOverview=true;
+        localNavigation.BeginInspection(board,true);localOverview=true;
+    }
+    IEnumerator StowMap(){
+        mapAnimating=true;loading=false;
+        if(localOverview){localNavigation.FinishInspection();localOverview=false;}
+        board.player.gameObject.SetActive(playerWasActive);
+        if(mapPose)yield return mapPose.AnimateMap(false);
+        board.enabled=boardWasEnabled;mapSession=false;mapAnimating=false;
+        if(suspended==this)suspended=null;
     }
     public void CloseLocalOverview(){
         if(!localOverview)return;
         localNavigation.FinishInspection();board.player.gameObject.SetActive(playerWasActive);board.enabled=boardWasEnabled;
         localOverview=false;if(suspended==this)suspended=null;
     }
-    void Update(){if(!localOverview)return;if(Input.GetKeyDown(KeyCode.Escape)){ReturnDirectlyToGame();return;}if(!loading)localNavigation.TickInspection();}
+    void Update(){
+        if(Input.GetKeyDown(KeyCode.M)){ToggleMap();return;}
+        if(Input.GetKeyDown(KeyCode.Escape)&&(localOverview||mapAnimating||loading)){ReturnDirectlyToGame();return;}
+        if(localOverview&&!loading&&!mapAnimating){localNavigation.TickInspection();if(localNavigation.PlayerReturnRequested)ReturnDirectlyToGame();else if(localNavigation.ChartZoomRequested)ReturnToMap();}
+    }
+    public void ToggleMap(){if(mapSession||localOverview||loading||mapAnimating)ReturnDirectlyToGame();else OpenLocalOverview();}
     public void ReturnToMap(){
-        if(loading||BlackHoleTravel.Selecting||BlackHoleTravel.InTransit||ChapterRecoilTravel.Active||board&&board.Busy)return;
+        if(loading||mapAnimating||BlackHoleTravel.Selecting||BlackHoleTravel.InTransit||ChapterRecoilTravel.Active||board&&board.Busy)return;
         if(localOverview)StartCoroutine(LeaveLocalMap());else StartCoroutine(OpenStarChart());
     }
     bool cancelMapOpening;
     IEnumerator LeaveLocalMap(){
         loading=true;cancelMapOpening=false;
+        yield return localNavigation.PullBackInspection();
+        if(cancelMapOpening){yield return StowMap();yield break;}
+        yield return new WaitForEndOfFrame();
+        if(cancelMapOpening){yield return StowMap();yield break;}
         ChapterAtlas.ChartArrivalFrame=localNavigation.CaptureInspectionFrame();
-        CloseLocalOverview();yield return OpenStarChart();
+        localNavigation.FinishInspection();localOverview=false;yield return OpenStarChart();
     }
-    public void ReturnDirectlyToGame(){if(loading){cancelMapOpening=true;return;}CloseLocalOverview();}
+    public void ReturnDirectlyToGame(){if(loading||mapAnimating){cancelMapOpening=true;return;}if(mapSession)StartCoroutine(StowMap());else CloseLocalOverview();}
     IEnumerator OpenStarChart(){
         loading=true;string name=gameObject.scene.name;ChapterAtlas.ReturnChapter=name.Contains("01")?0:name.Contains("02")?1:name.Contains("03")?2:3;
-        suspended=this;playerWasActive=board.player.gameObject.activeSelf;boardWasEnabled=board.enabled;board.enabled=false;
+        suspended=this;if(!mapSession){playerWasActive=board.player.gameObject.activeSelf;boardWasEnabled=board.enabled;}board.enabled=false;
         var load=SceneManager.LoadSceneAsync(Showcase,LoadSceneMode.Additive);
-        if(load==null){loading=false;suspended=null;board.enabled=boardWasEnabled;yield break;}
+        if(load==null){ClearArrivalFrame();loading=false;if(mapSession)yield return StowMap();else{ suspended=null;board.enabled=boardWasEnabled;}yield break;}
         yield return load;
-        if(cancelMapOpening){loading=false;suspended=null;board.enabled=boardWasEnabled;SceneManager.UnloadSceneAsync(Showcase);yield break;}
+        if(cancelMapOpening){ClearArrivalFrame();loading=false;SceneManager.UnloadSceneAsync(Showcase);if(mapSession)yield return StowMap();else{suspended=null;board.enabled=boardWasEnabled;}yield break;}
         SceneManager.SetActiveScene(SceneManager.GetSceneByPath(Showcase));
         board.player.gameObject.SetActive(false);suspendedRoots.Clear();
         foreach(var root in gameObject.scene.GetRootGameObjects())if(root.activeSelf)suspendedRoots.Add(root);
         foreach(var root in suspendedRoots)if(root!=transform.root.gameObject)root.SetActive(false);
         transform.root.gameObject.SetActive(false);
     }
+    static void ClearArrivalFrame(){if(ChapterAtlas.ChartArrivalFrame)Destroy(ChapterAtlas.ChartArrivalFrame);ChapterAtlas.ChartArrivalFrame=null;}
     public static void ResumeGame(){
         if(!suspended)return;var previous=suspended;suspended=null;
         SceneManager.SetActiveScene(previous.gameObject.scene);
         foreach(var root in previous.suspendedRoots)if(root)root.SetActive(true);
-        previous.suspendedRoots.Clear();previous.board.player.gameObject.SetActive(previous.playerWasActive);previous.board.enabled=previous.boardWasEnabled;previous.loading=false;
+        previous.suspendedRoots.Clear();previous.board.player.gameObject.SetActive(previous.playerWasActive);previous.loading=false;
+        if(previous.mapSession)previous.StartCoroutine(previous.StowMap());else previous.board.enabled=previous.boardWasEnabled;
         SceneManager.UnloadSceneAsync(Showcase);
     }
     void OnGUI(){
         if(BlackHoleTravel.Selecting||ChapterRecoilTravel.Active||BlackHoleTravel.InTransit)return;
         if(loading&&ChapterAtlas.ChartArrivalFrame)GUI.DrawTexture(new Rect(0,0,Screen.width,Screen.height),ChapterAtlas.ChartArrivalFrame);
         var old=GUI.matrix;float scale=Mathf.Max(.7f,Screen.height/900f);GUI.matrix=Matrix4x4.Scale(new Vector3(scale,scale,1));
-        GUI.enabled=!loading&&(!board||!board.Busy);
-        if(GUI.Button(new Rect(22,22,185,42),loading?"打开航图中…":localOverview?"← 星际航图":"查看小岛地图")){
-            if(localOverview)ReturnToMap();else OpenLocalOverview();
+        GUI.enabled=mapSession||(!loading&&!mapAnimating&&(!board||!board.Busy));
+        if(GUI.Button(new Rect(22,22,210,48),mapSession?"返回岛屿（M）":"查看小岛地图（M）")){
+            ToggleMap();
         }
         if(localOverview||loading){
+            GUI.enabled=!loading&&!mapAnimating;
+            if(GUI.Button(new Rect(22,80,210,48),loading?"打开航图中…":"返回星际航图"))ReturnToMap();
             GUI.enabled=true;
-            GUI.Label(new Rect(224,25,850,42),"拖拽查看已探索的小岛，滚轮缩放（仅检视）",new GUIStyle(GUI.skin.label){fontSize=18});
-            if(GUI.Button(new Rect(Screen.width/scale-190,22,168,42),"返回游戏（Esc）"))ReturnDirectlyToGame();
+            GUI.Label(new Rect(248,25,850,48),"拖拽查看小岛，滚轮缩放；继续缩小进入星际航图",new GUIStyle(GUI.skin.label){fontSize=18});
         }
         GUI.enabled=true;GUI.matrix=old;
     }
