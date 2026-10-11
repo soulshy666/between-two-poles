@@ -1,1 +1,2 @@
-PASS: 621 checks: placement/removal, duplicates, four directions, void/elevated exits, occupied portal, editor suppression, presets, full local travel and cancel with screen effects.
+FAIL: System.Exception: Travel ended before selection
+  at BetweenPoles.EditorTools.BlackHoleTestRegression+<>c__DisplayClass7_0.<Run>b__0 () [0x000e4] in D:\unity\between-two-poles\Assets\BetweenPoles\Editor\BlackHoleTestRegression.cs:74 

@@ -41,7 +41,7 @@ public sealed partial class BlackHoleTravel {
             EndNavigation();destination.Disarm();
             board.player.SetPositionAndRotation(new Vector3(destination.tile.transform.position.x,destination.tile.surfaceHeight,destination.tile.transform.position.z),entryFacing);
             board.CompletePortalLanding(destination.Cell);
-            FocusExit(destination);yield return null;
+            yield return WaitForExitView(destination);
             board.player.localScale=playerScale;
             yield return Eject(destination,direction,cargo,plan);
         }finally{

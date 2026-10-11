@@ -31,6 +31,13 @@ public sealed partial class PlayerPushPose {
         SamplePortalLimbs(Mathf.Lerp(-105+55*Mathf.Sin(phase),-55,fall),Mathf.Lerp(-105+55*Mathf.Sin(phase+Mathf.PI),-55,fall),Mathf.Lerp(45*Mathf.Sin(phase+1),0,fall),Mathf.Lerp(45*Mathf.Sin(phase+1+Mathf.PI),0,fall));
         if(visual){visual.localRotation=restRotation*Quaternion.Euler(Mathf.Lerp(-18+12*Mathf.Sin(phase*.5f),88,fall),0,8*Mathf.Sin(phase)*(1-fall));visual.localPosition=restPosition+Vector3.up*(.17f*fall);}
     }
+    public void SamplePortalHeadImpact(float impact,float sink){
+        SamplePortalLimbs(-35-80*impact,-35-80*impact,20*impact,-20*impact);
+        if(visual){
+            visual.localRotation=restRotation*Quaternion.Euler(-32*impact,0,12*impact*Mathf.Sin(sink*Mathf.PI*3));
+            visual.localPosition=restPosition+Vector3.down*(.08f*impact);
+        }
+    }
     void SamplePortalLimbs(float leftArm,float rightArm,float leftLeg,float rightLeg){
         if(!posed)return;
         for(int i=0;i<vertices.Length;i++){

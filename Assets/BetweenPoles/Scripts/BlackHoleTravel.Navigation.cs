@@ -206,6 +206,28 @@ public sealed partial class BlackHoleTravel {
             var curved=camera.GetComponent<CurvedTrialCamera>();if(curved)curved.Apply(camera.transform.position-camera.viewingOffset);
         }
     }
+    System.Collections.IEnumerator WaitForExitView(BlackHolePortal portal){
+        FocusExit(portal);
+        // Let LateUpdate restore the normal island framing before testing it.
+        yield return null;
+        float settledFor=0;
+        var cameras=FindObjectsOfType<IslandCamera>();
+        while(portal){
+            bool settled=true;
+            foreach(var camera in cameras){
+                if(!camera||!camera.enabled||camera.board!=portal.board)continue;
+                var curved=camera.GetComponent<CurvedTrialCamera>();
+                if(curved&&curved.enabled&&!curved.FramingSettled)settled=false;
+                if(camera.CurrentIsland){
+                    var focus=curved?curved.DisplayFocus(camera.CurrentIsland.position):camera.CurrentIsland.position;
+                    if((camera.transform.position-camera.viewingOffset-focus).sqrMagnitude>.000625f)settled=false;
+                }
+            }
+            settledFor=settled?settledFor+Time.unscaledDeltaTime:0;
+            if(settledFor>=.12f)yield break;
+            yield return null;
+        }
+    }
     void OnGUI(){
         if(inspectionBoard){if(inspectionPosition.HasValue)DrawOriginIndicator();return;}
         if(testPortals==null||busy||!Selecting)return;

@@ -39,6 +39,14 @@ namespace BetweenPoles {
   [System.NonSerialized] public float navigationZoomSmoothTime;
   int lastNavigationZoomFrame=-1;
   float zoomVelocity;
+  float targetZoomSize;
+  public bool FramingSettled {
+   get {
+    var camera=GetComponent<Camera>();
+    return camera&&zoomInitialized&&!settlingFlight
+     &&Mathf.Abs(camera.orthographicSize-targetZoomSize)<.03f&&Mathf.Abs(zoomVelocity)<.08f;
+   }
+  }
   public void ResetZoomVelocity(){zoomVelocity=0;}
   bool zoomInitialized;
   Vector4 flatBounds;
@@ -143,6 +151,7 @@ namespace BetweenPoles {
      }
      if(!cached){fittedSize=size;fittedCenter=centers[selected];nextFitTime=Time.unscaledTime+.25f;}
      }
+    targetZoomSize=size;
     // Start at the correct framing; subsequent island changes ease both ways.
     if(!Application.isPlaying||!zoomInitialized){
      camera.orthographicSize=size;zoomVelocity=0;zoomInitialized=Application.isPlaying;
