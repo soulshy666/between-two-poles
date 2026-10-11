@@ -1,4 +1,4 @@
-using System.Collections;
+﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 namespace BetweenPoles {
@@ -27,6 +27,7 @@ public sealed class IceCrashIntro:MonoBehaviour {
     Material smokeMaterial,iceMaterial;Vector3 originalPosition;Quaternion originalRotation;
     bool ready,impacted,finished;float smokeClock;
     void Awake(){
+        if(ChapterAtlas.IsInspectionScene(gameObject.scene)){enabled=false;return;}
         board=GetComponent<GridPlayground>();
         if(!playOnStart||!board||gameObject.scene.name!="Chapter01_IceWorld"||ChapterAtlas.DestinationIsland>0||ChapterRecoilTravel.Active)return;
         Playing=true;board.SetOpeningCinematic(true);

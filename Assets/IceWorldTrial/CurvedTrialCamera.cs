@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 namespace BetweenPoles {
  [ExecuteAlways,DefaultExecutionOrder(100)] public class CurvedTrialCamera:MonoBehaviour {
   public IslandCamera island;
@@ -36,7 +36,10 @@ namespace BetweenPoles {
    settleElapsed=0;settlingFlight=true;
   }
   float fittedSize,nextFitTime;Transform fittedCenter;
+  [System.NonSerialized] public float navigationZoomSmoothTime;
+  int lastNavigationZoomFrame=-1;
   float zoomVelocity;
+  public void ResetZoomVelocity(){zoomVelocity=0;}
   bool zoomInitialized;
   Vector4 flatBounds;
   bool flatInitialized;
@@ -96,7 +99,8 @@ namespace BetweenPoles {
    bool edgeLayout=layoutWindow&&layoutWindow.enabled;
    bool recoil=island&&island.board&&island.board.RecoilFlying;
    Vector3 renderFocus=fixedDisplayOrigin?displayOrigin:recoil?island.board.RecoilOrigin:focus;
-   float displayScale=islandDisplayScale*(edgeLayout?1.1f:1f);
+   // Disabling island visibility for the overview must not change its projection.
+   float displayScale=islandDisplayScale*(edgeLayout||(planar&&layoutWindow)?1.1f:1f);
    Shader.SetGlobalFloat("_IslandDisplayScale",displayScale);
    Shader.SetGlobalVector("_IceCurveFocus",fixedDisplayOrigin?curveOrigin:renderFocus);
    Shader.SetGlobalVector("_IceFocus",new Vector4(renderFocus.x,0,renderFocus.z,0));
@@ -107,7 +111,7 @@ namespace BetweenPoles {
    // Keep every connected island, magnet and the player in the same rigid frame.
    // Independent rim placement changes shore separation and stretches bridge meshes.
    // The camera pans over the fixed board while only the background globe rotates.
-   Shader.SetGlobalFloat("_IslandRigidLayout",edgeLayout||recoil||fixedDisplayOrigin||Shader.GetGlobalFloat("_IslandFlatEnabled")>.5f?1:0);
+   Shader.SetGlobalFloat("_IslandRigidLayout",planar||edgeLayout||recoil||fixedDisplayOrigin||Shader.GetGlobalFloat("_IslandFlatEnabled")>.5f?1:0);
    Shader.SetGlobalFloat("_IslandEdgeLayout",0);
    Shader.SetGlobalVectorArray("_IslandAnchors",anchors);Shader.SetGlobalInt("_IslandCount",count);
    Vector3 rotationFocus=(fixedDisplayOrigin?displayOrigin+(focus-displayOrigin)/Mathf.Max(1,displayScale):focus)-rotationOrigin;
@@ -142,9 +146,10 @@ namespace BetweenPoles {
     // Start at the correct framing; subsequent island changes ease both ways.
     if(!Application.isPlaying||!zoomInitialized){
      camera.orthographicSize=size;zoomVelocity=0;zoomInitialized=Application.isPlaying;
-    }else{
+    }else if(navigationZoomSmoothTime<=0||lastNavigationZoomFrame!=Time.frameCount){
+     lastNavigationZoomFrame=Time.frameCount;
      camera.orthographicSize=Mathf.SmoothDamp(camera.orthographicSize,size,ref zoomVelocity,
-      Mathf.Max(.05f,zoomSmoothTime),Mathf.Infinity,Mathf.Min(Time.deltaTime,.05f));
+      Mathf.Max(.05f,navigationZoomSmoothTime>0?navigationZoomSmoothTime:zoomSmoothTime),Mathf.Infinity,Mathf.Min(Time.deltaTime,.05f));
     }
    }
   }

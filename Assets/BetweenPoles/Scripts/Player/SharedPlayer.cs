@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.SceneManagement;
 namespace BetweenPoles {
 // Chapter scene actors are spawn markers; the live actor comes from one shared prefab.
@@ -9,7 +9,7 @@ public static class SharedPlayer {
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
     static void Register(){SceneManager.sceneLoaded-=Loaded;SceneManager.sceneLoaded+=Loaded;}
     static void Loaded(Scene scene,LoadSceneMode mode){
-        if(ChapterRecoilTravel.Active||BlackHoleTravel.Selecting)return;
+        if(ChapterRecoilTravel.Active||BlackHoleTravel.Selecting||ChapterAtlas.IsInspectionScene(scene))return;
         if(!scene.name.StartsWith("Chapter0")&&Instance)Instance.gameObject.SetActive(false);
     }
     public static void Prepare(GridPlayground board){
