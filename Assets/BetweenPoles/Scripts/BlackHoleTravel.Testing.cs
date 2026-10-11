@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Collections;
 using UnityEngine;
 namespace BetweenPoles {
@@ -19,14 +20,13 @@ public sealed partial class BlackHoleTravel {
             entryFacing=Quaternion.LookRotation(new Vector3(entryDirection.x,0,entryDirection.y));
             board.RecordPortalJourney();
             source.board.SetPortalBusy(true);
-        yield return effect.Absorb(BlackHoleScreenEffect.ScreenCenter(source),2.8f,source);
         var entryPose=source.board.player.GetComponent<PlayerPushPose>();if(entryPose)entryPose.End();
         source.board.SetPortalBusy(false);
             board.player.localScale=Vector3.zero;
-            testPortals=MagnetTestLayouts.Portals(board);testDestination=null;previewPortal=null;testCancel=false;
+            testPortals=board.gameObject.scene.GetRootGameObjects().SelectMany(r=>r.GetComponentsInChildren<BlackHolePortal>()).Where(p=>p.board==board&&VisitedRoom(p.Room)).ToArray();testDestination=null;previewPortal=null;testCancel=false;
             BeginNavigation(board);
-            yield return effect.FadeToNavigation();
-            testMessage=testPortals.Length<2?"至少需要两个黑洞；按 Esc 返回入口。":"移动镜头寻找黑洞，点击出口标记，再确认传送。";
+
+            testMessage="左键拖拽查看已探索的小岛，滚轮缩放，点击黑洞直接从那里出来。";
             busy=false;
             while(!testDestination){
                 if(Input.GetKeyDown(KeyCode.Escape))SelectTestPortal(source,true);
@@ -38,17 +38,17 @@ public sealed partial class BlackHoleTravel {
             // Cancellation leaves stored material in the original portal.
             bool valid=testCancel?CancelPlan(source,direction,out plan):PlanExit(destination,direction,cargo,out plan);
             if(!valid)yield break;
-            yield return effect.Absorb(new Vector2(.5f,.5f),.95f);
+
             EndNavigation();destination.Disarm();
             board.player.SetPositionAndRotation(new Vector3(destination.tile.transform.position.x,destination.tile.surfaceHeight,destination.tile.transform.position.z),entryFacing);
             board.CompletePortalLanding(destination.Cell);
-            yield return null;yield return effect.Emerge(destination);
+            FocusExit(destination);yield return null;
             board.player.localScale=playerScale;
             yield return Eject(destination,direction,cargo,plan);
         }finally{
             EndNavigation();testPortals=null;testDestination=null;previewPortal=null;Selecting=false;busy=false;
             if(board&&board.player)board.player.localScale=playerScale;
-            if(effect)effect.Hide();if(board)board.enabled=wasEnabled;
+            if(board)board.enabled=wasEnabled;
         }
     }
     bool CancelPlan(BlackHolePortal source,Vector2Int direction,out ExitPlan plan){

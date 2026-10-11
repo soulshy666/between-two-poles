@@ -29,6 +29,7 @@ public sealed class IslandCamera : MonoBehaviour {
         focus=islandCenters[current].position;Apply();
     }
     public void SelectCurrentIsland(){current=Nearest();}
+    public void FocusIsland(Vector3 point){PreviewNavigation(point);focus=point;velocity=Vector3.zero;Apply();}
     public void PreviewNavigation(Vector3 point){
         if(islandCenters==null)return;float best=float.PositiveInfinity;
         for(int i=0;i<islandCenters.Length;i++)if(islandCenters[i]){float d=(islandCenters[i].position-point).sqrMagnitude;if(d<best){best=d;current=i;}}

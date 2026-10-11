@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 namespace BetweenPoles {
 public sealed partial class BlackHoleTravel {
@@ -6,68 +6,192 @@ public sealed partial class BlackHoleTravel {
     CurvedTrialCamera navigationCurve;
     Camera viewCamera;
     FiveIslandWindow navigationWindow;
-    bool cameraEnabled,windowEnabled,curveFit;
-    float savedSize,viewSize;
-    Vector3 savedFocus,viewFocus;
+    bool cameraEnabled,windowEnabled,curveFit,dragging;
+    float savedSize,viewSize,savedFarClip,navigationZoomVelocity,navigationSmoothTime;
+    Vector3 savedViewingOffset;
+    Vector3 savedFocus,viewFocus,pressPosition,lastMouse;
     readonly Dictionary<Renderer,bool> navigationRenderers=new Dictionary<Renderer,bool>();
+    GridPlayground inspectionBoard;
+    Vector3? inspectionPosition;
+    public void BeginInspection(GridPlayground board){inspectionBoard=board;Vector3 position;inspectionPosition=ChapterMapReturn.TrySuspendedPosition(board.gameObject.scene.path,out position)?(Vector3?)position:null;BeginNavigation(board);if(inspectionPosition.HasValue){viewFocus=inspectionPosition.Value;ApplyNavigation();}}
+    public System.Collections.IEnumerator PullBackInspection(){
+        if(!viewCamera)yield break;float start=viewCamera.orthographicSize;
+        navigationSmoothTime=.1f;if(navigationCurve)navigationCurve.navigationZoomSmoothTime=.1f;
+        for(float age=0;age<.55f;age+=Mathf.Min(Time.unscaledDeltaTime,.05f)){
+            viewSize=Mathf.Lerp(start,Mathf.Min(80,start*1.65f),Mathf.SmoothStep(0,1,age/.55f));ApplyNavigation();yield return null;
+        }
+    }
+    public Texture2D CaptureInspectionFrame(){
+        if(!viewCamera)return null;
+        var pixel=viewCamera.GetComponent<PixelWorldCamera>();var buffer=pixel?pixel.Buffer:null;
+        if(!buffer)return null;
+        var previous=RenderTexture.active;
+        try{RenderTexture.active=buffer;var image=new Texture2D(buffer.width,buffer.height,TextureFormat.RGB24,false){filterMode=FilterMode.Point};image.ReadPixels(new Rect(0,0,buffer.width,buffer.height),0,0);image.Apply();return image;}
+        finally{RenderTexture.active=previous;}
+    }
+    public void TickInspection(){if(inspectionBoard)UpdateNavigation();}
+    public void FinishInspection(){EndNavigation();inspectionBoard=null;inspectionPosition=null;}
+    bool VisitedRoom(string room){
+        if(inspectionBoard)return PlayerPrefs.GetInt(ChapterAtlas.Key(inspectionBoard.gameObject.scene.path,room),0)>0;
+        if(!origin)return false;
+        return room==origin.Room||PlayerPrefs.GetInt(ChapterAtlas.Key(origin.gameObject.scene.path,room),0)>0;
+    }
     void BeginNavigation(GridPlayground board){
-        foreach(var root in board.gameObject.scene.GetRootGameObjects())foreach(var camera in root.GetComponentsInChildren<IslandCamera>())if(camera.board==board)navigationCamera=camera;
-        if(!navigationCamera)return;
+        navigationRenderers.Clear();
+        foreach(var camera in FindObjectsOfType<IslandCamera>())if(camera.enabled&&camera.board==board){navigationCamera=camera;break;}
+        if(!navigationCamera)throw new System.InvalidOperationException("黑洞总览找不到当前关卡镜头");
         viewCamera=navigationCamera.GetComponent<Camera>();navigationCurve=navigationCamera.GetComponent<CurvedTrialCamera>();
+        savedViewingOffset=navigationCamera.viewingOffset;savedFarClip=viewCamera.farClipPlane;navigationZoomVelocity=0;navigationSmoothTime=1.4f;
         cameraEnabled=navigationCamera.enabled;viewFocus=navigationCamera.transform.position-navigationCamera.viewingOffset;
         navigationCamera.enabled=false;
-        if(navigationCurve){savedFocus=navigationCurve.editFocus;savedSize=navigationCurve.planningSize;curveFit=navigationCurve.fitIsland;navigationCurve.fitIsland=false;}
+        if(navigationCurve){savedFocus=navigationCurve.editFocus;savedSize=navigationCurve.planningSize;curveFit=navigationCurve.fitIsland;navigationCurve.fitIsland=false;navigationCurve.navigationZoomSmoothTime=1.4f;}
         else savedSize=viewCamera.orthographicSize;
-        viewSize=Mathf.Max(savedSize,viewCamera.orthographicSize)*1.5f;
-        navigationWindow=board.GetComponent<FiveIslandWindow>();if(navigationWindow){windowEnabled=navigationWindow.enabled;navigationWindow.enabled=false;foreach(var room in navigationWindow.rooms)foreach(var r in room.surfaces)ShowForNavigation(r);}
-        foreach(var m in board.magnets)if(m&&m.gameObject.activeInHierarchy)foreach(var r in m.GetComponentsInChildren<Renderer>())ShowForNavigation(r);
-        ApplyNavigation();
+        viewSize=viewCamera.orthographicSize*1.8f;
+        navigationWindow=board.GetComponent<FiveIslandWindow>();
+        if(navigationWindow){
+            windowEnabled=navigationWindow.enabled;navigationWindow.enabled=false;
+            foreach(var room in navigationWindow.rooms)foreach(var renderer in room.surfaces)SetNavigationVisible(renderer,VisitedRoom(room.id)||room.center&&VisitedRoom(room.center.name));
+        }
+        foreach(var m in board.magnets)if(m&&m.gameObject.activeInHierarchy){
+            var owner=m.GetComponent<IslandSurfaceAnchor>();bool show=!navigationWindow||owner&&owner.center&&VisitedRoom(owner.center.name);
+            foreach(var renderer in m.GetComponentsInChildren<Renderer>())SetNavigationVisible(renderer,show);
+        }
+        dragging=false;ApplyNavigation();
     }
-    void ShowForNavigation(Renderer renderer){if(!renderer)return;if(!navigationRenderers.ContainsKey(renderer))navigationRenderers.Add(renderer,renderer.enabled);renderer.enabled=true;}
+    void SetNavigationVisible(Renderer renderer,bool show){
+        if(!renderer)return;if(!navigationRenderers.ContainsKey(renderer))navigationRenderers.Add(renderer,renderer.enabled);renderer.enabled=show;
+    }
     void ApplyNavigation(){
         if(!navigationCamera)return;
-        navigationCamera.PreviewNavigation(viewFocus);
-        if(navigationCurve){navigationCurve.editFocus=viewFocus;navigationCurve.planningSize=viewSize;navigationCurve.Apply(viewFocus);}
-        else{navigationCamera.ApplyView(viewFocus);viewCamera.orthographicSize=viewSize;}
+        // Orthographic zoom widens the ground footprint without moving the lens.
+        // Retreat along the same viewing direction so its near plane cannot slice that footprint.
+        float depth=Mathf.Max(savedViewingOffset.magnitude,Mathf.Max(viewSize,viewCamera.orthographicSize)*1.5f+5f);
+        navigationCamera.viewingOffset=savedViewingOffset.normalized*depth;
+        viewCamera.farClipPlane=Mathf.Max(savedFarClip,depth+Mathf.Max(viewSize,viewCamera.orthographicSize)*2f+50f);
+        if(navigationCurve){navigationCurve.editFocus=viewFocus;navigationCurve.planningSize=viewSize/(navigationCurve.PlanarChapter?.8f:1f);navigationCurve.Apply(viewFocus);}
+        else{navigationCamera.ApplyView(viewFocus);viewCamera.orthographicSize=Mathf.SmoothDamp(viewCamera.orthographicSize,viewSize,ref navigationZoomVelocity,navigationSmoothTime,Mathf.Infinity,Mathf.Min(Time.deltaTime,.05f));}
+    }
+    bool GroundPoint(Vector3 mouse,out Vector3 point){
+        point=Vector3.zero;float distance;var ray=viewCamera.ViewportPointToRay(new Vector3(mouse.x/Screen.width,mouse.y/Screen.height,0));
+        if(!new Plane(Vector3.up,Vector3.zero).Raycast(ray,out distance))return false;point=ray.GetPoint(distance);return true;
     }
     void UpdateNavigation(){
         if(!navigationCamera)return;
-        float x=(Input.GetKey(KeyCode.D)||Input.GetKey(KeyCode.RightArrow)?1:0)-(Input.GetKey(KeyCode.A)||Input.GetKey(KeyCode.LeftArrow)?1:0);
-        float z=(Input.GetKey(KeyCode.W)||Input.GetKey(KeyCode.UpArrow)?1:0)-(Input.GetKey(KeyCode.S)||Input.GetKey(KeyCode.DownArrow)?1:0);
-        viewFocus+=new Vector3(x,0,z)*viewSize*Time.unscaledDeltaTime;
-        if(Input.GetMouseButton(1)||Input.GetMouseButton(2))viewFocus+=new Vector3(-Input.GetAxisRaw("Mouse X"),0,-Input.GetAxisRaw("Mouse Y"))*viewSize*.04f;
-        viewSize=Mathf.Clamp(viewSize-Input.mouseScrollDelta.y*1.5f,5,80);ApplyNavigation();
-        if(Input.GetKeyDown(KeyCode.Return)&&previewPortal)SelectTestPortal(previewPortal,false);
+        if(Input.GetMouseButtonDown(0)||Input.GetMouseButtonDown(1)||Input.GetMouseButtonDown(2)){pressPosition=lastMouse=Input.mousePosition;dragging=false;}
+        if(Input.GetMouseButton(0)||Input.GetMouseButton(1)||Input.GetMouseButton(2)){
+            var mouse=Input.mousePosition;
+            if((mouse-pressPosition).sqrMagnitude>36)dragging=true;
+            Vector3 before,after;
+            if((Input.GetMouseButton(0)?dragging:true)&&GroundPoint(lastMouse,out before)&&GroundPoint(mouse,out after))viewFocus+=(before-after)*.4f/Mathf.Max(1f,Shader.GetGlobalFloat("_IslandDisplayScale"));
+            lastMouse=mouse;
+        }
+        ApplyNavigationScroll(Input.mouseScrollDelta.y);ApplyNavigation();
+        if(inspectionBoard)return; // Inspection never selects or activates a portal.
+        if(Input.GetMouseButtonUp(0)&&!dragging&&Input.mousePosition.y<Screen.height-88){
+            BlackHolePortal selected=null;float best=38*38;
+            foreach(var portal in testPortals){if(!portal||portal==origin)continue;
+                var screen=NavigationScreenPoint(portal.transform.position);
+                float d=((Vector2)screen-(Vector2)Input.mousePosition).sqrMagnitude;
+                if(screen.z>0&&d<best){selected=portal;best=d;}
+            }
+            if(selected)SelectTestPortal(selected,false);
+        }
+    }
+    void ApplyNavigationScroll(float scroll){
+        if(Mathf.Abs(scroll)<.001f||!viewCamera)return;
+        // The first wheel input takes control from the slow entrance zoom.
+        if(navigationSmoothTime>.2f){viewSize=viewCamera.orthographicSize;navigationZoomVelocity=0;if(navigationCurve)navigationCurve.ResetZoomVelocity();}
+        navigationSmoothTime=.1f;
+        if(navigationCurve)navigationCurve.navigationZoomSmoothTime=navigationSmoothTime;
+        viewSize=Mathf.Clamp(viewSize-scroll*1.5f,4,80);
+    }
+    Vector3 NavigationScreenPoint(Vector3 world){
+        // The world camera renders into a small pixel buffer, not the GUI-sized screen.
+        var viewport=viewCamera.WorldToViewportPoint(CrashColorReveal.DisplayPoint(world));
+        return new Vector3(viewport.x*Screen.width,viewport.y*Screen.height,viewport.z);
+    }
+    bool OriginIndicator(out Vector2 position,out Vector2 direction,out bool offscreen){
+        position=direction=Vector2.zero;offscreen=false;
+        if(!viewCamera||(!inspectionPosition.HasValue&&!origin))return false;
+        var screen=NavigationScreenPoint(inspectionPosition.HasValue?inspectionPosition.Value:origin.transform.position);
+        var target=new Vector2(screen.x,Screen.height-screen.y);
+        offscreen=screen.z<=0||target.x<0||target.x>Screen.width||target.y<0||target.y>Screen.height;
+        if(!offscreen){position=new Vector2(Mathf.Clamp(target.x,48,Screen.width-48),Mathf.Clamp(target.y-64,48,Screen.height-64));direction=(target-position).normalized;return true;}
+        var center=new Vector2(Screen.width*.5f,Screen.height*.5f);
+        direction=target-center;if(screen.z<=0&&!viewCamera.orthographic)direction=-direction;
+        if(direction.sqrMagnitude<.001f)direction=Vector2.up;
+        direction.Normalize();
+        // Keep the arrow and its caption inside the viewport, clear of navigation buttons.
+        float left=48,right=Screen.width-48,top=116,bottom=Screen.height-94;
+        float tx=Mathf.Abs(direction.x)<.001f?float.PositiveInfinity:((direction.x>0?right:left)-center.x)/direction.x;
+        float ty=Mathf.Abs(direction.y)<.001f?float.PositiveInfinity:((direction.y>0?bottom:top)-center.y)/direction.y;
+        position=center+direction*Mathf.Min(tx,ty);return true;
+    }
+    readonly Texture2D[] originArrows=new Texture2D[8];
+    Texture2D OriginArrowTexture(int heading){
+        if(originArrows[heading])return originArrows[heading];
+        const int size=17;var filled=new bool[size*size];
+        float angle=heading*45*Mathf.Deg2Rad,sin=Mathf.Sin(angle),cos=Mathf.Cos(angle);
+        // Rasterize the rotated solid shape onto the destination grid. Rotating isolated
+        // source blocks left holes and overlapping pixels at diagonal headings.
+        for(int y=0;y<size;y++)for(int x=0;x<size;x++){
+            float dx=x-8,dy=y-8;
+            float localX=dx*cos+dy*sin,localY=-dx*sin+dy*cos;
+            filled[y*size+x]=(localY>=-4.5f&&localY<=.5f&&Mathf.Abs(localX)<=localY+4.6f)
+                ||(localY>=0&&localY<=5.5f&&Mathf.Abs(localX)<=1.35f);
+        }
+        var colors=new Color[size*size];
+        for(int y=0;y<size;y++)for(int x=0;x<size;x++){
+            bool border=false;
+            if(!filled[y*size+x])for(int oy=-1;oy<=1;oy++)for(int ox=-1;ox<=1;ox++){
+                int nx=x+ox,ny=y+oy;
+                if(nx>=0&&nx<size&&ny>=0&&ny<size&&filled[ny*size+nx])border=true;
+            }
+            colors[(size-1-y)*size+x]=filled[y*size+x]?new Color(1f,.2f,.25f,1):border?new Color(.06f,.08f,.1f,1):Color.clear;
+        }
+        var texture=new Texture2D(size,size,TextureFormat.RGBA32,false){name="Black hole position arrow "+heading,filterMode=FilterMode.Point,wrapMode=TextureWrapMode.Clamp,hideFlags=HideFlags.HideAndDontSave};
+        texture.SetPixels(colors);texture.Apply();originArrows[heading]=texture;return texture;
+    }
+    void OnDestroy(){foreach(var texture in originArrows)if(texture){if(Application.isPlaying)Destroy(texture);else DestroyImmediate(texture);}}
+    void DrawOriginIndicator(){
+        if(Event.current.type!=EventType.Repaint)return;
+        Vector2 position,direction;bool offscreen;if(!OriginIndicator(out position,out direction,out offscreen))return;
+        int heading=((Mathf.RoundToInt(Mathf.Atan2(direction.x,-direction.y)*Mathf.Rad2Deg/45f)%8)+8)%8;
+        var old=GUI.color;GUI.color=Color.white;
+        GUI.DrawTexture(new Rect(Mathf.Round(position.x)-42,Mathf.Round(position.y)-42,85,85),OriginArrowTexture(heading));
+        GUI.color=Color.white;
+        GUI.Label(new Rect(Mathf.Clamp(position.x-50,8,Screen.width-108),Mathf.Clamp(position.y+39,96,Screen.height-48),100,24),"当前位置",new GUIStyle(GUI.skin.label){alignment=TextAnchor.MiddleCenter,fontSize=14});
+        GUI.color=old;
     }
     void EndNavigation(){
         foreach(var item in navigationRenderers)if(item.Key)item.Key.enabled=item.Value;navigationRenderers.Clear();
-        if(navigationCurve){navigationCurve.editFocus=savedFocus;navigationCurve.planningSize=savedSize;navigationCurve.fitIsland=curveFit;}
+        if(viewCamera)viewCamera.farClipPlane=savedFarClip;
+        if(navigationCamera)navigationCamera.viewingOffset=savedViewingOffset;
+        if(navigationCurve){navigationCurve.navigationZoomSmoothTime=0;navigationCurve.editFocus=savedFocus;navigationCurve.planningSize=savedSize;navigationCurve.fitIsland=curveFit;}
         if(navigationCamera){navigationCamera.enabled=cameraEnabled;if(!navigationCurve&&viewCamera)viewCamera.orthographicSize=savedSize;}
-        if(navigationWindow)navigationWindow.enabled=windowEnabled;
+        if(navigationWindow){navigationWindow.enabled=windowEnabled;navigationWindow.Show(navigationWindow.CurrentRoom);}
         navigationCamera=null;navigationCurve=null;navigationWindow=null;viewCamera=null;
     }
-    void OnGUI(){
-        if(testPortals==null||busy||!Selecting)return;
-        var style=new GUIStyle(GUI.skin.label){fontSize=18,wordWrap=true};
-        GUI.Box(new Rect(16,16,Mathf.Min(Screen.width-32,790),106),"");
-        GUI.Label(new Rect(30,24,750,30),"选择传送黑洞 · WASD / 方向键移动镜头 · 右键拖动 · 滚轮缩放",style);
-        GUI.Label(new Rect(30,58,750,60),testMessage,style);
-        int row=0;
-        foreach(var portal in testPortals){
-            if(!portal||portal==origin)continue;ExitPlan plan;bool valid=PlanExit(portal,entryDirection,origin.Cargo,out plan);
-            Rect rect;
-            if(viewCamera){
-                var point=viewCamera.WorldToViewportPoint(CrashColorReveal.DisplayPoint(portal.transform.position));
-                if(point.z<0||point.x<0||point.x>1||point.y<0||point.y>1)continue;
-                rect=new Rect(point.x*Screen.width-78,(1-point.y)*Screen.height-24,156,48);
-            }else rect=new Rect(30,145+row++*55,260,46);
-            var color=GUI.backgroundColor;GUI.backgroundColor=valid?(previewPortal==portal?Color.green:new Color(.65f,.4f,1)):Color.gray;
-            if(GUI.Button(rect,"黑洞 ("+portal.Cell.x+", "+portal.Cell.y+")\n"+(valid?"选择出口":"出口受阻"))){previewPortal=portal;testMessage=valid?"已选择出口。确认后磁铁先出来，玩家随后出来。":"该出口空间不足，请选择其他黑洞。";}
-            GUI.backgroundColor=color;
+    void FocusExit(BlackHolePortal portal){
+        foreach(var camera in FindObjectsOfType<IslandCamera>())if(camera.enabled&&camera.board==portal.board){
+            camera.SelectCurrentIsland();if(camera.CurrentIsland)camera.FocusIsland(camera.CurrentIsland.position);
+            var curved=camera.GetComponent<CurvedTrialCamera>();if(curved)curved.Apply(camera.transform.position-camera.viewingOffset);
         }
-        ExitPlan selectedPlan;GUI.enabled=previewPortal&&PlanExit(previewPortal,entryDirection,origin.Cargo,out selectedPlan);
-        if(GUI.Button(new Rect(Screen.width/2-200,Screen.height-76,250,52),"确认传送（Enter）"))SelectTestPortal(previewPortal,false);
-        GUI.enabled=true;if(GUI.Button(new Rect(Screen.width/2+65,Screen.height-76,170,52),"取消返回（Esc）"))SelectTestPortal(origin,true);
+    }
+    void OnGUI(){
+        if(inspectionBoard){if(inspectionPosition.HasValue)DrawOriginIndicator();return;}
+        if(testPortals==null||busy||!Selecting)return;
+        GUI.Box(new Rect(16,16,Mathf.Min(Screen.width-32,790),72),"");
+        GUI.Label(new Rect(30,25,750,54),testMessage,new GUIStyle(GUI.skin.label){fontSize=18,wordWrap=true});
+        foreach(var portal in testPortals){if(!portal||portal==origin||!viewCamera)continue;
+            var point=viewCamera.WorldToViewportPoint(CrashColorReveal.DisplayPoint(portal.transform.position));
+            if(point.z<0||point.x<0||point.x>1||point.y<0||point.y>1)continue;
+            // Passive labels leave input to the drag/click discriminator, so dragging
+            // across a portal never accidentally teleports the player.
+            GUI.Label(new Rect(point.x*Screen.width-40,(1-point.y)*Screen.height-42,80,24),"点击传送",new GUIStyle(GUI.skin.label){alignment=TextAnchor.MiddleCenter});
+        }
+        DrawOriginIndicator();
+        if(GUI.Button(new Rect(Screen.width-196,Screen.height-72,180,48),"返回入口（Esc）"))SelectTestPortal(origin,true);
     }
 }
 }

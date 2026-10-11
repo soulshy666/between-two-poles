@@ -1,4 +1,4 @@
-using System.Collections;
+﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -93,6 +93,7 @@ public sealed partial class GridPlayground:MonoBehaviour {
     Vector3 Position(Vector2Int p,float y=0){return new Vector3(p.x*cellSize,y,p.y*cellSize);}
     bool Floor(Vector2Int p){var t=Tile(p);return t&&!t.blocked;}
     void Awake(){
+        if(ChapterAtlas.IsInspectionScene(gameObject.scene)){enabled=false;return;}
         SharedPlayer.Prepare(this);
         if(player)PlayerPushPose.EnsureIdle(player);
         CaptureInitialState();
