@@ -32,9 +32,9 @@ public sealed partial class PlayerPushPose {
         if(visual){visual.localRotation=restRotation*Quaternion.Euler(Mathf.Lerp(-18+12*Mathf.Sin(phase*.5f),88,fall),0,8*Mathf.Sin(phase)*(1-fall));visual.localPosition=restPosition+Vector3.up*(.17f*fall);}
     }
     public void SamplePortalHeadImpact(float impact,float sink){
-        SamplePortalLimbs(-35-80*impact,-35-80*impact,20*impact,-20*impact);
+        SamplePortalLimbs(-35-20*impact,-35-20*impact,10*impact,10*impact);
         if(visual){
-            visual.localRotation=restRotation*Quaternion.Euler(-32*impact,0,12*impact*Mathf.Sin(sink*Mathf.PI*3));
+            visual.localRotation=restRotation*Quaternion.Euler(10*impact,0,0);
             visual.localPosition=restPosition+Vector3.down*(.08f*impact);
         }
     }

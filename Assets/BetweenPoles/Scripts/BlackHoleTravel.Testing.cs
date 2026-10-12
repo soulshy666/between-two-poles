@@ -10,6 +10,7 @@ public sealed partial class BlackHoleTravel {
         origin=source;Selecting=true;busy=true;var board=source.board;
         bool wasEnabled=board.enabled;board.enabled=false;
         var playerScale=board.player.localScale;
+        bool undoRequested=false;
         try{
             entryDirection=source.EntryDirection;
             if(Mathf.Abs(entryDirection.x)+Mathf.Abs(entryDirection.y)!=1){
@@ -28,6 +29,7 @@ public sealed partial class BlackHoleTravel {
             testMessage="左键拖拽查看已探索的小岛，滚轮缩放，点击黑洞直接从那里出来。";
             busy=false;
             while(!testDestination){
+                if(Input.GetKeyDown(KeyCode.Z)){undoRequested=true;yield break;}
                 UpdateNavigation();yield return null;
             }
             busy=true;var destination=testDestination;
@@ -46,6 +48,7 @@ public sealed partial class BlackHoleTravel {
             EndNavigation();testPortals=null;testDestination=null;previewPortal=null;Selecting=false;busy=false;
             if(board&&board.player)board.player.localScale=playerScale;
             if(board)board.enabled=wasEnabled;
+            if(undoRequested&&board)board.UndoStep();
         }
     }
     bool SelectTestPortal(BlackHolePortal portal){
