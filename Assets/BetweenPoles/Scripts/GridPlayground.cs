@@ -26,7 +26,8 @@ public sealed partial class GridPlayground:MonoBehaviour {
     public Renderer goalLight;
     public Material goalCompleteMaterial;
     public bool ReachedGoal { get; private set; }
-    public bool Busy { get; private set; }
+    bool movementBusy,collectingStar;
+    public bool Busy { get{return movementBusy||collectingStar;} private set{movementBusy=value;} }
     public event System.Action<GridTile> Landed;
     struct BufferedStep { public Vector2Int direction; public float time; }
     readonly Queue<BufferedStep> bufferedSteps=new Queue<BufferedStep>();
@@ -154,7 +155,7 @@ public sealed partial class GridPlayground:MonoBehaviour {
             ||Mathf.Abs(Input.GetAxisRaw("Mouse X"))+Mathf.Abs(Input.GetAxisRaw("Mouse Y"))>.001f)){
             var pose=player.GetComponent<PlayerPushPose>();if(pose)pose.CancelIdle();
         }
-        if(OpeningCinematic){ClearMovementInput();return;}
+        if(OpeningCinematic||collectingStar){ClearMovementInput();return;}
         var panel=GetComponent<MagnetDebugPanel>();
         if((panel&&panel.enabled&&panel.IsOpen)||Time.timeScale<=0){ClearMovementInput();return;}
         if(Input.GetKeyDown(KeyCode.Alpha1)||Input.GetKeyDown(KeyCode.Keypad1)){JumpTestRoom(1);return;}

@@ -10,6 +10,16 @@ public sealed partial class MagnetDebugPanel:MonoBehaviour {
     public bool Place(){
         if(board.Busy||BlackHoleTravel.Selecting||BlackHoleTravel.InTransit)return false;
         if(shape==8){Erase();return true;}
+        if(shape==11){
+            var ground=board.TileAt(selected);
+            if(!ground||ground.blocked||board.MagnetAt(selected)||PortalAt(selected)||selected==board.PlayerCell){status="星星需要空的地面格，不能覆盖主角、石头、磁铁或黑洞。";return false;}
+            if(StarAt(selected)){status="该格已经有星星。";return false;}
+            var prefab=Resources.Load<GameObject>("DebugGoldenStar");if(!prefab){status="未找到星星模型。";return false;}
+            var star=Instantiate(prefab,ground.transform);star.name="测试星星";star.transform.position=new Vector3(selected.x*board.cellSize,ground.surfaceHeight,selected.y*board.cellSize);
+            var owner=ground.GetComponentInParent<IslandSurfaceAnchor>();var binding=star.GetComponent<IslandSurfaceAnchor>();if(!binding)binding=star.AddComponent<IslandSurfaceAnchor>();if(owner){binding.center=owner.center;binding.Apply();}
+            board.CaptureInitialState();status="已放置星星。开始游玩后走到该格，测试捧起、抛出和金光消散动画。";return true;
+        }
+        if(StarAt(selected)){status="请先清除该格的星星，再放置其他物品。";return false;}
         if(shape==10){
             var ground=board.TileAt(selected);var lab=board.GetComponent<MagnetTestLayouts>();
             if(!lab||!ground||ground.blocked||board.MagnetAt(selected)||selected==board.PlayerCell){status="黑洞需要空的地面格，不能覆盖主角、石头或磁铁。";return false;}
@@ -42,6 +52,7 @@ public sealed partial class MagnetDebugPanel:MonoBehaviour {
         Place();
     }
     void Erase(){
+        var star=StarAt(selected);if(star){star.gameObject.SetActive(false);Destroy(star.gameObject);status="已清除星星。";return;}
         var portal=PortalAt(selected);if(portal&&portal.Cargo){status="黑洞中还有磁铁，请先完成传送或撤销入洞，再清除黑洞。";return;}if(portal){portal.gameObject.SetActive(false);Destroy(portal.gameObject);board.CaptureInitialState();status="已清除黑洞。";return;}
         var m=board.MagnetAt(selected);if(!m){var ground=board.TileAt(selected);if(ground&&ground.blocked){SetFloor(Mathf.RoundToInt(ground.surfaceHeight/board.LayerHeight),false);status="已清除石头。";}else status="该格没有可清除的物品。";return;}
         if(selected==board.PlayerCell){
@@ -55,6 +66,7 @@ public sealed partial class MagnetDebugPanel:MonoBehaviour {
     }
     void Teleport(){var t=board.TileAt(selected);if(!t||t.blocked||board.MagnetAt(selected)){status="请选择空的地面格。";return;}board.player.position=new Vector3(selected.x*board.cellSize,t.surfaceHeight,selected.y*board.cellSize);board.CaptureInitialState();var win=board.GetComponent<FiveIslandWindow>();if(win){var owner=t.GetComponentInParent<IslandSurfaceAnchor>();int i=Array.FindIndex(win.rooms,r=>owner&&r.center==owner.center);if(i>=0)win.Show(i);}status="主角站位已设置。";}
     void SetFloor(int layer,bool blocked){
+        if(StarAt(selected)){status="请先清除星星，再修改地块。";return;}
         if(PortalAt(selected)){status="请先清除黑洞，再修改其地块高度或障碍。";return;}
         var t=board.TileAt(selected);if(!t||selected==board.PlayerCell||board.MagnetAt(selected)){status="请选择没有主角或磁铁的已有地面格。";return;}
         t.surfaceHeight=layer*board.LayerHeight;t.blocked=blocked;if(blocked){t.rockStyle=rockStyle;t.rockTheme=rockTheme;t.lowRockVariant=lowRockVariant;}
@@ -63,6 +75,7 @@ public sealed partial class MagnetDebugPanel:MonoBehaviour {
         board.CaptureInitialState();status=blocked?"已加入测试障碍。":"已设置 "+layer+" 层高台。";
     }
     BlackHolePortal PortalAt(Vector2Int cell){var tile=board.TileAt(cell);return tile?tile.GetComponentInChildren<BlackHolePortal>():null;}
+    Transform StarAt(Vector2Int cell){var tile=board.TileAt(cell);if(!tile)return null;foreach(var mesh in tile.GetComponentsInChildren<MeshFilter>())if(mesh.name=="金色星星")return mesh.transform.parent;return null;}
 }
 }
 

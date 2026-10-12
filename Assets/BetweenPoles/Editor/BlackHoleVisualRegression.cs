@@ -55,7 +55,12 @@ namespace BetweenPoles.EditorTools {
                 }
                 source=BlackHolePortal.At(b,new Vector2Int(-1,0));target=BlackHolePortal.At(b,new Vector2Int(2,0));
                 if(phase==6)target=source;
+                // Keep the exit fixtures' intended arrival poses, except the stone
+                // case which now explicitly covers flat -> upright entry -> return kick.
+                if(phase!=3){b.magnets[0].geometry.rotation=Quaternion.AngleAxis(-90,Vector3.back)*b.magnets[0].Pose;MagnetVisuals.Ground(b.magnets[0]);}
+                float rollDegrees;var expectedArrival=MagnetPiece.Rolled(b.magnets[0].shape,b.magnets[0].Pose,Vector2Int.right,out rollDegrees);
                 Require(b.TryStep(Vector2Int.right),"Deposit failed");typeof(GridPlayground).GetMethod("FinishMovement",Private).Invoke(b,null);
+                Require(Quaternion.Angle(b.magnets[0].Pose,expectedArrival)<.1f,"Portal entry skipped roll");
                 Require(b.TryStep(Vector2Int.right),"Player could not enter");
                 typeof(BlackHolePortal).GetField("<EntryDirection>k__BackingField",Private).SetValue(source,Vector2Int.right);
                 selected=false;captured=false;climbed=false;flightCaptured=false;proneCaptured=false;entryCaptured=false;climbPeak=0;climbCaptured=false;ready=0;cargoFlightSeen=false;
@@ -152,7 +157,7 @@ namespace BetweenPoles.EditorTools {
                     if(phase==0)Require(b.player.position.y>.1f,"Flat landing wrong");
                     if(phase==1)Require(Mathf.Abs(b.magnets[0].transform.position.x-6)<.01f,"Kick landing wrong");
                     if(phase==2)Require(b.magnets[1].product==MagnetProduct.WideBar&&Mathf.Abs(b.player.position.y-.24f)<.01f,"Merged landing wrong");
-                    if(phase==3)Require(tumbleSeen&&headSeen&&hitSeen&&returnFlightSeen&&Mathf.Abs(b.magnets[0].transform.position.x+3)<.01f&&b.player.position.y>.1f&&b.player.forward.x<-.95f,"Bounce landing wrong");
+                    if(phase==3)Require(tumbleSeen&&headSeen&&hitSeen&&returnFlightSeen&&Mathf.Abs(b.magnets[0].transform.position.x+4.5f)<.01f&&Mathf.Abs(b.player.position.y)<.01f&&!MagnetPiece.VerticalBar(b.magnets[0].Pose)&&b.player.forward.x<-.95f,"Upright bounce return kick wrong");
                     if(phase==4||phase==5){
                         Require(b.magnets[1].product==(phase==4?MagnetProduct.Cross:MagnetProduct.WideBar),"Perpendicular bars produced wrong exit product");
                         GridTile surface;Vector3 top;

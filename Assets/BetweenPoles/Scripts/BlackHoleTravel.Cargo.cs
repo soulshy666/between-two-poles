@@ -24,6 +24,13 @@ public sealed partial class BlackHoleTravel {
             var returnCell=new Vector2Int(Mathf.RoundToInt(cargo.portalEntryPosition.x/source.board.cellSize),Mathf.RoundToInt(cargo.portalEntryPosition.z/source.board.cellSize));
             var ground=source.board.TileAt(returnCell);
             if(!ground||ground.blocked||source.board.MagnetAt(returnCell)||source.board.IsWreckCell(returnCell)||BlackHolePortal.At(source.board,returnCell))return false;
+            plan.kick=cargo.product==MagnetProduct.Ring?!MagnetPiece.FlatU(cargo.Pose):cargo.shape==MagnetShape.Bar&&MagnetPiece.VerticalBar(cargo.Pose);
+            if(plan.kick){
+                var back=returnCell-source.Cell;var next=returnCell+back;var nextGround=source.board.TileAt(next);
+                if(source.board.MagnetAt(next)||source.board.IsWreckCell(next)||BlackHolePortal.At(source.board,next)
+                    ||(nextGround&&(nextGround.blocked||Mathf.Abs(nextGround.surfaceHeight-ground.surfaceHeight)>.01f)))return false;
+                plan.kicked=new Vector3(next.x*source.board.cellSize,ground.surfaceHeight,next.y*source.board.cellSize);
+            }
             plan.bounce=true;plan.player=cargo.portalEntryPosition;
             plan.magnet=StoneContact(target,tile,cargo,direction);return true;
         }
@@ -105,7 +112,11 @@ public sealed partial class BlackHoleTravel {
                     GridTile returnTile;Vector3 returnTop;
                     if(!BlackHolePortal.TrySurface(source.board,returnCell,out returnTile,out returnTop))throw new System.InvalidOperationException("Returned cargo has no landing surface");
                     var returnStart=new Vector3(source.tile.transform.position.x,source.tile.surfaceHeight,source.tile.transform.position.z);
-                    yield return EjectPlayer(player,returnStart,returnTop,playerScale);
+                    if(plan.kick){
+                        var returnDirection=returnCell-source.Cell;
+                        var returnPlan=new ExitPlan{magnet=cargo.portalEntryPosition,player=cargo.portalEntryPosition,kicked=plan.kicked,kick=true};
+                        yield return KickExitPlayer(player,cargo,returnStart,returnDirection,returnPlan,pose,playerScale);
+                    }else yield return EjectPlayer(player,returnStart,returnTop,playerScale);
                     board.CompletePortalLanding(returnCell);
                     yield break;
                 }else if(plan.receiver){
@@ -114,6 +125,18 @@ public sealed partial class BlackHoleTravel {
                     if(!BlackHolePortal.TrySurface(board,target.Cell+direction,out landingTile,out landing))throw new System.InvalidOperationException("Assembly has no landing surface");
                     plan.player=landing;yield return EjectPlayer(player,portalPosition,plan.player,playerScale);
                 }else if(plan.kick){
+                    yield return KickExitPlayer(player,cargo,portalPosition,direction,plan,pose,playerScale);
+                }else{
+                    GridTile tile;Vector3 top;
+                    if(BlackHolePortal.TrySurface(board,target.Cell+direction,out tile,out top))plan.player=top;
+                    // TrySurface chooses actual solid top triangles, avoiding U/ring holes.
+                    yield return EjectPlayer(player,portalPosition,plan.player,playerScale);
+                }
+            }else yield return EjectPlayer(player,portalPosition,plan.player,playerScale);
+            player.position=plan.player;board.CompletePortalLanding(target.Cell+direction);
+        }finally{if(player){player.localScale=playerScale;var pose=player.GetComponent<PlayerPushPose>();if(pose)pose.End();}if(board)board.SetPortalBusy(false);}
+    }
+    IEnumerator KickExitPlayer(Transform player,MagnetPiece cargo,Vector3 portalPosition,Vector2Int direction,ExitPlan plan,Quaternion pose,Vector3 playerScale){
                     player.localScale=playerScale;var axis=new Vector3(direction.y,0,-direction.x);
                     var fallen=cargo.product==MagnetProduct.Ring?Quaternion.FromToRotation(pose*Vector3.up,Vector3.up)*pose:Quaternion.AngleAxis(90,axis)*pose;
                     var kickPose=PlayerPushPose.Begin(player);
@@ -126,15 +149,6 @@ public sealed partial class BlackHoleTravel {
                     kickPose.End();cargo.transform.position=plan.kicked;cargo.geometry.rotation=fallen;MagnetVisuals.Ground(cargo);
                     if(cargo.product==MagnetProduct.Ring)cargo.walkable=MagnetPiece.FlatU(cargo.Pose);
                     player.position=plan.player;yield return RecoverPlayer(player);
-                }else{
-                    GridTile tile;Vector3 top;
-                    if(BlackHolePortal.TrySurface(board,target.Cell+direction,out tile,out top))plan.player=top;
-                    // TrySurface chooses actual solid top triangles, avoiding U/ring holes.
-                    yield return EjectPlayer(player,portalPosition,plan.player,playerScale);
-                }
-            }else yield return EjectPlayer(player,portalPosition,plan.player,playerScale);
-            player.position=plan.player;board.CompletePortalLanding(target.Cell+direction);
-        }finally{if(player){player.localScale=playerScale;var pose=player.GetComponent<PlayerPushPose>();if(pose)pose.End();}if(board)board.SetPortalBusy(false);}
     }
     static Vector3 ThrownPosition(Vector3 start,Vector3 end,float progress){
         float a=Mathf.Clamp01(progress),horizontal=Mathf.SmoothStep(0,1,Mathf.InverseLerp(.18f,1,a));

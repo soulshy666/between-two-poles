@@ -491,7 +491,7 @@ public sealed partial class GridPlayground {
         yield return TurnPlayer(target-player.position);
         yield return Slide(player,target,walkSeconds);NotifyLanding(cell);
     }
-    void NotifyLanding(Vector2Int p){if(deferPushLanding){deferredPushLanding=p;return;}var t=Tile(p);if(t&&t.goal){ReachedGoal=true;if(goalLight&&goalCompleteMaterial)goalLight.sharedMaterial=goalCompleteMaterial;}if(t){TrackIsland(t);Landed?.Invoke(t);}}
+    void NotifyLanding(Vector2Int p){if(deferPushLanding){deferredPushLanding=p;return;}var t=Tile(p);if(t&&t.goal){ReachedGoal=true;if(goalLight&&goalCompleteMaterial)goalLight.sharedMaterial=goalCompleteMaterial;}if(t){TrackIsland(t);Landed?.Invoke(t);TryCollectStar(p);}}
     public bool RotorActive(MagnetPiece cross){
         if(!cross||cross.product!=MagnetProduct.Cross)return false;var c=Cell(cross.transform);
         foreach(var axis in new[]{Vector2Int.right,Vector2Int.up}){
