@@ -10,6 +10,18 @@ public sealed partial class GridPlayground {
     readonly Dictionary<MagnetPiece,float> hoverLevels=new Dictionary<MagnetPiece,float>();
     readonly List<Vector3> hoverVertices=new List<Vector3>();
     readonly Dictionary<Vector2Int,MagnetPiece> hoverNeighbors=new Dictionary<Vector2Int,MagnetPiece>();
+    bool portalMagnetPresentation;
+    // Portal selection disables gameplay, but bridge geometry must retain the
+    // same render-only shore alignment throughout navigation and exit playback.
+    public void BeginPortalMagnetPresentation(){
+        portalMagnetPresentation=true;
+        Camera.onPreCull-=RenderMagnetHover;Camera.onPostRender-=RestoreMagnetHover;
+        Camera.onPreCull+=RenderMagnetHover;Camera.onPostRender+=RestoreMagnetHover;
+    }
+    public void EndPortalMagnetPresentation(){
+        portalMagnetPresentation=false;
+        if(!isActiveAndEnabled)ClearMagnetHover();else RestoreMagnetHover(null);
+    }
     void IndexHoverNeighbors(){
         hoverNeighbors.Clear();
         foreach(var m in magnets){
@@ -49,7 +61,11 @@ public sealed partial class GridPlayground {
         }
         return float.IsNegativeInfinity(top)?m.transform.position.y:top;
     }
-    void OnEnable(){Camera.onPreCull+=RenderMagnetHover;Camera.onPostRender+=RestoreMagnetHover;}
+    void OnEnable(){
+        Camera.onPreCull-=RenderMagnetHover;Camera.onPostRender-=RestoreMagnetHover;
+        Camera.onPreCull+=RenderMagnetHover;Camera.onPostRender+=RestoreMagnetHover;
+    }
+    void OnDestroy(){ClearMagnetHover();}
     bool HoverPassage(MagnetPiece m){
         if(!m.walkable)return false;
         if(m.product==MagnetProduct.WideBar||m.product==MagnetProduct.None)return WideBarConnected(m);
@@ -66,8 +82,8 @@ public sealed partial class GridPlayground {
         while(m.Occupies(cell+direction,cellSize))cell+=direction;
         for(int i=0;i<=magnets.Length*2;i++){
             cell+=direction;var tile=Tile(cell);
-            if(tile)return !tile.blocked&&(SameHeight(tile.surfaceHeight,m.transform.position.y)
-                ||SameHeight(tile.surfaceHeight,DeckHeight(m)));
+            if(tile)return SameHeight(tile.surfaceHeight,m.transform.position.y)
+                ||SameHeight(tile.surfaceHeight,DeckHeight(m));
             var deck=Deck(cell,m,true);
             if(!deck||!AlongDeck(deck,direction)||!SameHeight(DeckHeight(deck),DeckHeight(m))
                 ||(deck.product!=MagnetProduct.WideBar&&deck.product!=MagnetProduct.Bridge
@@ -99,7 +115,7 @@ public sealed partial class GridPlayground {
     }
     void RenderMagnetHover(Camera camera){
         RestoreMagnetHover(null);
-        if(!Application.isPlaying||!isActiveAndEnabled)return;
+        if(!Application.isPlaying||!gameObject.activeInHierarchy||(!enabled&&!portalMagnetPresentation))return;
         foreach(var entry in hoveringMagnets){
             var m=entry.Key;if(!m||!m.geometry||!m.gameObject.activeInHierarchy)continue;
             float t=entry.Value;
@@ -125,6 +141,7 @@ public sealed partial class GridPlayground {
         hoverRenderPositions.Clear();
     }
     void ClearMagnetHover(){
+        portalMagnetPresentation=false;
         Camera.onPreCull-=RenderMagnetHover;Camera.onPostRender-=RestoreMagnetHover;
         RestoreMagnetHover(null);hoveringMagnets.Clear();hoverLevels.Clear();
     }

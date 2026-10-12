@@ -17,7 +17,9 @@ public sealed partial class GridPlayground {
         // Follow spans to a shore or an independently connected crossing span.
         for(int i=0;i<=magnets.Length*2;i++){
             cell+=direction;var tile=Tile(cell);
-            if(tile)return !tile.blocked&&(SameHeight(tile.surfaceHeight,baseHeight)||SameHeight(tile.surfaceHeight,top));
+            // A rock blocks ground walking, but its solid shore still anchors
+            // a completed span. Access from its top is checked by TryStepCore.
+            if(tile)return SameHeight(tile.surfaceHeight,baseHeight)||SameHeight(tile.surfaceHeight,top);
             var deck=Deck(cell,bridge,true);
             if(!deck||visiting.Contains(deck)||!SameHeight(DeckHeight(deck),top)
                 ||(deck.product!=MagnetProduct.WideBar&&deck.product!=MagnetProduct.Bridge

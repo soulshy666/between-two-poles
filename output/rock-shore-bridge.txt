@@ -1,0 +1,1 @@
+PASS: four orientations; rock anchors wide bar, no hover, rock-top jump lands at deck height, onward shore access, side/missing-shore rejection.

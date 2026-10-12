@@ -102,7 +102,8 @@ public sealed partial class GridPlayground {
             if(m&&!m.walkable&&!flatSingle&&!flatRing)return Reject("该磁铁不能作为通路行走，十字只能从侧面推动旋转");
             GridTile destinationTile;Vector3 destinationTop;
             if(!BlackHolePortal.TrySurface(this,next,out destinationTile,out destinationTop))return Reject("没有可行走的支撑面");
-            if(destinationDeck&&destinationDeck.product==MagnetProduct.Bridge)destinationTop=Position(next,DeckHeight(destinationDeck));
+            if(destinationDeck&&(destinationDeck.product==MagnetProduct.Bridge||ShoreLevelBridge(destinationDeck)))
+                destinationTop=Position(next,DeckHeight(destinationDeck));
             bool stepToPlatform=destinationTile&&!destinationTile.blocked&&!m
                 &&destinationTile.surfaceHeight<=GroundHeight(from)+LayerHeight+.01f;
             bool stepToStone=destinationTile&&destinationTile.blocked&&!m
@@ -110,6 +111,10 @@ public sealed partial class GridPlayground {
             if(destinationTop.y>player.position.y+.01f&&!(onObject&&(stepToPlatform||stepToStone)))return Reject("当前支撑只能跳上一层范围内的相邻顶面");
             var topPortal=BlackHolePortal.At(this,next);
             if(topPortal){Busy=true;StartMovement(JumpIntoPortal(topPortal,dir));LastRule="从物体顶面跳入黑洞";return true;}
+            if(flatSingle&&!destinationTile){
+                Busy=true;StartMovement(JumpOntoUnstableMagnet(m,destinationTop));
+                LastRule="悬空单磁铁承重不稳，跳回原支撑并攀爬脱险";return true;
+            }
             Busy=true;StartMovement(WalkOffObject(next,destinationTop));LastRule="在相邻顶面之间跳跃移动";return true;
         }
         if(tile&&tile.blocked){PlayerPushPose.BeginStonePush(player,tile,dir,DirectionPressed(dir));return Reject("石头推不动，用力推动后摊手");}
@@ -210,6 +215,51 @@ public sealed partial class GridPlayground {
         var entryPortal=BlackHolePortal.At(this,next);
         if(entryPortal){Busy=true;StartMovement(JumpIntoPortal(entryPortal,dir));LastRule="跳入黑洞";return true;}
         Busy=true;StartMovement(MovePlayer(next));LastRule="行走";return true;
+    }
+    IEnumerator JumpOntoUnstableMagnet(MagnetPiece magnet,Vector3 landing){
+        var start=player.position;var source=Cell(player);
+        var outward=landing-start;outward.y=0;outward.Normalize();
+        var geometry=magnet.geometry;var originalPosition=geometry.localPosition;var originalRotation=geometry.localRotation;
+        var lip=start+outward*(cellSize*.4f);
+        var hanging=lip+outward*.2f-Vector3.up*.82f;
+        PlayerPushPose pose=null;
+        try{
+            yield return TurnPlayer(outward);pose=PlayerPushPose.Begin(player);
+            for(float t=0;t<.9f;t+=MovementDeltaTime){
+                float p=Mathf.Clamp01(t/.9f),a=Mathf.InverseLerp(.18f,.83f,p);
+                player.position=Vector3.Lerp(start,landing,a)+Vector3.up*(.55f*Mathf.Sin(a*Mathf.PI));
+                pose.SamplePlatformJump(p);yield return null;
+            }
+            player.position=landing;
+            for(float t=0;t<1.2f;t+=MovementDeltaTime){
+                float a=t/1.2f,wave=Mathf.Sin(a*Mathf.PI*6)*Mathf.Sin(a*Mathf.PI);
+                geometry.localRotation=originalRotation*Quaternion.AngleAxis(12*wave,geometry.InverseTransformDirection(outward));
+                geometry.localPosition=originalPosition-Vector3.up*(.09f*Mathf.Sin(a*Mathf.PI));
+                player.position=landing-Vector3.up*(.09f*Mathf.Sin(a*Mathf.PI));
+                pose.SamplePortalLedge(0,a);yield return null;
+            }
+            geometry.localPosition=originalPosition;geometry.localRotation=originalRotation;
+            var facing=player.rotation;
+            for(float t=0;t<.85f;t+=MovementDeltaTime){
+                float a=Mathf.Clamp01(t/.85f);
+                player.rotation=Quaternion.Slerp(facing,Quaternion.LookRotation(-outward),Mathf.Clamp01(a*3));
+                player.position=Vector3.Lerp(landing,hanging,a)+Vector3.up*(Mathf.Max(.7f,start.y-landing.y+.35f)*Mathf.Sin(a*Mathf.PI));
+                pose.SamplePortalLedge(Mathf.SmoothStep(0,1,Mathf.InverseLerp(.4f,.85f,a)),0);yield return null;
+            }
+            player.position=hanging;player.rotation=Quaternion.LookRotation(-outward);
+            for(float t=0;t<.45f;t+=MovementDeltaTime){pose.SamplePortalLedge(1,0);yield return null;}
+            var lifted=lip+outward*.2f+Vector3.up*.12f;
+            for(float t=0;t<1f;t+=MovementDeltaTime){
+                float a=Mathf.SmoothStep(0,1,t);
+                player.position=a<.65f?Vector3.Lerp(hanging,lifted,a/.65f):Vector3.Lerp(lifted,start,(a-.65f)/.35f);
+                pose.SamplePortalLedge(1-Mathf.SmoothStep(0,1,Mathf.InverseLerp(.45f,1,a)),0);yield return null;
+            }
+            player.position=start;NotifyLanding(source);
+        }finally{
+            if(geometry){geometry.localPosition=originalPosition;geometry.localRotation=originalRotation;}
+            if(pose)pose.End();Busy=false;
+            ClearMovementInput();nextHeldStep=float.PositiveInfinity;
+        }
     }
     IEnumerator WalkOffObject(Vector2Int cell,Vector3 end){
         var start=player.position;var direction=new Vector3(cell.x*cellSize-start.x,0,cell.y*cellSize-start.z);

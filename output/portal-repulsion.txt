@@ -1,0 +1,1 @@
+PASS: 52 checks; four directions, stone/high platform, upright return kick, safe return validation, unchanged receiver, free repulsion.
