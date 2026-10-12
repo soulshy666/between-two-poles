@@ -43,7 +43,9 @@ public sealed partial class GridPlayground {
         magnet.storedInPortal=portal;magnet.gameObject.SetActive(false);
         push.End();player.position=playerEnd;NotifyLanding(vacated);Busy=false;
     }
-    public void RecordPortalJourney(){RecordHistory(SaveWorld());ClearMovementInput();}
+    // TryStep already saved the state before JumpIntoPortal. The entire journey
+    // belongs to that step; a snapshot on the portal would re-enter selection on undo.
+    public void RecordPortalJourney(){ClearMovementInput();}
     public void CompletePortalLanding(Vector2Int cell){ClearMovementInput();NotifyLanding(cell);}
     public void SetPortalBusy(bool value){Busy=value;ClearMovementInput();}
     public void ReleasePortalGeometry(MagnetPiece[] carried){foreach(var piece in carried)if(piece&&piece.geometry)recordedGeometry.Remove(piece.geometry);}

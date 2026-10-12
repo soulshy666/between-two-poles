@@ -177,6 +177,12 @@ namespace BetweenPoles.EditorTools {
                 if(captured){ScreenCapture.CaptureScreenshot("output/blackhole-arrival-"+phase+".png");captured=false;ready=now+.5;return;}
                 if(phase==2&&!climbed){Require(b.TryStep(Vector2Int.right),"Step onto platform rejected");climbed=true;ready=now+1.2;return;}
                 if(phase==2)Require(climbPeak>b.LayerHeight+.15f&&climbCaptured&&!b.Busy&&b.PlayerCell==new Vector2Int(4,0)&&Mathf.Abs(b.player.position.y-b.LayerHeight)<.01f,"Real platform ascent failed");
+                if(phase==6){
+                    Require(b.UndoStep(),"Portal journey undo rejected");
+                    Require(b.PlayerCell==new Vector2Int(-2,0)&&source.Cargo==b.magnets[0]&&!b.magnets[0].gameObject.activeSelf,"Journey undo did not restore pre-entry state");
+                    Require(!BlackHoleTravel.Selecting&&!BlackHoleTravel.InTransit&&b.player.localScale.sqrMagnitude>.1f,"Journey undo reopened portal selection or hid player");
+                    Require(b.UndoStep()&&b.PlayerCell==new Vector2Int(-3,0)&&!source.Cargo&&b.magnets[0].gameObject.activeSelf,"Second undo did not restore magnet deposit");
+                }
                 if(phase++<7){setup();return;}
                 File.WriteAllText(Report,"PASS: Actual test scene, flat/upright/merge/stone-bounce presets, real walk-in, camera pan, destination preview/confirm, cargo-first arrival and player landing; perpendicular bars form cross over gap / wide bar on land; clicking origin exits forward with cargo then player; same-pole exit displacement. Screenshots captured.");
                 EditorApplication.update-=update;Finish();
