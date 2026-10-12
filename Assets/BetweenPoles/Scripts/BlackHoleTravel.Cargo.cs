@@ -5,16 +5,38 @@ namespace BetweenPoles {
 public sealed partial class BlackHoleTravel {
     public struct ExitPlan {
         public Vector3 player,magnet,kicked;
-        public bool kick,bounce;
+        public bool kick,bounce,unstableLanding;
         public MagnetPiece receiver;
         public MagnetPiece displaced;
+        public MagnetPiece exitKickTarget;
         public Vector3 displacedPosition;
         public MagnetProduct product;
     }
     public static bool PlanExit(BlackHolePortal target,Vector2Int direction,MagnetPiece cargo,out ExitPlan plan){
         plan=new ExitPlan();if(!target||!target.CanArrive||(target.Cargo&&target.Cargo!=cargo)||Mathf.Abs(direction.x)+Mathf.Abs(direction.y)!=1)return false;
         var board=target.board;var cell=target.Cell+direction;GridTile tile;Vector3 top;
-        if(!cargo){if(!target.TryExitLanding(direction,out tile,out top))return false;plan.player=top;return true;}
+        if(!cargo){
+            if(!target.TryExitLanding(direction,out tile,out top))return false;
+            var obstacle=board.MagnetAt(cell);
+            if(obstacle&&!obstacle.combined&&obstacle.product==MagnetProduct.None&&!board.TileAt(cell)){
+                plan.player=top;plan.unstableLanding=true;return true;
+            }
+            bool upright=obstacle&&obstacle.CanBePushed&&(obstacle.product==MagnetProduct.Ring
+                ?!MagnetPiece.FlatU(obstacle.Pose):obstacle.shape==MagnetShape.Bar&&MagnetPiece.VerticalBar(obstacle.Pose));
+            if(upright){
+                // The actor lands in the vacated cell, not on the upright top.
+                if(!tile||tile.blocked||board.IsWreckCell(cell)||BlackHolePortal.At(board,cell)
+                    ||Mathf.Abs(tile.surfaceHeight-target.tile.surfaceHeight)>.01f
+                    ||Mathf.Abs(obstacle.transform.position.y-tile.surfaceHeight)>.01f)return false;
+                var next=cell+direction;var ground=board.TileAt(next);
+                if(board.MagnetAt(next)||board.IsWreckCell(next)||BlackHolePortal.At(board,next)
+                    ||(ground&&(ground.blocked||Mathf.Abs(ground.surfaceHeight-tile.surfaceHeight)>.01f)))return false;
+                plan.exitKickTarget=obstacle;plan.kick=true;plan.magnet=obstacle.transform.position;
+                plan.player=new Vector3(cell.x*board.cellSize,tile.surfaceHeight,cell.y*board.cellSize);
+                plan.kicked=new Vector3(next.x*board.cellSize,tile.surfaceHeight,next.y*board.cellSize);
+            }else plan.player=top;
+            return true;
+        }
         if(board.IsWreckCell(cell)||BlackHolePortal.At(board,cell))return false;
         var receiver=board.MagnetAt(cell);
         tile=board.TileAt(cell);
@@ -132,9 +154,51 @@ public sealed partial class BlackHoleTravel {
                     // TrySurface chooses actual solid top triangles, avoiding U/ring holes.
                     yield return EjectPlayer(player,portalPosition,plan.player,playerScale);
                 }
+            }else if(plan.unstableLanding){
+                yield return UnstablePortalLanding(player,target,direction,portalPosition,plan.player,playerScale);
+                yield break;
+            }else if(plan.exitKickTarget){
+                yield return KickExitPlayer(player,plan.exitKickTarget,portalPosition,direction,plan,plan.exitKickTarget.Pose,playerScale);
             }else yield return EjectPlayer(player,portalPosition,plan.player,playerScale);
             player.position=plan.player;board.CompletePortalLanding(target.Cell+direction);
         }finally{if(player){player.localScale=playerScale;var pose=player.GetComponent<PlayerPushPose>();if(pose)pose.End();}if(board)board.SetPortalBusy(false);}
+    }
+    IEnumerator UnstablePortalLanding(Transform player,BlackHolePortal portal,Vector2Int direction,Vector3 hole,Vector3 landing,Vector3 scale){
+        var pose=PlayerPushPose.Begin(player);
+        var outward=new Vector3(direction.x,0,direction.y);
+        // Hands face the island when hanging; root is outside the lip, below its surface.
+        var lip=hole+outward*(portal.board.cellSize*.5f);
+        var hanging=lip+outward*.22f-Vector3.up*.82f;
+        try{
+            for(float t=0;t<1.05f;t+=Time.unscaledDeltaTime){
+                float a=t/1.05f;player.localScale=scale*Mathf.Clamp01(a*5);
+                player.position=ThrownPosition(hole,landing,a);pose.SamplePortalFlight(a);yield return null;
+            }
+            player.localScale=scale;player.position=landing;
+            for(float t=0;t<1.1f;t+=Time.unscaledDeltaTime){pose.SamplePortalLedge(0,t/1.1f);yield return null;}
+            var facing=player.rotation;
+            for(float t=0;t<.5f;t+=Time.unscaledDeltaTime){
+                float a=Mathf.Clamp01(t/.5f);
+                player.position=Vector3.Lerp(landing,hanging,a*a);
+                player.rotation=Quaternion.Slerp(facing,Quaternion.LookRotation(-outward),Mathf.Clamp01(a*2));
+                pose.SamplePortalLedge(Mathf.SmoothStep(0,1,a),0);yield return null;
+            }
+            player.position=hanging;player.rotation=Quaternion.LookRotation(-outward);
+            for(float t=0;t<.65f;t+=Time.unscaledDeltaTime){pose.SamplePortalLedge(1,0);yield return null;}
+            var standing=lip-outward*.28f;
+            for(float t=0;t<.95f;t+=Time.unscaledDeltaTime){
+                float a=Mathf.SmoothStep(0,1,t/.95f);
+                var lifted=hanging+Vector3.up*(hole.y-hanging.y+.12f);
+                player.position=a<.65f?Vector3.Lerp(hanging,lifted,a/.65f):Vector3.Lerp(lifted,standing,(a-.65f)/.35f);
+                pose.SamplePortalLedge(1-Mathf.SmoothStep(0,1,Mathf.InverseLerp(.45f,1,a)),0);yield return null;
+            }
+            player.position=standing;
+            for(float t=0;t<.65f;t+=Time.unscaledDeltaTime){
+                float a=Mathf.Clamp01(t/.65f);player.position=Vector3.Lerp(standing,hole,a)+Vector3.up*(.5f*Mathf.Sin(a*Mathf.PI));
+                pose.SamplePortalEntry(a);yield return null;
+            }
+            player.position=hole;player.localScale=Vector3.zero;
+        }finally{pose.End();}
     }
     IEnumerator KickExitPlayer(Transform player,MagnetPiece cargo,Vector3 portalPosition,Vector2Int direction,ExitPlan plan,Quaternion pose,Vector3 playerScale){
                     player.localScale=playerScale;var axis=new Vector3(direction.y,0,-direction.x);

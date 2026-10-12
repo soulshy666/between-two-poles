@@ -27,6 +27,27 @@ static partial class BlackHoleTestRegression {
                     var stone=GameObject.CreatePrimitive(PrimitiveType.Cube);stone.name="调试高台";stone.transform.SetParent(exit.transform,false);b.magnets=new[]{cargo};
                 }
                 b.player.position=original-new Vector3(dir.x,0,dir.y)*1.5f;root.SetActive(true);b.CaptureInitialState();
+                if(kind==0){
+                    var flatPose=receiver.Pose;
+                    receiver.geometry.rotation=yaw*Quaternion.Euler(0,0,90);MagnetVisuals.Ground(receiver);
+                    BlackHoleTravel.ExitPlan kickPlan;
+                    Check(BlackHoleTravel.PlanExit(target,dir,null,out kickPlan)&&kickPlan.exitKickTarget==receiver&&kickPlan.kick,"Existing upright exit magnet was not selected for kick");
+                    Check(Vector3.Distance(kickPlan.player,exit.transform.position)<.001f,"Player planned to stand on upright magnet");
+                    var next=b.TileAt(dir*2);next.blocked=true;
+                    Check(!BlackHoleTravel.PlanExit(target,dir,null,out kickPlan),"Exit kick ignored blocked destination");next.blocked=false;
+                    receiver.geometry.rotation=flatPose;MagnetVisuals.Ground(receiver);
+                    Check(BlackHoleTravel.PlanExit(target,dir,null,out kickPlan)&&!kickPlan.exitKickTarget&&kickPlan.player.y>0,"Flat exit magnet should remain a standing surface");
+                    checks+=4;
+                    var supportedTiles=b.tiles;
+                    b.tiles=Array.FindAll(supportedTiles,t=>t!=exit);b.InvalidateTileLookup();
+                    Check(BlackHoleTravel.PlanExit(target,dir,null,out kickPlan)&&kickPlan.unstableLanding,"Floating single magnet must trigger ledge recovery");
+                    receiver.combined=true;receiver.product=MagnetProduct.WideBar;
+                    Check(BlackHoleTravel.PlanExit(target,dir,null,out kickPlan)&&!kickPlan.unstableLanding,"Combined crossing incorrectly triggered ledge recovery");
+                    receiver.combined=false;receiver.product=MagnetProduct.None;
+                    b.tiles=supportedTiles;b.InvalidateTileLookup();
+                    Check(BlackHoleTravel.PlanExit(target,dir,null,out kickPlan)&&!kickPlan.unstableLanding,"Supported single magnet incorrectly triggered ledge recovery");
+                    checks+=3;
+                }
                 Check(b.TryStep(dir),"Obstacle test deposit failed");typeof(GridPlayground).GetMethod("FinishMovement",Private).Invoke(b,null);b.RecordPortalJourney();
                 BlackHoleTravel.ExitPlan plan;Check(BlackHoleTravel.PlanExit(target,dir,cargo,out plan),"Obstacle exit rejected "+kind);checks++;
                 Check(kind==0?plan.receiver==receiver:plan.bounce,"Wrong obstacle branch");checks++;

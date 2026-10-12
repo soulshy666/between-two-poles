@@ -38,6 +38,14 @@ public sealed partial class PlayerPushPose {
             visual.localPosition=restPosition+Vector3.down*(.08f*impact);
         }
     }
+    public void SamplePortalLedge(float hang,float wobble){
+        float sway=Mathf.Sin(wobble*Mathf.PI*5)*Mathf.Sin(wobble*Mathf.PI);
+        SamplePortalLimbs(Mathf.Lerp(-55-25*sway,-165,hang),Mathf.Lerp(-55+25*sway,-165,hang),25*hang,25*hang);
+        if(visual){
+            visual.localPosition=restPosition;
+            visual.localRotation=restRotation*Quaternion.Euler(8*hang,0,18*sway*(1-hang));
+        }
+    }
     void SamplePortalLimbs(float leftArm,float rightArm,float leftLeg,float rightLeg){
         if(!posed)return;
         for(int i=0;i<vertices.Length;i++){
