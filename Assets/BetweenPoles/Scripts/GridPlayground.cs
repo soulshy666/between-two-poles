@@ -285,6 +285,9 @@ public sealed partial class GridPlayground:MonoBehaviour {
     bool ContinuePlainWalk(){
         while(bufferedSteps.Count>0&&Time.unscaledTime-bufferedSteps.Peek().time>InputBufferSeconds)bufferedSteps.Dequeue();
         bool buffered=bufferedSteps.Count>0;
+        // Held movement resumes through Update after the landing pause.
+        // Explicit taps may still continue immediately at the cell boundary.
+        if(!buffered&&heldStepPauseSeconds>0)return false;
         var direction=buffered?bufferedSteps.Peek().direction:heldDirection;
         if(direction==Vector2Int.zero||(!buffered&&!DirectionHeld(direction))||finishingMovement)return false;
         var from=Cell(player);var next=from+direction;
@@ -339,8 +342,7 @@ public sealed partial class GridPlayground:MonoBehaviour {
             walkOrigin=player.position;walkDestination=Position(p,Height(p));walkDirection=p-from;
             while(true){
                 Vector3 end=walkDestination;
-                // Travel at a stable speed across grid lines. Per-cell ease-out
-                // made a held direction visibly brake before every new step.
+                // Keep a stable speed within the cell; held repeats pause on landing.
                 var previous=player.position;
                 FaceWalkDirection(completingWalkForTurn&&bufferedSteps.Count>0?bufferedSteps.Peek().direction:walkDirection);
                 float speed=cellSize/Mathf.Max(.01f,walkSeconds)*(completingWalkForTurn?1.6f:1f);
@@ -356,6 +358,7 @@ public sealed partial class GridPlayground:MonoBehaviour {
             walkPose.End();
             // A short reversed step must not wait for the original full-step deadline.
             nextHeldStep=Time.unscaledTime;
+            PauseHeldWalkRepeat();
         }else {yield return Walk(p);PauseHeldWalkRepeat();}
         Busy=false;
     }
