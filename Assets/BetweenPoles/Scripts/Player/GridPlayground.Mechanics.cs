@@ -87,19 +87,30 @@ public sealed partial class GridPlayground {
         if(IsWreckCell(next))return Reject("飞船残骸挡住了这个格子");
         if(m&&MagnetStillAnimating(m))return Reject("磁铁正在完成上一次推动，请稍候再接触");
         if(!BridgePassage(from,next))return Reject("宽条桥必须沿长边两端接通，只能从两端通过");
-        // A player already on an object may walk across level tops or step down.
+        // Object tops and raised land both provide access to nearby lower tops.
         GridTile sourceTile;Vector3 sourceTop;
-        if(!(support&&support.product==MagnetProduct.Bridge)&&!(m&&m.CanBePushed&&CanReachMagnet(m))&&BlackHolePortal.TrySurface(this,from,out sourceTile,out sourceTop)&&SameHeight(player.position.y,sourceTop.y)&&player.position.y>GroundHeight(from)+.01f){
-            if(m&&!m.walkable)return Reject("该磁铁不能作为通路行走，十字只能从侧面推动旋转");
+        bool onSurface=BlackHolePortal.TrySurface(this,from,out sourceTile,out sourceTop)&&SameHeight(player.position.y,sourceTop.y);
+        bool onObject=onSurface&&player.position.y>GroundHeight(from)+.01f;
+        bool platformDescent=onSurface&&sourceTile&&!sourceTile.blocked&&tile
+            &&sourceTile.surfaceHeight>tile.surfaceHeight+.01f;
+        if(!(support&&support.product==MagnetProduct.Bridge)&&!(m&&m.CanBePushed&&CanReachMagnet(m))&&(onObject||platformDescent)){
+            // Single flat pieces remain pushable at ground level, but their
+            // solid tops can receive a jump from a higher surface.
+            bool flatSingle=m&&!m.combined&&m.product==MagnetProduct.None
+                &&(m.shape==MagnetShape.Bar?!MagnetPiece.VerticalBar(m.Pose):MagnetPiece.FlatU(m.Pose));
+            bool flatRing=m&&m.product==MagnetProduct.Ring&&MagnetPiece.FlatU(m.Pose);
+            if(m&&!m.walkable&&!flatSingle&&!flatRing)return Reject("该磁铁不能作为通路行走，十字只能从侧面推动旋转");
             GridTile destinationTile;Vector3 destinationTop;
             if(!BlackHolePortal.TrySurface(this,next,out destinationTile,out destinationTop))return Reject("没有可行走的支撑面");
             if(destinationDeck&&destinationDeck.product==MagnetProduct.Bridge)destinationTop=Position(next,DeckHeight(destinationDeck));
             bool stepToPlatform=destinationTile&&!destinationTile.blocked&&!m
                 &&destinationTile.surfaceHeight<=GroundHeight(from)+LayerHeight+.01f;
-            if(destinationTop.y>player.position.y+.01f&&!stepToPlatform)return Reject("站在物体上最多走上一层相邻平台");
+            bool stepToStone=destinationTile&&destinationTile.blocked&&!m
+                &&destinationTop.y<=GroundHeight(from)+LayerHeight+.01f;
+            if(destinationTop.y>player.position.y+.01f&&!(onObject&&(stepToPlatform||stepToStone)))return Reject("当前支撑只能跳上一层范围内的相邻顶面");
             var topPortal=BlackHolePortal.At(this,next);
             if(topPortal){Busy=true;StartMovement(JumpIntoPortal(topPortal,dir));LastRule="从物体顶面跳入黑洞";return true;}
-            Busy=true;StartCoroutine(WalkOffObject(next,destinationTop));LastRule="从物体顶面行走";return true;
+            Busy=true;StartMovement(WalkOffObject(next,destinationTop));LastRule="在相邻顶面之间跳跃移动";return true;
         }
         if(tile&&tile.blocked){PlayerPushPose.BeginStonePush(player,tile,dir,DirectionPressed(dir));return Reject("石头推不动，用力推动后摊手");}
         if(m&&m.product==MagnetProduct.Ring&&CanReachMagnet(m))
@@ -204,7 +215,8 @@ public sealed partial class GridPlayground {
         var start=player.position;var direction=new Vector3(cell.x*cellSize-start.x,0,cell.y*cellSize-start.z);
         yield return TurnPlayer(direction);
         var edge=end;edge.y=Mathf.Max(start.y,end.y);
-        if(end.y>start.y+.01f){
+        var sourceTile=Tile(Cell(player));var destinationTile=Tile(cell);
+        if(!SameHeight(end.y,start.y)||(sourceTile&&sourceTile.blocked)||(destinationTile&&destinationTile.blocked)){
             var jump=PlayerPushPose.Begin(player);
             try{
                 for(float t=0;t<.95f;t+=MovementDeltaTime){

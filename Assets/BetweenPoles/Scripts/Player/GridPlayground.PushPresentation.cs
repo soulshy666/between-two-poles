@@ -7,7 +7,7 @@ public sealed partial class GridPlayground {
     bool recordingPush;
     PushPresentation recordingPresentation;
     sealed class ContactEvent {
-        public float seconds;public Vector3 point;public MaterialPropertyBlock block;
+        public float seconds;public Vector3 point,direction;public MaterialPropertyBlock block;
     }
     readonly List<MagnetContactSpark> contactSparks=new List<MagnetContactSpark>();
     void AssemblyContact(MagnetPiece incoming,MagnetPiece receiver){
@@ -18,7 +18,7 @@ public sealed partial class GridPlayground {
         var block=new MaterialPropertyBlock();
         var reference=receiver.geometry.GetComponentInChildren<Renderer>();
         if(reference)reference.GetPropertyBlock(block);
-        var contact=new ContactEvent{point=point,block=block};
+        var contact=new ContactEvent{point=point,block=block,direction=receiver.transform.position-incoming.transform.position};
         if(recordingPush){
             if(recordingPresentation!=null){
                 contact.seconds=recordingPresentation.tracks.Count>0?recordingPresentation.tracks[0].frames.Count*PushSampleSeconds:0;
@@ -31,7 +31,11 @@ public sealed partial class GridPlayground {
         var audio=PlayerFootstepAudio.For(player);if(audio)audio.PlayPush();
     }
     void PlayContact(ContactEvent contact){
-        if(Application.isPlaying&&!finishingMovement){var audio=PlayerFootstepAudio.For(player);if(audio)audio.PlayMerge();}
+        if(Application.isPlaying&&!finishingMovement){
+            var audio=PlayerFootstepAudio.For(player);if(audio)audio.PlayMerge();
+            foreach(var camera in FindObjectsOfType<IslandCamera>())
+                if(camera.board==this)camera.PlayMergeShake(contact.direction,cellSize);
+        }
         contactSparks.RemoveAll(effect=>!effect);
         contactSparks.Add(MagnetContactSpark.Spawn(contact.point,contact.block));
     }
@@ -69,6 +73,8 @@ public sealed partial class GridPlayground {
         foreach(var presentation in pushPresentations.ToArray())RemovePushPresentation(presentation);
         foreach(var effect in contactSparks)if(effect){effect.gameObject.SetActive(false);Destroy(effect.gameObject);}
         contactSparks.Clear();
+        foreach(var camera in FindObjectsOfType<IslandCamera>())
+            if(camera.board==this)camera.CancelMergeShake();
     }
     bool MagnetStillAnimating(MagnetPiece piece){
         foreach(var presentation in pushPresentations)

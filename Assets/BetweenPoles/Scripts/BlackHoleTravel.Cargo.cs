@@ -5,16 +5,38 @@ namespace BetweenPoles {
 public sealed partial class BlackHoleTravel {
     public struct ExitPlan {
         public Vector3 player,magnet,kicked;
-        public bool kick,bounce;
+        public bool kick,bounce,unstableLanding;
         public MagnetPiece receiver;
         public MagnetPiece displaced;
+        public MagnetPiece exitKickTarget;
         public Vector3 displacedPosition;
         public MagnetProduct product;
     }
     public static bool PlanExit(BlackHolePortal target,Vector2Int direction,MagnetPiece cargo,out ExitPlan plan){
         plan=new ExitPlan();if(!target||!target.CanArrive||(target.Cargo&&target.Cargo!=cargo)||Mathf.Abs(direction.x)+Mathf.Abs(direction.y)!=1)return false;
         var board=target.board;var cell=target.Cell+direction;GridTile tile;Vector3 top;
-        if(!cargo){if(!target.TryExitLanding(direction,out tile,out top))return false;plan.player=top;return true;}
+        if(!cargo){
+            if(!target.TryExitLanding(direction,out tile,out top))return false;
+            var obstacle=board.MagnetAt(cell);
+            if(obstacle&&!obstacle.combined&&obstacle.product==MagnetProduct.None&&!board.TileAt(cell)){
+                plan.player=top;plan.unstableLanding=true;return true;
+            }
+            bool upright=obstacle&&obstacle.CanBePushed&&(obstacle.product==MagnetProduct.Ring
+                ?!MagnetPiece.FlatU(obstacle.Pose):obstacle.shape==MagnetShape.Bar&&MagnetPiece.VerticalBar(obstacle.Pose));
+            if(upright){
+                // The actor lands in the vacated cell, not on the upright top.
+                if(!tile||tile.blocked||board.IsWreckCell(cell)||BlackHolePortal.At(board,cell)
+                    ||Mathf.Abs(tile.surfaceHeight-target.tile.surfaceHeight)>.01f
+                    ||Mathf.Abs(obstacle.transform.position.y-tile.surfaceHeight)>.01f)return false;
+                var next=cell+direction;var ground=board.TileAt(next);
+                if(board.MagnetAt(next)||board.IsWreckCell(next)||BlackHolePortal.At(board,next)
+                    ||(ground&&(ground.blocked||Mathf.Abs(ground.surfaceHeight-tile.surfaceHeight)>.01f)))return false;
+                plan.exitKickTarget=obstacle;plan.kick=true;plan.magnet=obstacle.transform.position;
+                plan.player=new Vector3(cell.x*board.cellSize,tile.surfaceHeight,cell.y*board.cellSize);
+                plan.kicked=new Vector3(next.x*board.cellSize,tile.surfaceHeight,next.y*board.cellSize);
+            }else plan.player=top;
+            return true;
+        }
         if(board.IsWreckCell(cell)||BlackHolePortal.At(board,cell))return false;
         var receiver=board.MagnetAt(cell);
         tile=board.TileAt(cell);
@@ -103,7 +125,7 @@ public sealed partial class BlackHoleTravel {
                 var owner=target.tile.GetComponentInParent<IslandSurfaceAnchor>();var binding=cargo.GetComponent<IslandSurfaceAnchor>();
                 if(binding&&owner){binding.center=owner.center;binding.Apply();}
                 cargo.gameObject.SetActive(true);
-                yield return ThrowCargo(cargo,portalPosition,plan.magnet,pose,scale,plan.bounce?.28f:.7f,plan.bounce?.32f:.65f,plan.displaced,plan.displacedPosition);
+                yield return ThrowCargo(cargo,portalPosition,plan.magnet,pose,scale,plan.bounce?.28f:1.05f,plan.bounce?.32f:1.5f,plan.displaced,plan.displacedPosition);
                 // Stone contact reverses immediately; clear landings briefly settle first.
                 if(!plan.bounce)yield return new WaitForSecondsRealtime(.12f);
                 if(plan.bounce){
@@ -132,9 +154,51 @@ public sealed partial class BlackHoleTravel {
                     // TrySurface chooses actual solid top triangles, avoiding U/ring holes.
                     yield return EjectPlayer(player,portalPosition,plan.player,playerScale);
                 }
+            }else if(plan.unstableLanding){
+                yield return UnstablePortalLanding(player,target,direction,portalPosition,plan.player,playerScale);
+                yield break;
+            }else if(plan.exitKickTarget){
+                yield return KickExitPlayer(player,plan.exitKickTarget,portalPosition,direction,plan,plan.exitKickTarget.Pose,playerScale);
             }else yield return EjectPlayer(player,portalPosition,plan.player,playerScale);
             player.position=plan.player;board.CompletePortalLanding(target.Cell+direction);
         }finally{if(player){player.localScale=playerScale;var pose=player.GetComponent<PlayerPushPose>();if(pose)pose.End();}if(board)board.SetPortalBusy(false);}
+    }
+    IEnumerator UnstablePortalLanding(Transform player,BlackHolePortal portal,Vector2Int direction,Vector3 hole,Vector3 landing,Vector3 scale){
+        var pose=PlayerPushPose.Begin(player);
+        var outward=new Vector3(direction.x,0,direction.y);
+        // Hands face the island when hanging; root is outside the lip, below its surface.
+        var lip=hole+outward*(portal.board.cellSize*.5f);
+        var hanging=lip+outward*.22f-Vector3.up*.82f;
+        try{
+            for(float t=0;t<1.05f;t+=Time.unscaledDeltaTime){
+                float a=t/1.05f;player.localScale=scale*Mathf.Clamp01(a*5);
+                player.position=ThrownPosition(hole,landing,a);pose.SamplePortalFlight(a);yield return null;
+            }
+            player.localScale=scale;player.position=landing;
+            for(float t=0;t<1.1f;t+=Time.unscaledDeltaTime){pose.SamplePortalLedge(0,t/1.1f);yield return null;}
+            var facing=player.rotation;
+            for(float t=0;t<.5f;t+=Time.unscaledDeltaTime){
+                float a=Mathf.Clamp01(t/.5f);
+                player.position=Vector3.Lerp(landing,hanging,a*a);
+                player.rotation=Quaternion.Slerp(facing,Quaternion.LookRotation(-outward),Mathf.Clamp01(a*2));
+                pose.SamplePortalLedge(Mathf.SmoothStep(0,1,a),0);yield return null;
+            }
+            player.position=hanging;player.rotation=Quaternion.LookRotation(-outward);
+            for(float t=0;t<.65f;t+=Time.unscaledDeltaTime){pose.SamplePortalLedge(1,0);yield return null;}
+            var standing=lip-outward*.28f;
+            for(float t=0;t<.95f;t+=Time.unscaledDeltaTime){
+                float a=Mathf.SmoothStep(0,1,t/.95f);
+                var lifted=hanging+Vector3.up*(hole.y-hanging.y+.12f);
+                player.position=a<.65f?Vector3.Lerp(hanging,lifted,a/.65f):Vector3.Lerp(lifted,standing,(a-.65f)/.35f);
+                pose.SamplePortalLedge(1-Mathf.SmoothStep(0,1,Mathf.InverseLerp(.45f,1,a)),0);yield return null;
+            }
+            player.position=standing;
+            for(float t=0;t<.65f;t+=Time.unscaledDeltaTime){
+                float a=Mathf.Clamp01(t/.65f);player.position=Vector3.Lerp(standing,hole,a)+Vector3.up*(.5f*Mathf.Sin(a*Mathf.PI));
+                pose.SamplePortalEntry(a);yield return null;
+            }
+            player.position=hole;player.localScale=Vector3.zero;
+        }finally{pose.End();}
     }
     IEnumerator KickExitPlayer(Transform player,MagnetPiece cargo,Vector3 portalPosition,Vector2Int direction,ExitPlan plan,Quaternion pose,Vector3 playerScale){
                     player.localScale=playerScale;var axis=new Vector3(direction.y,0,-direction.x);
@@ -189,10 +253,18 @@ public sealed partial class BlackHoleTravel {
         }
         cargo.geometry.localScale=scale;
         for(float t=0;t<seconds;t+=Time.unscaledDeltaTime){
-            float a=Mathf.Clamp01(t/seconds);cargo.transform.position=Vector3.Lerp(start,end,a);
+            float a=Mathf.Clamp01(t/seconds);
+            // Emerge upward first, then travel out of the hole while gravity
+            // accelerates the descent. Keep the logical base on the support plane.
+            float horizontal=Mathf.SmoothStep(0,1,Mathf.InverseLerp(.12f,1,a));
+            cargo.transform.position=Vector3.Lerp(start,end,horizontal);
             if(displaced)displaced.transform.position=Vector3.Lerp(displacedStart,displacedEnd,Mathf.SmoothStep(0,1,Mathf.InverseLerp(.08f,.65f,a)));
             cargo.geometry.rotation=pose;MagnetVisuals.Ground(cargo);
-            float lift=arc*Mathf.Sin(a*Mathf.PI)-.35f*Mathf.Max(0,1-a/.2f);
+            float peak=Mathf.Max(start.y,end.y)+arc;
+            float airborneY=a<.42f
+                ?Mathf.Lerp(start.y-.35f,peak,1-Mathf.Pow(1-a/.42f,2))
+                :Mathf.Lerp(peak,end.y,Mathf.Pow((a-.42f)/.58f,2));
+            float lift=airborneY-cargo.transform.position.y;
             cargo.geometry.position+=Vector3.up*lift;yield return null;
         }
         if(displaced)displaced.transform.position=displacedEnd;
@@ -210,15 +282,12 @@ public sealed partial class BlackHoleTravel {
         float hiddenY=-bodyTop-.12f,emergedY=-bodyTop*.5f;
         float clearance=.015f*target.board.cellSize;
         float contactHeight=bodyTop+emergedY+clearance;
-        // Track the centre of the tumbling mesh, not its lowest rotating corner.
-        // Otherwise each turn would artificially lift/drop the whole trajectory.
-        float restBottom=TransitMeshHeight(cargoMeshes,vertices,false,hole.y);
-        float restTop=TransitMeshHeight(cargoMeshes,vertices,true,hole.y+.12f);
-        float centreOffset=(restTop-restBottom)*.5f;
-        float peakHeight=contactHeight+target.board.cellSize*1.1f;
+        // Keep the contact posture fixed and launch the bottom of the actual mesh.
+        float launchBottom=TransitMeshHeight(cargoMeshes,vertices,false,hit.y);
+        float contactWorldY=hole.y+contactHeight;
+        float peakHeight=Mathf.Max(launchBottom,contactWorldY)+target.board.cellSize*1.1f;
         float gravity=target.board.cellSize*3.6f;
-        float velocity=Mathf.Sqrt(2*gravity*peakHeight);
-        float flightTime=(velocity+Mathf.Sqrt(velocity*velocity-2*gravity*contactHeight))/gravity;
+        float velocity=Mathf.Sqrt(2*gravity*(peakHeight-launchBottom));
         float impactTime=-1;
         // Start the player's ascent only after the magnet has passed its apex.
         // Its own apex exposes roughly half the body, so the descending cargo
@@ -226,14 +295,10 @@ public sealed partial class BlackHoleTravel {
         float launchDelay=velocity/gravity+.06f;
         float playerVelocity=Mathf.Sqrt(2*gravity*(emergedY-hiddenY+.08f));
         float impactPlayerHeight=0;
-        var away=(hole-hit).normalized;
-        if(away.sqrMagnitude<.01f)away=-player.forward;
-        var tumbleAxis=(Vector3.Cross(Vector3.up,away)+away*.12f+Vector3.up*.08f).normalized;
-        var impactRotation=pose;
         try{
             for(float t=0;;t+=Time.unscaledDeltaTime){
                 if(impactTime>=0&&t>=impactTime+.85f)break;
-                float impact=impactTime<0?0:Mathf.SmoothStep(0,1,Mathf.InverseLerp(impactTime,impactTime+.12f,t));
+                float impact=impactTime<0?0:Mathf.SmoothStep(0,1,Mathf.InverseLerp(impactTime,impactTime+.22f,t));
                 float sink=impactTime<0?0:Mathf.SmoothStep(0,1,Mathf.InverseLerp(impactTime+.10f,impactTime+.85f,t));
                 // Collapse toward the mouth instead of pushing full-size meshes
                 // through the floor. Both visuals disappear before changing islands.
@@ -243,34 +308,31 @@ public sealed partial class BlackHoleTravel {
                 if(impactTime<0){
                     // A real ascent, not a half-body reveal with a stationary hold.
                     player.position=hole+Vector3.up*(hiddenY+playerVelocity*airborneTime-.5f*gravity*airborneTime*airborneTime);
-                    reaction.SamplePortalFlight(.12f+.43f*Mathf.Clamp01(airborneTime/flightTime));
+                    // Use the same neutral pose that begins the impact blend:
+                    // switching from flailing flight limbs caused a one-frame jerk.
+                    reaction.SamplePortalHeadImpact(0,0);
                 }else{
                     // The impact immediately reverses the actor toward the mouth;
                     // shrinking and descent overlap instead of freezing at contact.
-                    float returnProgress=Mathf.Clamp01((t-impactTime)/.85f);
-                    player.position=hole+Vector3.up*(impactPlayerHeight*(1-returnProgress));
+                    float returnProgress=Mathf.SmoothStep(0,1,Mathf.Clamp01((t-impactTime)/.85f));
+                    player.position=hole+Vector3.up*Mathf.Lerp(impactPlayerHeight,hiddenY,returnProgress);
                     reaction.SamplePortalHeadImpact(impact,sink);
                 }
-                float approach=Mathf.Clamp01(t/flightTime);
+                // Arrive above the mouth at the apex, then fall straight onto the helmet.
+                float approach=Mathf.SmoothStep(0,1,Mathf.Clamp01(t/(velocity/gravity)));
                 cargo.transform.position=Vector3.Lerp(hit,hole,approach);
-                float turns=t/flightTime;
-                // An oblique spin with smooth precession looks unsettled without
-                // frame-random jitter. Freeze the actual contact angle on impact.
-                var tumble=Quaternion.AngleAxis(40*turns+8*Mathf.Sin(turns*Mathf.PI*3),away)
-                    *Quaternion.AngleAxis(420*turns,tumbleAxis)*pose;
-                cargo.geometry.localScale=scale*remaining;cargo.geometry.rotation=impactTime<0?tumble:impactRotation;MagnetVisuals.Ground(cargo);
+                cargo.geometry.localScale=scale*remaining;cargo.geometry.rotation=pose;MagnetVisuals.Ground(cargo);
                 float top=TransitMeshHeight(playerMeshes,vertices,true,player.position.y+bodyTop);
                 float bottom=TransitMeshHeight(cargoMeshes,vertices,false,hole.y);
-                float upper=TransitMeshHeight(cargoMeshes,vertices,true,bottom+.12f);
-                float ballisticBottom=hole.y+centreOffset+velocity*t-.5f*gravity*t*t-(upper-bottom)*.5f;
+                float ballisticBottom=launchBottom+velocity*t-.5f*gravity*t*t;
                 // Use actual vertices: renderer bounds are inflated for island rendering.
                 // On impact the cargo follows the posed actor, never sinking independently.
                 float contactY=Mathf.Max(top,hole.y)+clearance*remaining;
                 if(impactTime<0&&t>velocity/gravity&&ballisticBottom<=contactY){
-                    impactTime=t;impactRotation=cargo.geometry.rotation;
+                    impactTime=t;
                     impactPlayerHeight=player.position.y-hole.y;
                 }
-                float cargoY=impactTime<0?Mathf.Max(ballisticBottom,contactY):contactY;
+                float cargoY=impactTime<0?ballisticBottom:contactY;
                 cargo.geometry.position+=Vector3.up*(cargoY-bottom);
                 yield return null;
             }
@@ -290,7 +352,7 @@ public sealed partial class BlackHoleTravel {
         target.board.CompletePortalLanding(source.Cell);
         yield return WaitForExitView(source);
         cargo.transform.position=start;cargo.gameObject.SetActive(true);
-        yield return ThrowCargo(cargo,start,cargo.portalEntryPosition,pose,scale,.7f,.65f);
+        yield return ThrowCargo(cargo,start,cargo.portalEntryPosition,pose,scale,1.05f,1.5f);
         if(source.board!=target.board)source.board.CaptureInitialState();
     }
     static float TransitMeshHeight(MeshFilter[] meshes,System.Collections.Generic.List<Vector3> vertices,bool highest,float fallback){

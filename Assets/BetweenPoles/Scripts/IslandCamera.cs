@@ -11,11 +11,41 @@ public sealed class IslandCamera : MonoBehaviour {
     [Tooltip("约52度俯角，露出人物正面，保持左右方向端正。")]
     public Vector3 viewingOffset = DefaultViewingOffset;
     public float transitionSeconds = .65f;
+    [Range(0f,.05f),Tooltip("吸合震动幅度，占一格宽度的比例。")]
+    public float mergeShakeCellRatio=.01f;
+    [Range(.05f,.4f),Tooltip("吸合震动持续时间。")]
+    public float mergeShakeSeconds=.15f;
+    float mergeShakeStart,mergeShakeAmplitude;
+    Vector3 mergeShakeDirection,unshakenPosition;
+    bool mergeShakeActive,shakeApplied;
     Vector3 focus, velocity;
     int current;
     public Transform CurrentIsland {get{return islandCenters!=null&&current>=0&&current<islandCenters.Length?islandCenters[current]:null;}}
     void OnEnable(){if(board)board.Landed+=OnLanded;}
-    void OnDisable(){if(board)board.Landed-=OnLanded;}
+    void OnDisable(){if(board)board.Landed-=OnLanded;CancelMergeShake();}
+    public void PlayMergeShake(Vector3 direction,float cellSize){
+        if(!Application.isPlaying||!isActiveAndEnabled)return;
+        RestoreShakePosition();
+        // Screen-plane translation only: never rotate the camera or change its focus.
+        direction=Vector3.ProjectOnPlane(direction,transform.forward);
+        mergeShakeDirection=direction.sqrMagnitude>.0001f?direction.normalized:transform.right;
+        mergeShakeAmplitude=Mathf.Max(0,cellSize)*Mathf.Clamp(mergeShakeCellRatio,0,.05f);
+        mergeShakeStart=Time.time;mergeShakeActive=mergeShakeAmplitude>0;
+    }
+    public void CancelMergeShake(){mergeShakeActive=false;RestoreShakePosition();}
+    void RestoreShakePosition(){if(shakeApplied){transform.position=unshakenPosition;shakeApplied=false;}}
+    // The project uses the built-in renderer. Apply only during rendering, after
+    // island/curved-camera framing, and restore before gameplay reads the camera.
+    void OnPreCull(){
+        RestoreShakePosition();
+        if(!mergeShakeActive)return;
+        float t=(Time.time-mergeShakeStart)/Mathf.Max(.01f,mergeShakeSeconds);
+        if(t>=1){mergeShakeActive=false;return;}
+        float pulse=Mathf.Cos(t*Mathf.PI*3f)*(1-t)*(1-t);
+        unshakenPosition=transform.position;shakeApplied=true;
+        transform.position+=mergeShakeDirection*(mergeShakeAmplitude*pulse);
+    }
+    void OnPostRender(){RestoreShakePosition();}
     void OnLanded(GridTile tile){
         if(!tile||!tile.gameObject.activeInHierarchy||islandCenters==null)return;
         var owner=tile.GetComponentInParent<IslandSurfaceAnchor>();
