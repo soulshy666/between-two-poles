@@ -1,0 +1,1 @@
+PASS: 4 directions; wobble, ledge hang, original stone landing, magnet restoration, input lock and release.

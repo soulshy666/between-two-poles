@@ -42,27 +42,20 @@ public sealed partial class BlackHoleTravel {
         tile=board.TileAt(cell);
         if(tile&&tile.blocked){
             if(!BlackHolePortal.TrySurface(board,cell,out tile,out top))return false;
-            var source=cargo.storedInPortal;if(!source)return false;
-            var returnCell=new Vector2Int(Mathf.RoundToInt(cargo.portalEntryPosition.x/source.board.cellSize),Mathf.RoundToInt(cargo.portalEntryPosition.z/source.board.cellSize));
-            var ground=source.board.TileAt(returnCell);
-            if(!ground||ground.blocked||source.board.MagnetAt(returnCell)||source.board.IsWreckCell(returnCell)||BlackHolePortal.At(source.board,returnCell))return false;
-            plan.kick=cargo.product==MagnetProduct.Ring?!MagnetPiece.FlatU(cargo.Pose):cargo.shape==MagnetShape.Bar&&MagnetPiece.VerticalBar(cargo.Pose);
-            if(plan.kick){
-                var back=returnCell-source.Cell;var next=returnCell+back;var nextGround=source.board.TileAt(next);
-                if(source.board.MagnetAt(next)||source.board.IsWreckCell(next)||BlackHolePortal.At(source.board,next)
-                    ||(nextGround&&(nextGround.blocked||Mathf.Abs(nextGround.surfaceHeight-ground.surfaceHeight)>.01f)))return false;
-                plan.kicked=new Vector3(next.x*source.board.cellSize,ground.surfaceHeight,next.y*source.board.cellSize);
-            }
-            plan.bounce=true;plan.player=cargo.portalEntryPosition;
+            if(!PlanCargoBounce(cargo,out plan))return false;
             plan.magnet=StoneContact(target,tile,cargo,direction);return true;
         }
         if(receiver){
             if(!cargo.combined&&!receiver.combined&&cargo.north==receiver.north){
                 var next=cell+direction;var ground=board.TileAt(next);
                 if(!tile||tile.blocked||Mathf.Abs(tile.surfaceHeight-target.tile.surfaceHeight)>.01f
-                    ||Mathf.Abs(receiver.transform.position.y-tile.surfaceHeight)>.01f
-                    ||board.MagnetAt(next)||board.IsWreckCell(next)||BlackHolePortal.At(board,next)
-                    ||(ground&&(ground.blocked||Mathf.Abs(ground.surfaceHeight-tile.surfaceHeight)>.01f)))return false;
+                    ||Mathf.Abs(receiver.transform.position.y-tile.surfaceHeight)>.01f)return false;
+                if(ground&&(ground.blocked||ground.surfaceHeight>tile.surfaceHeight+.01f)){
+                    if(!PlanCargoBounce(cargo,out plan))return false;
+                    plan.magnet=MagnetContact(target,receiver,cargo,direction);return true;
+                }
+                if(board.MagnetAt(next)||board.IsWreckCell(next)||BlackHolePortal.At(board,next)
+                    ||(ground&&Mathf.Abs(ground.surfaceHeight-tile.surfaceHeight)>.01f))return false;
                 // The arriving upright piece would need this same cell for its subsequent kick.
                 if(cargo.shape==MagnetShape.Bar&&MagnetPiece.VerticalBar(cargo.Pose))return false;
                 plan.displaced=receiver;
@@ -94,6 +87,33 @@ public sealed partial class BlackHoleTravel {
             plan.kicked=new Vector3(next.x*board.cellSize,height,next.y*board.cellSize);
         }
         return true;
+    }
+    static bool PlanCargoBounce(MagnetPiece cargo,out ExitPlan plan){
+        plan=new ExitPlan();
+        var source=cargo.storedInPortal;if(!source)return false;
+        var returnCell=new Vector2Int(Mathf.RoundToInt(cargo.portalEntryPosition.x/source.board.cellSize),Mathf.RoundToInt(cargo.portalEntryPosition.z/source.board.cellSize));
+        var ground=source.board.TileAt(returnCell);
+        if(!ground||ground.blocked||source.board.MagnetAt(returnCell)||source.board.IsWreckCell(returnCell)||BlackHolePortal.At(source.board,returnCell))return false;
+        plan.kick=cargo.product==MagnetProduct.Ring?!MagnetPiece.FlatU(cargo.Pose):cargo.shape==MagnetShape.Bar&&MagnetPiece.VerticalBar(cargo.Pose);
+        if(plan.kick){
+            var back=returnCell-source.Cell;var next=returnCell+back;var nextGround=source.board.TileAt(next);
+            if(source.board.MagnetAt(next)||source.board.IsWreckCell(next)||BlackHolePortal.At(source.board,next)
+                ||(nextGround&&(nextGround.blocked||Mathf.Abs(nextGround.surfaceHeight-ground.surfaceHeight)>.01f)))return false;
+            plan.kicked=new Vector3(next.x*source.board.cellSize,ground.surfaceHeight,next.y*source.board.cellSize);
+        }
+        plan.bounce=true;plan.player=cargo.portalEntryPosition;
+        return true;
+    }
+    static Vector3 MagnetContact(BlackHolePortal portal,MagnetPiece receiver,MagnetPiece cargo,Vector2Int direction){
+        var axis=new Vector3(direction.x,0,direction.y);
+        var hole=new Vector3(portal.tile.transform.position.x,portal.tile.surfaceHeight,portal.tile.transform.position.z);
+        float leading=0,edge=float.PositiveInfinity;
+        foreach(var f in cargo.geometry.GetComponentsInChildren<MeshFilter>(true))if(f.sharedMesh&&f.sharedMesh.isReadable)
+            foreach(var v in f.sharedMesh.vertices)leading=Mathf.Max(leading,Vector3.Dot(f.transform.TransformPoint(v)-cargo.transform.position,axis));
+        foreach(var f in receiver.geometry.GetComponentsInChildren<MeshFilter>(true))if(f.sharedMesh&&f.sharedMesh.isReadable)
+            foreach(var v in f.sharedMesh.vertices)edge=Mathf.Min(edge,Vector3.Dot(f.transform.TransformPoint(v)-hole,axis));
+        float distance=float.IsPositiveInfinity(edge)?portal.board.cellSize*.12f:Mathf.Clamp(edge-leading-.04f,0,portal.board.cellSize*.8f);
+        return hole+axis*distance;
     }
     static Vector3 StoneContact(BlackHolePortal portal,GridTile stone,MagnetPiece cargo,Vector2Int direction){
         var axis=new Vector3(direction.x,0,direction.y);
