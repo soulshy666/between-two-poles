@@ -143,7 +143,7 @@ namespace BetweenPoles.EditorTools {
                             Require(!BlackHoleTravel.PlanExit(target,Vector2Int.right,source.Cargo,out blocked),"Displacement entered blocked cell");
                             ground.blocked=false;
                         }
-                        Require((bool)typeof(BlackHoleTravel).GetMethod("SelectTestPortal",Private).Invoke(travel,new object[]{target,false}),"Confirmation rejected");
+                        Require((bool)typeof(BlackHoleTravel).GetMethod("SelectTestPortal",Private).Invoke(travel,new object[]{target}),"Confirmation rejected");
                         // Simulate the entry island being culled during destination selection.
                         foreach(var renderer in source.Cargo.GetComponentsInChildren<Renderer>(true))renderer.enabled=false;
                         selected=true;ready=0;
@@ -152,7 +152,7 @@ namespace BetweenPoles.EditorTools {
                 }
                 Require(selected,"Travel skipped selection");
                 if(ready==0){
-                    Require(b.PlayerCell==new Vector2Int(phase==6||phase==3?-2:3,0),"Player landing wrong");
+                    Require(b.PlayerCell==new Vector2Int(phase==6?0:phase==3?-2:3,0),"Player landing wrong");
                     Require(b.player.Find("Visual").localScale.sqrMagnitude>.01f,"Visual scale not restored after arrival");
                     if(phase==0)Require(b.player.position.y>.1f,"Flat landing wrong");
                     if(phase==1)Require(Mathf.Abs(b.magnets[0].transform.position.x-6)<.01f,"Kick landing wrong");
@@ -169,7 +169,7 @@ namespace BetweenPoles.EditorTools {
                     }
                     if(phase==6){
                         Require(!source.Cargo&&!b.magnets[0].storedInPortal&&b.magnets[0].gameObject.activeInHierarchy,"Return left cargo stored in portal");
-                        Require(Mathf.Abs(b.magnets[0].transform.position.x+3)<.01f&&b.player.position.y>.1f&&b.player.forward.x<-.95f,"Return position/facing wrong");
+                        Require(Mathf.Abs(b.magnets[0].transform.position.x)<.01f&&b.player.position.y>.1f&&b.player.forward.x>.95f,"Return position/facing wrong");
                     }
                     ready=now+1;return;
                 }
@@ -178,7 +178,7 @@ namespace BetweenPoles.EditorTools {
                 if(phase==2&&!climbed){Require(b.TryStep(Vector2Int.right),"Step onto platform rejected");climbed=true;ready=now+1.2;return;}
                 if(phase==2)Require(climbPeak>b.LayerHeight+.15f&&climbCaptured&&!b.Busy&&b.PlayerCell==new Vector2Int(4,0)&&Mathf.Abs(b.player.position.y-b.LayerHeight)<.01f,"Real platform ascent failed");
                 if(phase++<7){setup();return;}
-                File.WriteAllText(Report,"PASS: Actual test scene, flat/upright/merge/stone-bounce presets, real walk-in, camera pan, destination preview/confirm, cargo-first arrival and player landing; perpendicular bars form cross over gap / wide bar on land; clicking origin returns cargo then player; same-pole exit displacement. Screenshots captured.");
+                File.WriteAllText(Report,"PASS: Actual test scene, flat/upright/merge/stone-bounce presets, real walk-in, camera pan, destination preview/confirm, cargo-first arrival and player landing; perpendicular bars form cross over gap / wide bar on land; clicking origin exits forward with cargo then player; same-pole exit displacement. Screenshots captured.");
                 EditorApplication.update-=update;Finish();
             }catch(Exception ex){File.WriteAllText(Report,"FAIL: "+ex);EditorApplication.update-=update;Finish();}};
             File.WriteAllText(Report,"RUNNING");EditorApplication.update+=update;

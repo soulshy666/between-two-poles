@@ -8,7 +8,7 @@ public sealed partial class GridPlayground:MonoBehaviour {
     public float LayerHeight {get{return cellSize*.5f;}}
     public float stepSeconds=.22f;
     [Range(.12f,.3f)] public float walkSeconds=.25f;
-    [Tooltip("Time to turn 90 degrees before walking; a half-turn takes slightly longer.")]
+    [Tooltip("Turning duration. Ordinary walking turns while moving, without a startup pause.")]
     [Range(.04f,.16f)] public float turnSeconds=.05f;
     [Tooltip("Short landing pause between automatically repeated walking steps; fresh key presses bypass it.")]
     [Range(0f,.1f)] public float heldStepPauseSeconds=.02f;
@@ -255,12 +255,45 @@ public sealed partial class GridPlayground:MonoBehaviour {
     bool TryReverseWalk(Vector2Int direction){
         if(!reversibleWalk||Mathf.Abs(direction.x)+Mathf.Abs(direction.y)!=1
             ||(direction==walkDirection&&!completingWalkForTurn))return false;
-        // Remember the latest turn, but visibly finish the current grid segment.
-        // FinishMovement fast-forwards the coroutine and would teleport to its end.
+        if(direction==-walkDirection){
+            // Retrace only the distance already travelled, even before the midpoint.
+            // Swapping endpoints also allows another reversal during the return.
+            var previousOrigin=walkOrigin;walkOrigin=walkDestination;walkDestination=previousOrigin;
+            walkDirection=direction;completingWalkForTurn=false;
+            bufferedSteps.Clear();
+            FaceWalkDirection(direction);
+            return true;
+        }
+        if(direction==walkDirection){completingWalkForTurn=false;bufferedSteps.Clear();return true;}
+        // Every perpendicular turn goes through the current target's centre,
+        // even on open ground. Facing can respond before translation changes axis.
         completingWalkForTurn=true;
         bufferedSteps.Clear();
         bufferedSteps.Enqueue(new BufferedStep{direction=direction,time=Time.unscaledTime});
+        FaceWalkDirection(direction);
         return true;
+    }
+    void FaceWalkDirection(Vector2Int direction){
+        var facing=Quaternion.LookRotation(new Vector3(direction.x,0,direction.y));
+        player.rotation=Quaternion.RotateTowards(player.rotation,facing,180f/Mathf.Max(.085f,turnSeconds)*MovementDeltaTime);
+    }
+    bool PlainWalkCell(Vector2Int cell,float height,Transform owner){
+        var tile=Tile(cell);
+        return tile&&!tile.blocked&&!tile.goal&&SameHeight(tile.surfaceHeight,height)&&Owner(tile)==owner
+            &&!Piece(cell)&&!IsWreckCell(cell)&&!BlackHolePortal.At(this,cell)&&!FindCollectibleStar(cell);
+    }
+    bool ContinuePlainWalk(){
+        while(bufferedSteps.Count>0&&Time.unscaledTime-bufferedSteps.Peek().time>InputBufferSeconds)bufferedSteps.Dequeue();
+        bool buffered=bufferedSteps.Count>0;
+        var direction=buffered?bufferedSteps.Peek().direction:heldDirection;
+        if(direction==Vector2Int.zero||(!buffered&&!DirectionHeld(direction))||finishingMovement)return false;
+        var from=Cell(player);var next=from+direction;
+        if(!PlainWalkCell(from,player.position.y,Owner(Tile(from)))
+            ||!PlainWalkCell(next,player.position.y,Owner(Tile(from))))return false;
+        if(buffered)bufferedSteps.Dequeue();
+        RecordHistory(SaveWorld());
+        walkOrigin=player.position;walkDestination=Position(next,Height(next));walkDirection=direction;
+        completingWalkForTurn=false;return true;
     }
     void ClearWalkInterrupt(){reversibleWalk=false;completingWalkForTurn=false;}
     void BeginPushInterrupt(Vector2Int direction,bool feedbackOnly=false){pushHoverParticipants.Clear();if(!feedbackOnly)PlayMagnetPushSound();interruptiblePush=true;pushFeedbackOnly=feedbackOnly;pushDirection=direction;pushUndo=null;}
@@ -290,11 +323,17 @@ public sealed partial class GridPlayground:MonoBehaviour {
     }
     IEnumerator MovePlayer(Vector2Int p){
         Busy=true;
+        var star=FindCollectibleStar(p);
+        if(star){
+            collectingStar=true;bufferedSteps.Clear();
+            yield return TurnPlayer(Position(p,Height(p))-player.position);
+            yield return CollectStar(star,Position(p,Height(p)));
+            NotifyLanding(p);Busy=false;yield break;
+        }
         var from=Cell(player);
-        // Ordinary ground walking can accelerate to its centre for a queued turn.
+        // Ordinary ground walking can reverse anywhere along its validated segment.
         // Supported paths and magnet transactions keep their existing landing rules.
         if(Floor(from)&&Floor(p)&&!Piece(from)&&!Piece(p)){
-            yield return TurnPlayer(Position(p,Height(p))-player.position);
             var walkPose=PlayerPushPose.BeginWalk(player,cellSize);
             reversibleWalk=true;
             walkOrigin=player.position;walkDestination=Position(p,Height(p));walkDirection=p-from;
@@ -303,17 +342,21 @@ public sealed partial class GridPlayground:MonoBehaviour {
                 // Travel at a stable speed across grid lines. Per-cell ease-out
                 // made a held direction visibly brake before every new step.
                 var previous=player.position;
+                FaceWalkDirection(completingWalkForTurn&&bufferedSteps.Count>0?bufferedSteps.Peek().direction:walkDirection);
                 float speed=cellSize/Mathf.Max(.01f,walkSeconds)*(completingWalkForTurn?1.6f:1f);
                 player.position=Vector3.MoveTowards(player.position,end,speed*MovementDeltaTime);
                 walkPose.AdvanceWalk(Vector3.Distance(previous,player.position));
-                if((player.position-end).sqrMagnitude<.000001f){player.position=end;break;}
+                if((player.position-end).sqrMagnitude<.000001f){
+                    player.position=end;NotifyLanding(CellAt(end));
+                    if(collectingStar||!ContinuePlainWalk())break;
+                }
                 yield return null;
             }
             ClearWalkInterrupt();
             walkPose.End();
-            NotifyLanding(p);
-        }else yield return Walk(p);
-        PauseHeldWalkRepeat();
+            // A short reversed step must not wait for the original full-step deadline.
+            nextHeldStep=Time.unscaledTime;
+        }else {yield return Walk(p);PauseHeldWalkRepeat();}
         Busy=false;
     }
     public static void SampleJoin(Vector3 incomingStart,Vector3 targetStart,Vector3 incomingEnd,Vector3 targetEnd,Vector3 side,float progress,out Vector3 incoming,out Vector3 target){

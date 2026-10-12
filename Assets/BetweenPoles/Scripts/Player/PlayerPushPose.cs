@@ -10,7 +10,7 @@ public sealed partial class PlayerPushPose:MonoBehaviour {
     bool[] arms,legs; bool pushing,walking; float walkDistance,walkCellSize=1.5f; GridPlayground board;
     float nextWalkFoot=1,walkFoot=1;
     PlayerFootstepAudio footsteps;
-    bool walkSoundPlayed;
+    float nextWalkSoundDistance;
     bool balancing; float balanceTime; Vector2Int balanceDirection;
     const float BalanceSeconds=1.35f;
     public static void BeginEdgeBalance(Transform player,Vector2Int direction){
@@ -32,7 +32,7 @@ public sealed partial class PlayerPushPose:MonoBehaviour {
     }
     public static PlayerPushPose BeginWalk(Transform player,float cellSize){
         var pose=GetPose(player);pose.EndEdgeBalance();if(pose.pushing)return pose;
-        pose.walking=true;pose.walkSoundPlayed=false;pose.walkFoot=pose.nextWalkFoot;pose.walkDistance=0;pose.walkCellSize=Mathf.Max(.01f,cellSize);pose.SampleWalk(0);return pose;
+        pose.walking=true;pose.nextWalkSoundDistance=0;pose.walkFoot=pose.nextWalkFoot;pose.walkDistance=0;pose.walkCellSize=Mathf.Max(.01f,cellSize);pose.SampleWalk(0);return pose;
     }
     public static PlayerPushPose BeginCrossSweep(Transform player){
         var pose=GetPose(player);pose.End();pose.pushing=true;pose.SampleCrossSweep(0);return pose;
@@ -79,8 +79,8 @@ public sealed partial class PlayerPushPose:MonoBehaviour {
     public void AdvanceWalk(float distance){
         if(!walking||pushing)return;
         walkDistance+=distance;SampleWalk(walkDistance/walkCellSize);
-        if(Application.isPlaying&&!walkSoundPlayed&&distance>.0001f){
-            walkSoundPlayed=true;
+        if(Application.isPlaying&&walkDistance>nextWalkSoundDistance+.0001f&&distance>.0001f){
+            nextWalkSoundDistance=(Mathf.Floor(walkDistance/walkCellSize)+1)*walkCellSize;
             if(!footsteps){footsteps=GetComponent<PlayerFootstepAudio>();if(!footsteps)footsteps=gameObject.AddComponent<PlayerFootstepAudio>();}
             footsteps.PlayStep();
         }
