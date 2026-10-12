@@ -3,12 +3,12 @@ namespace BetweenPoles {
 public sealed partial class MagnetDebugPanel {
     readonly Color paper=new Color(.957f,.945f,.925f),ink=new Color(.07f,.07f,.07f),accent=new Color(.90f,0,.07f);
     GUIStyle textStyle;int section=1;Vector2 layoutScroll;Vector2Int pan;bool dragging;Vector2 lastMouse;
-    readonly string[] kinds={"长条","U 型","宽条","圆环","十字","磁流升降台","两格桥 · 半成品","两格桥","空 / 清除物品","石头","黑洞"};
+    readonly string[] kinds={"长条","U 型","宽条","圆环","十字","磁流升降台","两格桥 · 半成品","两格桥","空 / 清除物品","石头","黑洞","星星"};
     void Fill(Rect r,Color c){var old=GUI.color;GUI.color=c;GUI.DrawTexture(r,Texture2D.whiteTexture);GUI.color=old;}
     void Label(Rect r,string s,Color color,int size=14,TextAnchor align=TextAnchor.MiddleLeft){textStyle.normal.textColor=color;textStyle.fontSize=size;textStyle.alignment=align;GUI.Label(r,s,textStyle);}
     bool Button(Rect r,string title,bool active=false){Fill(new Rect(r.x+3,r.y+3,r.width,r.height),Color.black);Fill(r,Color.black);Fill(new Rect(r.x+2,r.y+2,r.width-4,r.height-4),active?accent:paper);Label(r,title,active?Color.white:ink,14,TextAnchor.MiddleCenter);return GUI.Button(r,GUIContent.none,GUIStyle.none);}
     void SelectCell(Vector2Int p){
-        selected=p;if(PortalAt(p)){shape=10;return;}var m=board.MagnetAt(p);if(!m){var tile=board.TileAt(p);shape=tile&&tile.blocked?9:8;if(shape==9){rockStyle=tile.rockStyle;rockTheme=tile.rockTheme;lowRockVariant=tile.lowRockVariant;}return;}
+        selected=p;if(StarAt(p)){shape=11;return;}if(PortalAt(p)){shape=10;return;}var m=board.MagnetAt(p);if(!m){var tile=board.TileAt(p);shape=tile&&tile.blocked?9:8;if(shape==9){rockStyle=tile.rockStyle;rockTheme=tile.rockTheme;lowRockVariant=tile.lowRockVariant;}return;}
         shape=m.product==MagnetProduct.None?(m.shape==MagnetShape.Bar?0:1):(int)m.product+1;
         pole=(m.product==MagnetProduct.Lift||m.product==MagnetProduct.Bridge||m.product==MagnetProduct.BridgeHalf?m.baseNorth:m.north)?0:1;
         yaw=Mathf.RoundToInt(m.transform.eulerAngles.y/90)%4;
@@ -28,19 +28,19 @@ public sealed partial class MagnetDebugPanel {
         Fill(new Rect(0,0,width,height),new Color(.085f,.085f,.085f));Fill(new Rect(0,0,width,62),Color.black);Fill(new Rect(0,59,width,3),accent);
         Label(new Rect(20,8,260,42),"两极之间 / 磁铁测试",Color.white,21);
         string[] tabs={"测试布局","物品","地块"};for(int i=0;i<3;i++)if(Button(new Rect(300+i*104,12,94,35),tabs[i],section==i))section=i;
-        if(Button(new Rect(width-280,12,110,35),"重置测试")){board.ResetPuzzle();SelectCell(selected);status="已恢复测试起点。";}
+        if(Button(new Rect(width-280,12,110,35),"重置测试")){board.ResetPuzzle();board.ResetTestStars();SelectCell(selected);status="已恢复测试起点。";}
         if(Button(new Rect(width-155,12,135,35),"开始游玩 →",true))IsOpen=false;
         Fill(new Rect(0,62,280,height-62),paper);Fill(new Rect(280,62,4,height-62),Color.black);
         Fill(new Rect(0,62,280,42),ink);Label(new Rect(18,66,240,34),section==0?"/ 测试布局":section==1?"/ 物品样式":"/ 格子操作",Color.white,17);
         var lab=board.GetComponent<MagnetTestLayouts>();
         if(section==0&&lab){string[] names={"冰面宽桥","悬空十字","圆环","反冲","单层磁流","两格桥","十字拨动","两层磁流","竖立接收 · 十字","竖立接收 · 宽桥","两黑洞传送","黑洞 · 平躺磁铁","黑洞 · 竖直磁铁","黑洞 · 出口组合登高","黑洞 · 石头反弹登高"};layoutScroll=GUI.BeginScrollView(new Rect(8,114,264,414),layoutScroll,new Rect(0,0,242,names.Length*38));for(int i=0;i<names.Length;i++)if(Button(new Rect(8,i*38,230,33),names[i])){lab.Load(i);pan=Vector2Int.zero;SelectCell(board.PlayerCell);status=lab.instruction;}GUI.EndScrollView();Label(new Rect(16,540,244,160),lab.instruction,ink);}
-        if(section==1){for(int row=0;row<13;row++){
+        if(section==1){for(int row=0;row<14;row++){
             bool stone=row>=8&&row<=10;
             int stoneStyle=row==8?2:row==9?0:1;
-            int i=stone?9:row==11?10:row==12?8:row;
+            int i=stone?9:row==11?10:row==12?11:row==13?8:row;
             bool active=shape==i&&(!stone||rockStyle==stoneStyle);
             string title=stone?(stoneStyle==2?"矮石头":stoneStyle==0?"圆石头":"高石头"):kinds[i];
-            var r=new Rect(16,114+row*29,246,26);
+            var r=new Rect(16,114+row*27,246,24);
             bool clicked=Button(r,"",active);
             if(stone){
                 float h=stoneStyle==2?10:stoneStyle==0?16:21;
@@ -51,7 +51,8 @@ public sealed partial class MagnetDebugPanel {
             Label(new Rect(r.x+54,r.y,185,r.height),title,active?Color.white:ink);
             if(clicked){if(stone)rockStyle=stoneStyle;Pick(i);}
         }
-            if(shape==10){Label(new Rect(16,510,244,180),"先放置至少两个黑洞。磁铁可保持姿态推入，再让玩家进入。移动镜头选出口：平躺磁铁先出，玩家踩上；竖直磁铁先出，再被玩家踢倒一格。",ink,14);}
+            if(shape==11){Label(new Rect(16,510,244,150),"选择空地面格放置星星。\n开始游玩后走到星星所在格：双手捧起、向上抛出，缓缓升空后闪光消散。",ink,14);}
+            else if(shape==10){Label(new Rect(16,510,244,180),"先放置至少两个黑洞。磁铁可保持姿态推入，再让玩家进入。移动镜头选出口：平躺磁铁先出，玩家踩上；竖直磁铁先出，再被玩家踢倒一格。",ink,14);}
             else if(shape==9){
                 if(rockStyle==2){
                     Label(new Rect(16,502,240,24),"矮石造型",ink);
@@ -94,6 +95,7 @@ public sealed partial class MagnetDebugPanel {
             Fill(r,new Color(.27f,.27f,.27f));Fill(new Rect(r.x+1,r.y+1,size-1,size-1),t?paper:new Color(.105f,.105f,.105f));
             if(t&&t.blocked){Fill(new Rect(r.x+11,r.y+11,26,26),new Color(.4f,.47f,.52f));Fill(new Rect(r.x+14,r.y+8,23,8),new Color(.62f,.68f,.72f));}
             var portal=PortalAt(p);if(portal){Icon(new Rect(r.x+6,r.y+6,36,36),10,false,0);if(portal.Cargo)Label(new Rect(r.x,r.yMax-15,r.width,15),"有磁铁",ink,10,TextAnchor.MiddleCenter);}
+            if(StarAt(p))Icon(new Rect(r.x+6,r.y+6,36,36),11,false,0);
             if(m)TopView(r,m,p);
             if(t&&t.surfaceHeight>.1f)Label(new Rect(r.x+1,r.y,20,16),Mathf.RoundToInt(t.surfaceHeight/board.LayerHeight)+"H",ink,10);
             if(p==board.PlayerCell){Fill(new Rect(r.center.x-8,r.center.y-8,16,16),new Color(1,.72f,.08f));Fill(new Rect(r.center.x-6,r.center.y-6,12,12),new Color(1,.9f,.5f));}
@@ -116,6 +118,7 @@ public sealed partial class MagnetDebugPanel {
         GUI.matrix=saved;
     }
     void Icon(Rect r,int type,bool north,int angle){
+        if(type==11){Label(r,"★",new Color(1,.68f,.03f),24,TextAnchor.MiddleCenter);return;}
         var matrix=GUI.matrix;
         // Compose the local icon rotation before the screen-scale matrix.
         // RotateAroundPivot mixes screen and logical coordinates when GUI is scaled.

@@ -216,6 +216,7 @@ public sealed partial class PlayerPushPose:MonoBehaviour {
         posed.vertices=workVertices;if(normals.Length==vertices.Length)posed.normals=workNormals;
     }
     void LateUpdate(){
+        if(collectingStarPose)return;
         if(readingMap){SampleMap(mapProgress);return;}
         UpdateIdle();
         UpdateStonePush();
