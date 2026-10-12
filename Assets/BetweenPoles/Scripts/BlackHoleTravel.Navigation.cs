@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using UnityEngine;
 namespace BetweenPoles {
 public sealed partial class BlackHoleTravel {
@@ -107,7 +107,7 @@ public sealed partial class BlackHoleTravel {
                 float d=((Vector2)screen-(Vector2)Input.mousePosition).sqrMagnitude;
                 if(screen.z>0&&d<best){selected=portal;best=d;}
             }
-            if(selected)SelectTestPortal(selected,selected==origin);
+            if(selected)SelectTestPortal(selected);
         }
     }
     bool HitInspectionPlayer(Vector2 mouse){
@@ -238,10 +238,9 @@ public sealed partial class BlackHoleTravel {
             if(point.z<0||point.x<0||point.x>1||point.y<0||point.y>1)continue;
             // Passive labels leave input to the drag/click discriminator, so dragging
             // across a portal never accidentally teleports the player.
-            GUI.Label(new Rect(point.x*Screen.width-40,(1-point.y)*Screen.height-42,80,24),portal==origin?"点击返回入口":"点击传送",new GUIStyle(GUI.skin.label){alignment=TextAnchor.MiddleCenter});
+            GUI.Label(new Rect(point.x*Screen.width-40,(1-point.y)*Screen.height-42,80,24),"点击传送",new GUIStyle(GUI.skin.label){alignment=TextAnchor.MiddleCenter});
         }
         DrawOriginIndicator();
-        if(GUI.Button(new Rect(Screen.width-196,Screen.height-72,180,48),"返回入口（Esc）"))SelectTestPortal(origin,true);
     }
 }
 }

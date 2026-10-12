@@ -1,0 +1,1 @@
+PASS: first-frame movement; smooth facing; early/late/repeated reversal; cardinal-only turns and rapid direction changes; blocked-corner guard; uninterrupted gait; exact landing and unlock.

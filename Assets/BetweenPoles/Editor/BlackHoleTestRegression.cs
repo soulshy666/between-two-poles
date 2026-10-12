@@ -68,15 +68,15 @@ namespace BetweenPoles.EditorTools {
                         if(BlackHoleTravel.Selecting){
                             if(!chosen){
                                 var travel=typeof(BlackHoleTravel).GetField("instance",BindingFlags.Static|BindingFlags.NonPublic).GetValue(null);
-                                Check((bool)typeof(BlackHoleTravel).GetMethod("SelectTestPortal",Private).Invoke(travel,new object[]{phase==1||phase==4?source:target,phase==1||phase==4}),"Destination selection rejected");chosen=true;
+                                Check((bool)typeof(BlackHoleTravel).GetMethod("SelectTestPortal",Private).Invoke(travel,new object[]{phase==1||phase==4?source:target}),"Destination selection rejected");chosen=true;
                             }return;
                         }
                         Check(chosen,"Travel ended before selection");
-                        Check(board.PlayerCell==(phase==1||phase==4?source.Cell-Vector2Int.right:target.Cell+Vector2Int.right),"Incorrect travel/cancel landing");checks++;
-                        Check(Vector3.Dot(board.player.forward,(phase==1||phase==4)?Vector3.left:Vector3.right)>.99f,"Travel/cancel facing opposite to exit direction");checks++;
+                        Check(board.PlayerCell==(phase==1||phase==4?source.Cell+Vector2Int.right:target.Cell+Vector2Int.right),"Incorrect travel/cancel landing");checks++;
+                        Check(Vector3.Dot(board.player.forward,Vector3.right)>.99f,"Travel/cancel facing opposite to exit direction");checks++;
                         if(phase==2)Check(board.player.position.y>0&&!source.Cargo,"Flat cargo runtime landing failed");
                         if(phase==3)Check(!MagnetPiece.VerticalBar(board.magnets[0].Pose)&&Mathf.Abs(board.magnets[0].transform.position.x-6)<.001f,"Upright cargo runtime kick failed");
-                        if(phase==4)Check(source.Cargo==board.magnets[0]&&!source.Cargo.gameObject.activeSelf,"Cancel lost stored cargo");
+                        if(phase==4)Check(!source.Cargo&&board.magnets[0].gameObject.activeSelf,"Same-portal exit left cargo stored");
                         if(phase++<4){
                             chosen=false;
                             if(phase>=2){
