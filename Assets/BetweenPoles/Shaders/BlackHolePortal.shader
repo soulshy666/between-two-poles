@@ -88,9 +88,11 @@ Shader "BetweenPoles/BlackHolePortal" {
  }
 
 
- struct v2f {float4 pos:SV_POSITION;float2 portalUV:TEXCOORD0;};
- v2f vert(appdata_full v){Input data;bend(v,data);v2f o;o.pos=UnityObjectToClipPos(v.vertex);o.portalUV=v.texcoord.xy;return o;}
+ struct v2f {float4 pos:SV_POSITION;float2 portalUV:TEXCOORD0;float2 logicalXZ:TEXCOORD1;};
+ v2f vert(appdata_full v){Input data;bend(v,data);v2f o;o.pos=UnityObjectToClipPos(v.vertex);o.portalUV=v.texcoord.xy;o.logicalXZ=data.logicalXZ;return o;}
+ #include "Assets/BetweenPoles/Shaders/IslandDiscovery.cginc"
  fixed4 frag(v2f i):SV_Target {
+ clip(.5-DiscoveryHidden(i.logicalXZ));
  float2 p=(floor(i.portalUV*48)+.5)/48*2-1;
  float r=length(p);clip(.98-r);
  float angle=atan2(p.y,p.x);float arms=sin(angle*3+r*19-_Time.y*1.6);

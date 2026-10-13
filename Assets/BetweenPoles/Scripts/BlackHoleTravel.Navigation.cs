@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 namespace BetweenPoles {
 public sealed partial class BlackHoleTravel {
@@ -37,9 +37,9 @@ public sealed partial class BlackHoleTravel {
     public void TickInspection(){PlayerReturnRequested=false;if(inspectionBoard)UpdateNavigation();}
     public void FinishInspection(){EndNavigation();inspectionBoard=null;inspectionPosition=null;allowChartZoom=false;ChartZoomRequested=false;PlayerReturnRequested=false;playerReturnPressed=false;}
     bool VisitedRoom(string room){
-        if(inspectionBoard)return PlayerPrefs.GetInt(ChapterAtlas.Key(inspectionBoard.gameObject.scene.path,room),0)>0;
+        if(inspectionBoard)return SessionExploration.GetInt(ChapterAtlas.Key(inspectionBoard.gameObject.scene.path,room),0)>0;
         if(!origin)return false;
-        return room==origin.Room||PlayerPrefs.GetInt(ChapterAtlas.Key(origin.gameObject.scene.path,room),0)>0;
+        return room==origin.Room||SessionExploration.GetInt(ChapterAtlas.Key(origin.gameObject.scene.path,room),0)>0;
     }
     void BeginNavigation(GridPlayground board){
         navigationRenderers.Clear();
@@ -51,16 +51,18 @@ public sealed partial class BlackHoleTravel {
         navigationCamera.enabled=false;
         if(navigationCurve){savedFocus=navigationCurve.editFocus;savedSize=navigationCurve.planningSize;curveFit=navigationCurve.fitIsland;navigationCurve.fitIsland=false;navigationCurve.navigationZoomSmoothTime=1.4f;}
         else savedSize=viewCamera.orthographicSize;
-        viewSize=viewCamera.orthographicSize*1.8f;
+        viewSize=inspectionBoard?viewCamera.orthographicSize*1.8f:Mathf.Max(12f,viewCamera.orthographicSize*1.15f);
         navigationWindow=board.GetComponent<FiveIslandWindow>();
         if(navigationWindow){
             windowEnabled=navigationWindow.enabled;navigationWindow.enabled=false;
-            foreach(var room in navigationWindow.rooms)foreach(var renderer in room.surfaces)SetNavigationVisible(renderer,VisitedRoom(room.id)||room.center&&VisitedRoom(room.center.name));
+            foreach(var room in navigationWindow.rooms)foreach(var renderer in room.surfaces)SetNavigationVisible(renderer,true);
         }
         foreach(var m in board.magnets)if(m&&m.gameObject.activeInHierarchy){
-            var owner=m.GetComponent<IslandSurfaceAnchor>();bool show=!navigationWindow||owner&&owner.center&&VisitedRoom(owner.center.name);
+            // Map appearance is restored when navigation closes.
+            bool show=true;
             foreach(var renderer in m.GetComponentsInChildren<Renderer>())SetNavigationVisible(renderer,show);
         }
+        BeginUnknownIslands(board);
         dragging=false;playerReturnPressed=false;PlayerReturnRequested=false;ApplyNavigation();
     }
     void SetNavigationVisible(Renderer renderer,bool show){
@@ -180,7 +182,7 @@ public sealed partial class BlackHoleTravel {
         var texture=new Texture2D(size,size,TextureFormat.RGBA32,false){name="Black hole position arrow "+heading,filterMode=FilterMode.Point,wrapMode=TextureWrapMode.Clamp,hideFlags=HideFlags.HideAndDontSave};
         texture.SetPixels(colors);texture.Apply();originArrows[heading]=texture;return texture;
     }
-    void OnDestroy(){foreach(var texture in originArrows)if(texture){if(Application.isPlaying)Destroy(texture);else DestroyImmediate(texture);}}
+    void OnDestroy(){EndUnknownIslands();foreach(var texture in originArrows)if(texture){if(Application.isPlaying)Destroy(texture);else DestroyImmediate(texture);}}
     void DrawOriginIndicator(){
         if(Event.current.type!=EventType.Repaint)return;
         Vector2 position,direction;bool offscreen;if(!OriginIndicator(out position,out direction,out offscreen))return;
@@ -188,10 +190,11 @@ public sealed partial class BlackHoleTravel {
         var old=GUI.color;GUI.color=Color.white;
         GUI.DrawTexture(new Rect(Mathf.Round(position.x)-42,Mathf.Round(position.y)-42,85,85),OriginArrowTexture(heading));
         GUI.color=Color.white;
-        GUI.Label(new Rect(Mathf.Clamp(position.x-50,8,Screen.width-108),Mathf.Clamp(position.y+39,96,Screen.height-48),100,24),"当前位置",new GUIStyle(GUI.skin.label){alignment=TextAnchor.MiddleCenter,fontSize=14});
+        GUI.Label(new Rect(Mathf.Clamp(position.x-50,8,Screen.width-108),Mathf.Clamp(position.y+39,96,Screen.height-48),100,24),"当前位置",PixelGameUI.Text(14,TextAnchor.MiddleCenter));
         GUI.color=old;
     }
     void EndNavigation(){
+        EndUnknownIslands();
         foreach(var item in navigationRenderers)if(item.Key)item.Key.enabled=item.Value;navigationRenderers.Clear();
         if(viewCamera)viewCamera.farClipPlane=savedFarClip;
         if(navigationCamera)navigationCamera.viewingOffset=savedViewingOffset;
@@ -206,39 +209,57 @@ public sealed partial class BlackHoleTravel {
             var curved=camera.GetComponent<CurvedTrialCamera>();if(curved)curved.Apply(camera.transform.position-camera.viewingOffset);
         }
     }
+    System.Collections.IEnumerator OpenPortalMap(){
+        float start=viewCamera.orthographicSize,target=viewSize;
+        // Finish entry before enabling destination selection. Own both ends of this
+        // tween so the normal camera's SmoothDamp does not add a second delay.
+        for(float age=0;age<1.05f;age+=Mathf.Min(Time.unscaledDeltaTime,.05f)){
+            float t=Mathf.SmoothStep(0,1,age/1.05f);
+            viewSize=Mathf.Exp(Mathf.Lerp(Mathf.Log(start),Mathf.Log(target),t));
+            ApplyNavigation();viewCamera.orthographicSize=viewSize;
+            if(navigationCurve)navigationCurve.ResetZoomVelocity();yield return null;
+        }
+        viewSize=target;ApplyNavigation();viewCamera.orthographicSize=target;
+        if(navigationCurve)navigationCurve.ResetZoomVelocity();
+    }
     System.Collections.IEnumerator WaitForExitView(BlackHolePortal portal){
-        FocusExit(portal);
-        // Let LateUpdate restore the normal island framing before testing it.
-        yield return null;
-        float settledFor=0;
-        var cameras=FindObjectsOfType<IslandCamera>();
-        while(portal){
-            bool settled=true;
-            foreach(var camera in cameras){
-                if(!camera||!camera.enabled||camera.board!=portal.board)continue;
-                var curved=camera.GetComponent<CurvedTrialCamera>();
-                if(curved&&curved.enabled&&!curved.FramingSettled)settled=false;
-                if(camera.CurrentIsland){
-                    var focus=curved?curved.DisplayFocus(camera.CurrentIsland.position):camera.CurrentIsland.position;
-                    if((camera.transform.position-camera.viewingOffset-focus).sqrMagnitude>.000625f)settled=false;
-                }
+        // Keep the currently panned map pose until the destination framing is known.
+        if(!navigationCamera)BeginNavigation(portal.board);
+        var rig=navigationCamera;var camera=viewCamera;var curve=navigationCurve;
+        Vector3 startFocus=viewFocus;float startSize=camera.orthographicSize;
+        rig.SelectCurrentIsland();
+        Vector3 target=rig.CurrentIsland?rig.CurrentIsland.position:portal.transform.position;
+        if(navigationWindow)for(int i=0;i<navigationWindow.rooms.Length;i++)if(navigationWindow.rooms[i].center==rig.CurrentIsland){navigationWindow.Show(i);break;}
+        float endSize=savedSize;
+        if(curve){
+            curve.fitIsland=curveFit;curve.planningSize=savedSize;curve.Apply(target);
+            endSize=curve.TargetZoomSize;curve.fitIsland=false;curve.ResetZoomVelocity();
+        }
+        try{
+            for(float age=0;age<1.1f;age+=Mathf.Min(Time.unscaledDeltaTime,.05f)){
+                float t=Mathf.SmoothStep(0,1,age/1.1f);
+                viewFocus=Vector3.Lerp(startFocus,target,t);
+                viewSize=Mathf.Exp(Mathf.Lerp(Mathf.Log(startSize),Mathf.Log(endSize),t));
+                ApplyNavigation();camera.orthographicSize=viewSize;
+                if(curve)curve.ResetZoomVelocity();yield return null;
             }
-            settledFor=settled?settledFor+Time.unscaledDeltaTime:0;
-            if(settledFor>=.12f)yield break;
-            yield return null;
+        }finally{
+            EndNavigation();
+            if(rig){rig.FocusIsland(target);if(curve){curve.Apply(target);curve.ResetZoomVelocity();}if(camera)camera.orthographicSize=endSize;}
         }
     }
     void OnGUI(){
+        DrawUnknownIslands();
         if(inspectionBoard){if(inspectionPosition.HasValue)DrawOriginIndicator();return;}
         if(testPortals==null||busy||!Selecting)return;
-        GUI.Box(new Rect(16,16,Mathf.Min(Screen.width-32,790),72),"");
-        GUI.Label(new Rect(30,25,750,54),testMessage,new GUIStyle(GUI.skin.label){fontSize=18,wordWrap=true});
+        PixelGameUI.Panel(new Rect(16,16,Mathf.Min(Screen.width-32,790),72));
+        GUI.Label(new Rect(30,25,750,54),testMessage,PixelGameUI.Text(17));
         foreach(var portal in testPortals){if(!portal||!viewCamera)continue;
             var point=viewCamera.WorldToViewportPoint(CrashColorReveal.DisplayPoint(portal.transform.position));
             if(point.z<0||point.x<0||point.x>1||point.y<0||point.y>1)continue;
             // Passive labels leave input to the drag/click discriminator, so dragging
             // across a portal never accidentally teleports the player.
-            GUI.Label(new Rect(point.x*Screen.width-40,(1-point.y)*Screen.height-42,80,24),"点击传送",new GUIStyle(GUI.skin.label){alignment=TextAnchor.MiddleCenter});
+            GUI.Label(new Rect(point.x*Screen.width-40,(1-point.y)*Screen.height-42,80,24),"点击传送",PixelGameUI.Text(14,TextAnchor.MiddleCenter));
         }
         DrawOriginIndicator();
     }

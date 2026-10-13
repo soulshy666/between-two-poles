@@ -1,7 +1,7 @@
 Shader "BetweenPoles/CurvedIceTrial" {
  Properties{_Color("Tint",Color)=(1,1,1,1) _Grid("Grid",Float)=0 _Snow("Snow",Float)=0 _StarAbsorbGlow("Star absorption rim",Float)=0}
  SubShader{Tags{"RenderType"="Opaque" "DisableBatching"="True"} CGPROGRAM
- #pragma surface surf Lambert vertex:bend addshadow
+ #pragma surface surf Lambert vertex:bend addshadow finalcolor:DiscoveryColor
  #include "UnityCG.cginc"
  fixed4 _Color;float _Grid,_Snow,_StarAbsorbGlow;struct Input{float3 worldPos;float3 worldNormal;float2 logicalXZ;float cockpitDistance;};
  // All astronaut submaterials share the shuttle's rigid flight frame and cockpit mask.
@@ -83,6 +83,8 @@ Shader "BetweenPoles/CurvedIceTrial" {
  v.normal=mul((float3x3)unity_WorldToObject,n);
  }
 
+ #include "Assets/BetweenPoles/Shaders/IslandDiscovery.cginc"
+ void DiscoveryColor(Input i,SurfaceOutput o,inout fixed4 color){color.rgb*=1-DiscoveryHidden(i.logicalXZ);}
  void surf(Input i,inout SurfaceOutput o){if(_CockpitClip>.5)clip(i.cockpitDistance);if(_IceDiskRadius>0 && _RecoilFlying<.5 && _SpaceAirborne<.5){float3 relative=i.worldPos-_IceDiskCenter;float2 disk=float2(dot(relative,_IceDiskRight),dot(relative,_IceDiskUp));clip(_IceDiskRadius*_IceDiskRadius-dot(disk,disk));}float3 col=_Color.rgb;float2 g=abs(frac((i.logicalXZ+.75)/1.5)-.5);float seam=smoothstep(.452,.486,max(g.x,g.y))*_Grid;float up=saturate(i.worldNormal.y);col=lerp(col,lerp(float3(.20,.49,.62),col,smoothstep(.3,.85,up)),_Snow);col=lerp(col,float3(.18,.36,.48),seam*.68);o.Albedo=col;float rim=pow(1-saturate(dot(normalize(i.worldNormal),normalize(_WorldSpaceCameraPos-i.worldPos))),.8);o.Emission=col*.10+float3(3,1.65,.16)*rim*_StarAbsorbGlow;o.Alpha=1;}
  ENDCG} FallBack "Diffuse" }
 

@@ -49,7 +49,7 @@ public sealed partial class ChapterAtlas {
         if(!inspectionNavigation)inspectionNavigation=gameObject.AddComponent<BlackHoleTravel>();
         inspectionNavigation.BeginInspection(board);
         bool explored=false;var window=board.GetComponent<FiveIslandWindow>();
-        if(window)foreach(var room in window.rooms)if(PlayerPrefs.GetInt(Key(inspectedScene.path,room.id),0)>0||room.center&&PlayerPrefs.GetInt(Key(inspectedScene.path,room.center.name),0)>0){explored=true;break;}
+        if(window)foreach(var room in window.rooms)if(SessionExploration.GetInt(Key(inspectedScene.path,room.id),0)>0||room.center&&SessionExploration.GetInt(Key(inspectedScene.path,room.center.name),0)>0){explored=true;break;}
         inspectionMessage=explored?chapters[chapter].title+" · 已探索的小岛  |  拖拽查看，滚轮缩放（仅检视）":"尚未探索这颗星球的小岛";
         yield return RevealInspection();
         inspectionLoading=false;if(returnAfterInspection)StartCoroutine(FinishInspectionView());
@@ -101,16 +101,16 @@ public sealed partial class ChapterAtlas {
     void OnGUI(){
         DrawInspectionTransition();
         if(!IsInspecting){
-            if(canvas&&!canvas.enabled&&GUI.Button(new Rect(Screen.width-240,22,218,52),"返回游戏（Esc）"))ReturnToGame();
+            if(canvas&&!canvas.enabled&&PixelGameUI.Button(new Rect(Screen.width-240,22,218,52),"返回游戏（Esc）"))ReturnToGame();
             return;
         }
         var matrix=GUI.matrix;float scale=Mathf.Max(.7f,Screen.height/900f);GUI.matrix=Matrix4x4.Scale(new Vector3(scale,scale,1));
         GUI.enabled=true;
-        if(GUI.Button(new Rect(22,22,210,48),"返回岛屿（M）"))ReturnToGame();
+        if(PixelGameUI.Button(new Rect(22,22,210,48),"返回岛屿（M）"))ReturnToGame();
         GUI.enabled=!inspectionLoading;
-        if(GUI.Button(new Rect(22,80,210,48),"返回星际航图"))CloseInspection();
+        if(PixelGameUI.Button(new Rect(22,80,210,48),"返回星际航图"))CloseInspection();
         GUI.enabled=true;
-        GUI.Label(new Rect(248,25,900,48),inspectionMessage,new GUIStyle(GUI.skin.label){fontSize=18,wordWrap=true});
+        GUI.Label(new Rect(248,25,900,48),inspectionMessage,PixelGameUI.Text(17));
         GUI.matrix=matrix;
     }
 }

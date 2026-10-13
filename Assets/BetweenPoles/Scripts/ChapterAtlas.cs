@@ -74,13 +74,13 @@ public sealed partial class ChapterAtlas : MonoBehaviour {
         Label("两极之间  /  星际航图",root,new Vector2(-480,390),new Vector2(520,55),28);
         for(int i=0;i<chapters.Length;i++){
             int chapter=i;var tab=Box("检视"+chapters[i].title,root,new Vector2(-510+i*340,-345),new Vector2(305,48));
-            tab.gameObject.AddComponent<Image>().color=new Color(.07f,.13f,.18f,.95f);tab.gameObject.AddComponent<Button>().onClick.AddListener(()=>OpenInspection(chapter));
+            tab.gameObject.AddComponent<Image>().color=new Color(.07f,.13f,.18f,.95f);var chapterButton=tab.gameObject.AddComponent<Button>();chapterButton.onClick.AddListener(()=>OpenInspection(chapter));PixelGameUI.StyleButton(chapterButton);
             Label("0"+(i+1)+"  "+chapters[i].title,tab,Vector2.zero,new Vector2(305,48),22);
         }
         Label("点击星球，检视已经探索的小岛",root,new Vector2(0,-402),new Vector2(900,40),20);
         string text=ChapterMapReturn.HasSuspendedGame?"返回岛屿（M / Esc）":"进入游戏";
         var button=Box(text,root,new Vector2(645,385),new Vector2(220,52));button.gameObject.AddComponent<Image>().color=new Color(.07f,.13f,.18f,.95f);
-        button.gameObject.AddComponent<Button>().onClick.AddListener(ReturnToGame);Label(text,button,Vector2.zero,new Vector2(220,52),21);
+        var returnButton=button.gameObject.AddComponent<Button>();returnButton.onClick.AddListener(ReturnToGame);PixelGameUI.StyleButton(returnButton);Label(text,button,Vector2.zero,new Vector2(220,52),21);
         locator=Box("主角当前位置",root,Vector2.zero,new Vector2(240,150));
         portrait=CreatePlayerPortrait();var icon=Box("主角形象",locator,new Vector2(0,30),new Vector2(64,80)).gameObject.AddComponent<RawImage>();icon.texture=portrait;icon.raycastTarget=false;
         arrow=new Texture2D(9,7,TextureFormat.RGBA32,false){filterMode=FilterMode.Point};var pixels=new Color[63];

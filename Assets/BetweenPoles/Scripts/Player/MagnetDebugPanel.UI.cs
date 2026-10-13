@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 namespace BetweenPoles {
 public sealed partial class MagnetDebugPanel {
     readonly Color paper=new Color(.957f,.945f,.925f),ink=new Color(.07f,.07f,.07f),accent=new Color(.90f,0,.07f);
@@ -6,7 +6,7 @@ public sealed partial class MagnetDebugPanel {
     readonly string[] kinds={"长条","U 型","宽条","圆环","十字","磁流升降台","两格桥 · 半成品","两格桥","空 / 清除物品","石头","黑洞","星星"};
     void Fill(Rect r,Color c){var old=GUI.color;GUI.color=c;GUI.DrawTexture(r,Texture2D.whiteTexture);GUI.color=old;}
     void Label(Rect r,string s,Color color,int size=14,TextAnchor align=TextAnchor.MiddleLeft){textStyle.normal.textColor=color;textStyle.fontSize=size;textStyle.alignment=align;GUI.Label(r,s,textStyle);}
-    bool Button(Rect r,string title,bool active=false){Fill(new Rect(r.x+3,r.y+3,r.width,r.height),Color.black);Fill(r,Color.black);Fill(new Rect(r.x+2,r.y+2,r.width-4,r.height-4),active?accent:paper);Label(r,title,active?Color.white:ink,14,TextAnchor.MiddleCenter);return GUI.Button(r,GUIContent.none,GUIStyle.none);}
+    bool Button(Rect r,string title,bool active=false){return PixelGameUI.Button(r,title,active);}
     void SelectCell(Vector2Int p){
         selected=p;if(StarAt(p)){shape=11;return;}if(PortalAt(p)){shape=10;return;}var m=board.MagnetAt(p);if(!m){var tile=board.TileAt(p);shape=tile&&tile.blocked?9:8;if(shape==9){rockStyle=tile.rockStyle;rockTheme=tile.rockTheme;lowRockVariant=tile.lowRockVariant;}return;}
         shape=m.product==MagnetProduct.None?(m.shape==MagnetShape.Bar?0:1):(int)m.product+1;
