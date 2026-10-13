@@ -136,7 +136,7 @@ public sealed partial class GridPlayground {
     IEnumerator PlayPushPresentation(PushPresentation presentation){
         float elapsed=0;int count=presentation.tracks[0].frames.Count;
         float duration=Mathf.Max(PushSampleSeconds,(count-1)*PushSampleSeconds);
-        float speed=Mathf.Max(1f,duration/Mathf.Max(.01f,presentation.playbackSeconds));
+        float speed=Mathf.Clamp(duration/Mathf.Max(.01f,presentation.playbackSeconds),1f,Mathf.Clamp(maxPushSpeedMultiplier,1f,1.5f));
         int nextContact=0;
         while(elapsed<duration){
             float sample=elapsed/PushSampleSeconds;int a=Mathf.Min((int)sample,count-1),b=Mathf.Min(a+1,count-1);

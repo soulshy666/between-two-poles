@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using UnityEngine;
 namespace BetweenPoles {
 public sealed partial class BlackHoleTravel {
@@ -22,7 +22,7 @@ public sealed partial class BlackHoleTravel {
     public System.Collections.IEnumerator PullBackInspection(){
         if(!viewCamera)yield break;float start=viewCamera.orthographicSize;
         navigationSmoothTime=.1f;if(navigationCurve)navigationCurve.navigationZoomSmoothTime=.1f;
-        for(float age=0;age<.55f;age+=Mathf.Min(Time.unscaledDeltaTime,.05f)){
+        for(float age=0;age<.55f;age+=Mathf.Min(Time.unscaledDeltaTime,.05f)*AnimationSpeed){
             viewSize=Mathf.Lerp(start,Mathf.Min(80,start*1.65f),Mathf.SmoothStep(0,1,age/.55f));ApplyNavigation();yield return null;
         }
     }
@@ -213,7 +213,7 @@ public sealed partial class BlackHoleTravel {
         float start=viewCamera.orthographicSize,target=viewSize;
         // Finish entry before enabling destination selection. Own both ends of this
         // tween so the normal camera's SmoothDamp does not add a second delay.
-        for(float age=0;age<1.05f;age+=Mathf.Min(Time.unscaledDeltaTime,.05f)){
+        for(float age=0;age<1.05f;age+=Mathf.Min(Time.unscaledDeltaTime,.05f)*AnimationSpeed){
             float t=Mathf.SmoothStep(0,1,age/1.05f);
             viewSize=Mathf.Exp(Mathf.Lerp(Mathf.Log(start),Mathf.Log(target),t));
             ApplyNavigation();viewCamera.orthographicSize=viewSize;
@@ -236,7 +236,7 @@ public sealed partial class BlackHoleTravel {
             endSize=curve.TargetZoomSize;curve.fitIsland=false;curve.ResetZoomVelocity();
         }
         try{
-            for(float age=0;age<1.1f;age+=Mathf.Min(Time.unscaledDeltaTime,.05f)){
+            for(float age=0;age<1.1f;age+=Mathf.Min(Time.unscaledDeltaTime,.05f)*AnimationSpeed){
                 float t=Mathf.SmoothStep(0,1,age/1.1f);
                 viewFocus=Vector3.Lerp(startFocus,target,t);
                 viewSize=Mathf.Exp(Mathf.Lerp(Mathf.Log(startSize),Mathf.Log(endSize),t));

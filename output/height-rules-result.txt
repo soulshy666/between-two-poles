@@ -1,0 +1,1 @@
+PASS: 293 checks; height boundaries, scaled layers, four directions, actual magnet top, support commits and undo.

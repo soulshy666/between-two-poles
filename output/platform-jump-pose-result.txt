@@ -1,0 +1,1 @@
+PASS: actual astronaut mesh, opposite arm/leg lead, exact neutral endpoints; four poses rendered.
