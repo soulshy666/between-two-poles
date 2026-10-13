@@ -59,20 +59,23 @@ namespace BetweenPoles.EditorTools {
                     var flags=System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic;
                     var navigation=(BlackHoleTravel)typeof(ChapterMapReturn).GetField("localNavigation",flags).GetValue(map);
                     var scroll=typeof(BlackHoleTravel).GetMethod("ApplyNavigationScroll",flags);
-                    Check(!navigation.ChartZoomRequested,"Opening zoom triggered star chart");
-                    scroll.Invoke(navigation,new object[]{1f});Check(!navigation.ChartZoomRequested,"Zooming in triggered star chart");
-                    scroll.Invoke(navigation,new object[]{-100f});Check(navigation.ChartZoomRequested,"Zooming out past threshold did not request star chart");
-                    // Let the normal Update consume the request and run the outward transition.
-                    stage=7;deadline=EditorApplication.timeSinceStartup+25;return;
+                    scroll.Invoke(navigation,new object[]{1f});
+                    scroll.Invoke(navigation,new object[]{-100f});
+                    stage=9;deadline=EditorApplication.timeSinceStartup+2;return;
+                }
+                if(stage==9){
+                    Check(map.IsLocalOverview&&map.gameObject.activeInHierarchy,"Wheel zoom left the local map");
+                    if(EditorApplication.timeSinceStartup<deadline-1)return;
+                    map.ReturnToMap();stage=7;deadline=EditorApplication.timeSinceStartup+25;return;
                 }
                 if(stage==7){
                     var atlas=UnityEngine.Object.FindObjectOfType<ChapterAtlas>();if(!atlas||map.gameObject.activeInHierarchy)return;
-                    Check(pose.ReadingMap,"Star chart discarded reading pose");ChapterMapReturn.ResumeGame();stage=8;deadline=EditorApplication.timeSinceStartup+10;return;
+                    Check(pose.ReadingMap,"Star chart discarded reading pose");atlas.ReturnToGame();stage=8;deadline=EditorApplication.timeSinceStartup+10;return;
                 }
                 if(stage==8){
                     if(!board.enabled)return;
                     Check(!pose.ReadingMap&&board.player.gameObject.activeInHierarchy&&board.player.position==position,"Star chart return did not restore actor/input");
-                    File.WriteAllText(Report,"PASS: map toggle/hold/close, visible player while inspecting, input lock, unchanged grid position/facing, cancellation during draw, no chart on opening/inward zoom, outward zoom threshold and automatic transition, star chart suspension and animated return.");Finish();
+                    File.WriteAllText(Report,"PASS: map toggle/hold/close, visible player while inspecting, input lock, unchanged grid position/facing, cancellation during draw, wheel zoom stays local, explicit chart transition, star chart suspension and animated return.");Finish();
                 }
             }catch(Exception ex){File.WriteAllText(Report,"FAIL: "+ex);Finish();}
         }

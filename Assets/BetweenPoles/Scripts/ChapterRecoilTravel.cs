@@ -8,18 +8,39 @@ namespace BetweenPoles {
 // Keep the flight's real actors, camera and space background through the scene handoff.
 public sealed class ChapterRecoilTravel:MonoBehaviour {
     public static bool Active {get;private set;}
+    public static CurvedTrialCamera FlightView {get;private set;}
+    public static float FlightSize {get;private set;}
     GridPlayground source;MagnetPiece magnet;CurvedTrialCamera view;Scene destination;
     string destinationPath;readonly List<Renderer> destinationRenderers=new List<Renderer>();
     float speed;Vector3 heading=Vector3.left;
     PixelGeneratorLab flightBackground,targetBackground;
     Color originalBackground;Color[] originalPalette;
+    float sourceScreenEdge=float.NaN;
+    ThreadPriority previousLoadingPriority;
+    bool changedLoadingPriority;
+    bool releasedControl;
+    static ChapterRecoilTravel prepared;
+    AsyncOperation loading;
+    public static bool IsPreparing(Scene scene){return prepared&&scene.path==prepared.destinationPath;}
+    public static void Prepare(ChapterRecoilExit exit){
+        if(Active||prepared||!Application.CanStreamedLevelBeLoaded(exit.destinationScene))return;
+        // Do not adopt an atlas inspection scene as a flight destination.
+        if(SceneManager.GetSceneByPath(exit.destinationScene).isLoaded)return;
+        prepared=new GameObject("下一章节预加载").AddComponent<ChapterRecoilTravel>();
+        DontDestroyOnLoad(prepared.gameObject);
+        prepared.source=exit.GetComponent<GridPlayground>();prepared.destinationPath=exit.destinationScene;
+        SceneManager.sceneLoaded+=prepared.HideDestination;
+        prepared.loading=SceneManager.LoadSceneAsync(exit.destinationScene,LoadSceneMode.Additive);
+    }
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-    static void ResetStatics(){Active=false;}
+    static void ResetStatics(){Active=false;FlightView=null;FlightSize=0;prepared=null;}
     public static void Begin(ChapterRecoilExit exit,MagnetPiece incoming){
         if(Active)return;
-        var runner=new GameObject("连续星际飞行").AddComponent<ChapterRecoilTravel>();DontDestroyOnLoad(runner.gameObject);
+        var runner=prepared&&prepared.source==exit.GetComponent<GridPlayground>()?prepared:new GameObject("连续星际飞行").AddComponent<ChapterRecoilTravel>();DontDestroyOnLoad(runner.gameObject);
         runner.source=exit.GetComponent<GridPlayground>();runner.magnet=incoming;
         runner.view=FindObjectsOfType<CurvedTrialCamera>().First(c=>c.island&&c.island.board==runner.source);
+        FlightView=runner.view;FlightSize=runner.view.GetComponent<Camera>().orthographicSize;
+        runner.view.navigationZoomSmoothTime=0;runner.view.ResetZoomVelocity();
         runner.destinationPath=exit.destinationScene;runner.speed=runner.source.cellSize*5;Active=true;
         runner.StartCoroutine(runner.Travel());
     }
@@ -33,6 +54,8 @@ public sealed class ChapterRecoilTravel:MonoBehaviour {
             foreach(var island in root.GetComponentsInChildren<IslandCamera>())island.enabled=false;
             foreach(var light in root.GetComponentsInChildren<Light>())light.enabled=false;
             foreach(var board in root.GetComponentsInChildren<GridPlayground>())board.enabled=false;
+            foreach(var map in root.GetComponentsInChildren<ChapterMapReturn>())map.enabled=false;
+            foreach(var exit in root.GetComponentsInChildren<ChapterRecoilExit>())exit.enabled=false;
             foreach(var window in root.GetComponentsInChildren<FiveIslandWindow>())window.enabled=false;
             // Keep star positions and animation continuous; inherit destination colors later.
             if(root.name=="动态太空背景"){targetBackground=root.GetComponent<PixelGeneratorLab>();root.SetActive(false);continue;}
@@ -44,12 +67,14 @@ public sealed class ChapterRecoilTravel:MonoBehaviour {
         if(view.PlanarChapter){
             // Wait until the departing island, rather than a hidden globe, is off screen.
             float scale=Mathf.Max(1,Shader.GetGlobalFloat("_IslandDisplayScale"));
+            if(!float.IsNaN(sourceScreenEdge))return sourceScreenEdge-Vector3.Dot(camera.transform.position,camera.transform.right)>camera.orthographicSize*camera.aspect+source.cellSize;
             float left=float.PositiveInfinity;var window=source.GetComponent<FiveIslandWindow>();
             foreach(var tile in source.tiles){if(!tile)continue;var owner=tile.GetComponentInParent<IslandSurfaceAnchor>();
                 if(window&&(!owner||owner.center!=window.rooms[window.CurrentRoom].center))continue;
                 var p=source.RecoilOrigin+(tile.transform.position-source.RecoilOrigin)*scale;
                 left=Mathf.Min(left,Vector3.Dot(p-camera.transform.position,camera.transform.right)-source.cellSize*scale);
             }
+            sourceScreenEdge=left+Vector3.Dot(camera.transform.position,camera.transform.right);
             return left>camera.orthographicSize*camera.aspect+source.cellSize;
         }
         if(!planet)return true;
@@ -73,7 +98,7 @@ public sealed class ChapterRecoilTravel:MonoBehaviour {
             float t=Mathf.SmoothStep(0,1,Mathf.Clamp01(elapsed/duration));
             flightBackground.background=Color.Lerp(originalBackground,targetColor,t);
             for(int i=0;i<originalPalette.Length;i++)flightBackground.spaceColors[i]=Color.Lerp(originalPalette[i],palette[i],t);
-            flightBackground.Apply();
+            // PixelGeneratorLab.Update uploads these colors once per frame already.
             // Both suns use their camera-following background's local frame, not world coordinates.
             // Keep the same animated sun and ease its placement and apparent size to the destination.
             if(sun&&targetSun){
@@ -92,13 +117,16 @@ public sealed class ChapterRecoilTravel:MonoBehaviour {
     }
     IEnumerator Travel(){
         if(!Application.CanStreamedLevelBeLoaded(destinationPath)){Abort("目标星球没有加入构建列表");yield break;}
-        SceneManager.sceneLoaded+=HideDestination;
+        SceneManager.sceneLoaded-=HideDestination;SceneManager.sceneLoaded+=HideDestination;
+        previousLoadingPriority=Application.backgroundLoadingPriority;
+        Application.backgroundLoadingPriority=ThreadPriority.Low;changedLoadingPriority=true;
         ChapterAtlas.DestinationIsland=-1;ChapterAtlas.DestinationScene=null;
-        var load=SceneManager.LoadSceneAsync(destinationPath,LoadSceneMode.Additive);
+        var load=loading??SceneManager.LoadSceneAsync(destinationPath,LoadSceneMode.Additive);
         // Loading starts at takeoff. The flight continues even if loading takes longer.
         while(!load.isDone||!SourceHasLeftScreen()){Advance();yield return null;}
         yield return null;
         SceneManager.sceneLoaded-=HideDestination;
+        if(prepared==this)prepared=null;
         var board=destination.GetRootGameObjects().SelectMany(r=>r.GetComponentsInChildren<GridPlayground>()).FirstOrDefault();
         var targetView=destination.GetRootGameObjects().SelectMany(r=>r.GetComponentsInChildren<CurvedTrialCamera>()).FirstOrDefault();
         if(!board||!targetView){Abort("目标星球缺少关卡或镜头配置");yield break;}
@@ -129,7 +157,9 @@ public sealed class ChapterRecoilTravel:MonoBehaviour {
         shore+=shiftCell;innerCell+=shiftCell;
         var targetIsland=targetView.island;var targetCenters=targetIsland.islandCenters;
         var targetPlanet=targetView.planet;
-        var origin=source.RecoilOrigin;var scale=Shader.GetGlobalFloat("_IslandDisplayScale");
+        var origin=source.RecoilOrigin;
+        // The active view owns the scale; an additively loaded scene must not supply it.
+        var scale=view.islandDisplayScale*(source.GetComponent<FiveIslandWindow>()?1.1f:1f);
         // Retain source roots only for the shared presentation; puzzle geometry unloads normally.
         var roots=oldScene.GetRootGameObjects();
         flightBackground=roots.Where(r=>r.name=="动态太空背景").Select(r=>r.GetComponent<PixelGeneratorLab>()).FirstOrDefault();
@@ -162,16 +192,22 @@ public sealed class ChapterRecoilTravel:MonoBehaviour {
         view.globeVerticalOffset=targetView.globeVerticalOffset;view.zoomSmoothTime=targetView.zoomSmoothTime;
         view.ResetSurfaceFrame();view.Apply(view.transform.position-view.island.viewingOffset);
         board.enabled=true;SceneManager.SetActiveScene(destination);
+        var mapReturn=board.GetComponent<ChapterMapReturn>();if(!mapReturn)mapReturn=board.gameObject.AddComponent<ChapterMapReturn>();mapReturn.enabled=true;
+        var nextExit=board.GetComponent<ChapterRecoilExit>();if(nextExit)nextExit.enabled=true;
         float remainingDistance=Vector3.Distance(actor.position,new Vector3(innerCell.x*cellSize,actor.position.y,innerCell.y*cellSize));
         var colorBlend=StartCoroutine(BlendBackground(Mathf.Max(.5f,remainingDistance/speed*.85f)));
         var arrival=board.StartCoroutine(board.ArriveFromChapter(magnet,shore,origin,speed));
         var unload=SceneManager.UnloadSceneAsync(oldScene);
         yield return arrival;
-        yield return colorBlend;
-        while(view.SettlingFlight)yield return null;
-        while(unload!=null&&!unload.isDone)yield return null;
+        // Input depends on a completed landing, not on the camera reaching an exact float position.
         board.ReleaseChapterFlight();
-        Active=false;Destroy(gameObject);
+        releasedControl=true;
+        if(changedLoadingPriority){Application.backgroundLoadingPriority=previousLoadingPriority;changedLoadingPriority=false;}
+        FlightView=null;
+        Active=false;
+        yield return colorBlend;
+        while(unload!=null&&!unload.isDone)yield return null;
+        Destroy(gameObject);
     }
     static Vector2Int Cell(Vector3 p,float size){return new Vector2Int(Mathf.RoundToInt(p.x/size),Mathf.RoundToInt(p.z/size));}
     void Abort(string reason){
@@ -179,6 +215,6 @@ public sealed class ChapterRecoilTravel:MonoBehaviour {
         if(destination.IsValid()&&destination.isLoaded)SceneManager.UnloadSceneAsync(destination);
         if(source){source.ReleaseChapterFlight();source.ResetCurrentIsland();}Active=false;Destroy(gameObject);
     }
-    void OnDestroy(){SceneManager.sceneLoaded-=HideDestination;Active=false;}
+    void OnDestroy(){SceneManager.sceneLoaded-=HideDestination;if(changedLoadingPriority)Application.backgroundLoadingPriority=previousLoadingPriority;if(!releasedControl&&FlightView==view){Active=false;FlightView=null;}}
 }
 }

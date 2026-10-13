@@ -89,19 +89,59 @@ Shader "BetweenPoles/BlackHolePortal" {
 
 
  struct v2f {float4 pos:SV_POSITION;float2 portalUV:TEXCOORD0;float2 logicalXZ:TEXCOORD1;};
- v2f vert(appdata_full v){Input data;bend(v,data);v2f o;o.pos=UnityObjectToClipPos(v.vertex);o.portalUV=v.texcoord.xy;o.logicalXZ=data.logicalXZ;return o;}
+ v2f vert(appdata_full v){v.vertex.xy*=1.5;Input data;bend(v,data);v2f o;o.pos=UnityObjectToClipPos(v.vertex);o.portalUV=v.texcoord.xy;o.logicalXZ=data.logicalXZ;return o;}
  #include "Assets/BetweenPoles/Shaders/IslandDiscovery.cginc"
  fixed4 frag(v2f i):SV_Target {
  clip(.5-DiscoveryHidden(i.logicalXZ));
- float2 p=(floor(i.portalUV*48)+.5)/48*2-1;
- float r=length(p);clip(.98-r);
- float angle=atan2(p.y,p.x);float arms=sin(angle*3+r*19-_Time.y*1.6);
- float dust=frac(sin(dot(floor(p*48),float2(12.9898,78.233)))*43758.5453);
- float glow=pow(saturate(arms*.5+.5),4)*smoothstep(.16,.3,r)*(1-smoothstep(.65,.98,r));
- float rim=exp(-abs(r-.25)*32);
- float3 col=lerp(float3(.025,.009,.055),float3(.37,.12,.62),floor(glow*5)/4);
- col+=float3(.30,.17,.43)*rim+step(.97,dust)*glow*.4;
- col=lerp(float3(.009,.003,.02),col,smoothstep(.17,.24,r));
- return fixed4(col,1-smoothstep(.82,.98,r));
+ // Expand only the drawing area: retain the original ring size and pixel pitch.
+ float2 p=((floor(i.portalUV*72)+.5)/72*2-1)*1.5;
+ // Logical object position gives each portal a stable identity, unaffected by camera motion.
+ float2 origin=float2(unity_ObjectToWorld._m03,unity_ObjectToWorld._m23);
+ float seed=frac(sin(dot(origin,float2(12.9898,78.233)))*43758.5453);
+ float variation=frac(seed*17.13);
+ float r=length(p), a=atan2(p.y,p.x)+seed*6.2831853;
+ float phase=fmod(_Time.y,6.0)*1.04719755+variation*6.2831853;
+ float b=.55*sin(3*a-2*phase)+.30*sin(7*a+phase)+.15*sin(11*a-3*phase);
+ float e=r-(.79+.025*sin(5*a-phase)+.018*sin(9*a+2*phase));
+ float width=.115+.025*b;
+
+ // Purple-black interior; radial phase offset breaks the inner flow into curling ribbons.
+ float m=.55*sin(3*a+(9+2*variation)*r-2*phase)+.30*sin(5*a-(6+2*seed)*r+phase)+.15*sin(9*a+13*r-3*phase);
+ float3 col=float3(.035,.020,.065);
+ if(m>.04 && r>.17)col=float3(.095,.055,.145);
+ if(m>.40 && r>.29)col=float3(.20,.105,.30);
+ if(m>.65 && r>.53)col=float3(.34,.18,.47);
+ // The dark ring and the moving highlight have independent radial offsets.
+ if(abs(e)<width){
+   col=float3(.24,.12,.36);
+   if(b>-.18)col=float3(.39,.22,.55);
+   float d=e+.032*sin(5*a-3*phase);
+   if(abs(d)<.065 && b>.02)col=float3(.57,.36,.72);
+   if(abs(d)<.034 && b>.25)col=float3(.81,.65,.91);
+ }
+ // Hard pixel silhouette, with sparse outer violet fragments instead of blurred glow.
+ float alpha=1;
+ if(r>.79+width){
+   alpha=step(.58,b)*step(abs(e),width+.045);
+   col=float3(.34,.19,.47);
+ }
+ // Small pixel motes spiral inward, accelerating toward the core and fading before reset.
+ // Analytic particles share the portal shader, so map masking and world transforms stay aligned.
+ float particles=0;
+ [unroll] for(int n=0;n<12;n++){
+   float id=frac(sin((n+1)*127.1+seed*311.7)*43758.5453);
+   float life=frac(_Time.y/3.0+n/12.0+seed);
+   float radius=lerp(1.36,.10,life*life);
+   float theta=n*2.399963+seed*6.2831853+life*(1.5+id);
+   float2 center=float2(cos(theta),sin(theta))*radius;
+   float2 delta=abs(p-center);
+   float dotMask=1-step(.027+id*.012,max(delta.x,delta.y));
+   float fade=smoothstep(0,.14,life)*(1-smoothstep(.80,1,life));
+   particles=max(particles,dotMask*fade);
+ }
+ col=lerp(col,float3(.76,.54,.95),particles);
+ alpha=max(alpha,particles);
+ clip(alpha-.01);
+ return fixed4(col*_Color.rgb,alpha*_Color.a);
  }
  ENDCG} } FallBack Off }

@@ -60,7 +60,7 @@ public sealed partial class ChapterAtlas : MonoBehaviour {
     }
     public void ReturnToGame(){
         if(returning)return;if(IsInspecting){returnAfterInspection=true;if(!inspectionLoading)StartCoroutine(FinishInspectionView());return;}returning=true;
-        if(ChapterMapReturn.HasSuspendedGame){ChapterMapReturn.ResumeGame();return;}
+        if(ChapterMapReturn.HasSuspendedGame){StartCoroutine(ReturnToGameAnimated());return;}
         var scene=chapters[CurrentChapter].scene;
         if(Application.CanStreamedLevelBeLoaded(scene))SceneManager.LoadSceneAsync(scene);else returning=false;
     }

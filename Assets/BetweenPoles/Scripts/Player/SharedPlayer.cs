@@ -9,7 +9,7 @@ public static class SharedPlayer {
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
     static void Register(){SceneManager.sceneLoaded-=Loaded;SceneManager.sceneLoaded+=Loaded;}
     static void Loaded(Scene scene,LoadSceneMode mode){
-        if(ChapterRecoilTravel.Active||BlackHoleTravel.Selecting||ChapterAtlas.IsInspectionScene(scene))return;
+        if(ChapterRecoilTravel.Active||ChapterRecoilTravel.IsPreparing(scene)||BlackHoleTravel.Selecting||ChapterAtlas.IsInspectionScene(scene))return;
         if(!scene.name.StartsWith("Chapter0")&&Instance)Instance.gameObject.SetActive(false);
     }
     public static void Prepare(GridPlayground board){
@@ -17,7 +17,7 @@ public static class SharedPlayer {
         // A preview chapter must not rebind or reposition the astronaut who is
         // holding the map in the suspended game.
         if(ChapterAtlas.IsInspectionScene(board.gameObject.scene))return;
-        if(Instance&&(ChapterRecoilTravel.Active||BlackHoleTravel.Selecting)){
+        if(Instance&&(ChapterRecoilTravel.Active||ChapterRecoilTravel.IsPreparing(board.gameObject.scene)||BlackHoleTravel.Selecting)){
             if(board.player!=Instance)board.player.gameObject.SetActive(false);return;
         }
         Bind(board,false);

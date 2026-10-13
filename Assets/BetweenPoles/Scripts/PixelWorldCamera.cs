@@ -40,7 +40,7 @@ public sealed class PixelWorldCamera : MonoBehaviour {
             var frame=source;
             if(outlineMaterial){
                 outlineMaterial.SetFloat("_DepthEdge",depthEdge);outlineMaterial.SetFloat("_NormalEdge",normalEdge);
-                if(reveal&&revealMaterial){outlined=RenderTexture.GetTemporary(source.width,source.height,0,source.format);outlined.filterMode=FilterMode.Point;Graphics.Blit(source,outlined,outlineMaterial);frame=outlined;}
+                if((reveal&&revealMaterial)||BlackHoleTravel.MapLightingActive(world)){outlined=RenderTexture.GetTemporary(source.width,source.height,0,source.format);outlined.filterMode=FilterMode.Point;Graphics.Blit(source,outlined,outlineMaterial);frame=outlined;}
                 else{Graphics.Blit(source,destination,outlineMaterial);return;}
             }
             if(reveal&&revealMaterial){
@@ -60,7 +60,7 @@ public sealed class PixelWorldCamera : MonoBehaviour {
                 revealMaterial.SetVector("_Center",new Vector4(center.x,center.y,0,0));
                 revealMaterial.SetFloat("_Progress",opening.ColorRevealProgress);
                 Graphics.Blit(frame,destination,revealMaterial);
-            }else Graphics.Blit(frame,destination);
+            }else if(!BlackHoleTravel.ApplyMapLighting(frame,destination,world))Graphics.Blit(frame,destination);
         }finally{if(outlined)RenderTexture.ReleaseTemporary(outlined);}
     }
     void ReleaseHeldFrame(){
