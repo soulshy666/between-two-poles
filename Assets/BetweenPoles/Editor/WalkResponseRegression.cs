@@ -82,7 +82,7 @@ namespace BetweenPoles.EditorTools {
             Call(board,"ClearMovementInput");remaining=100;while(blocked.MoveNext())Check(--remaining>0,"Blocked turn never settled");
             board.tiles[3].blocked=false;board.player.position=Vector3.zero;
             var continuous=(IEnumerator)Call(board,"MovePlayer",Vector2Int.right);continuous.MoveNext();
-            Call(board,"PumpMovementInput",Vector2Int.right);
+            Call(board,"PumpMovementInput",Vector2Int.right,false);
             var pose=board.player.GetComponent<PlayerPushPose>();
             bool crossed=false;remaining=100;
             while(continuous.MoveNext()){
@@ -99,7 +99,37 @@ namespace BetweenPoles.EditorTools {
             }
             remaining=100;while(AdvanceCardinal(spam,board))Check(--remaining>0,"Rapid-input walk never settled");
             Check(!board.Busy&&Vector3.Distance(board.player.position,new Vector3(board.PlayerCell.x*board.cellSize,0,board.PlayerCell.y*board.cellSize))<.00001f,"Rapid inputs did not settle at a cell centre");
-            File.WriteAllText(Report,"PASS: first-frame movement; smooth facing; early/late/repeated reversal; cardinal-only turns and rapid direction changes; blocked-corner guard; uninterrupted gait; exact landing and unlock.");
+            int normalFrames=0,tapFrames=0;
+            foreach(bool fresh in new[]{false,true}){
+                Call(board,"ClearMovementInput");board.player.position=Vector3.zero;
+                var accelerated=(IEnumerator)Call(board,"MovePlayer",Vector2Int.right);accelerated.MoveNext();
+                var beforeTap=board.player.position;
+                Call(board,"PumpMovementInput",Vector2Int.right,fresh);
+                Check(board.player.position==beforeTap,"Fresh tap teleported player");
+                float gaitBefore=(float)typeof(PlayerPushPose).GetField("walkDistance",Private).GetValue(pose);
+                AdvanceCardinal(accelerated,board);
+                float travelled=Vector3.Distance(beforeTap,board.player.position);
+                float gaitAfter=(float)typeof(PlayerPushPose).GetField("walkDistance",Private).GetValue(pose);
+                Check(Mathf.Abs(gaitAfter-gaitBefore-travelled)<.00001f,"Gait did not follow accelerated movement");
+                if(fresh)Check(travelled>board.cellSize/board.walkSeconds/60f*1.5f,"Fresh tap did not accelerate");
+                else Check(Mathf.Abs(travelled-board.cellSize/board.walkSeconds/60f)<.00001f,"Held input accelerated");
+                int frames=1;while(AdvanceCardinal(accelerated,board))Check(++frames<100,"Tap walk stuck");
+                Check(board.PlayerCell==new Vector2Int(2,0)&&!board.Busy,"Tap did not finish exactly two steps");
+                if(fresh)tapFrames=frames;else normalFrames=frames;
+            }
+            Check(tapFrames<normalFrames,"Fresh tap throughput unchanged");
+            Call(board,"ClearMovementInput");board.player.position=Vector3.zero;board.tiles[2].blocked=true;
+            var wall=(IEnumerator)Call(board,"MovePlayer",Vector2Int.right);wall.MoveNext();
+            Call(board,"PumpMovementInput",Vector2Int.right,true);
+            remaining=100;while(AdvanceCardinal(wall,board))Check(--remaining>0,"Accelerated wall approach stuck");
+            Check(board.PlayerCell==Vector2Int.right&&!board.Busy,"Accelerated walk crossed obstacle");
+            board.tiles[2].blocked=false;Call(board,"ClearMovementInput");
+            board.player.position=Vector3.zero;board.CaptureInitialState();
+            var undoWalk=(IEnumerator)Call(board,"MovePlayer",Vector2Int.right);undoWalk.MoveNext();
+            Call(board,"PumpMovementInput",Vector2Int.right,true);
+            remaining=100;while(undoWalk.MoveNext())Check(--remaining>0,"Undo setup stuck");
+            Check(board.UndoCount==1&&board.UndoStep()&&board.PlayerCell==Vector2Int.right,"Accelerated continuation lost per-cell undo");
+            File.WriteAllText(Report,"PASS: same-direction fresh taps accelerate; held timing unchanged; gait tracks actual distance; no teleport or obstacle bypass; per-cell undo; reversals; cardinal turns; uninterrupted gait; exact landing and unlock.");
         }catch(Exception ex){File.WriteAllText(Report,"FAIL: "+ex);Debug.LogException(ex);}
         finally{EditorSceneManager.ClosePreviewScene(scene);}
     }

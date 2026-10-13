@@ -1,1 +1,1 @@
-PASS: first-frame movement; smooth facing; early/late/repeated reversal; cardinal-only turns and rapid direction changes; blocked-corner guard; uninterrupted gait; exact landing and unlock.
+PASS: same-direction fresh taps accelerate; held timing unchanged; gait tracks actual distance; no teleport or obstacle bypass; per-cell undo; reversals; cardinal turns; uninterrupted gait; exact landing and unlock.

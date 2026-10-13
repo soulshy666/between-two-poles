@@ -49,6 +49,7 @@ public sealed partial class GridPlayground {
     }
     sealed class PushPresentation {
         public GameObject root; public Coroutine playback;
+        public float playbackSeconds;
         public readonly List<ContactEvent> contacts=new List<ContactEvent>();
         public readonly List<PushTrack> tracks=new List<PushTrack>();
         public readonly Dictionary<Renderer,bool> hidden=new Dictionary<Renderer,bool>();
@@ -81,10 +82,10 @@ public sealed partial class GridPlayground {
             foreach(var track in presentation.tracks)if(track.piece==piece)return true;
         return false;
     }
-    void FinishPushWithPresentation(){
-        // Evaluate the remaining existing animation at its normal time scale.
-        // Commit its logical result now; replay only renderer poses independently.
-        var presentation=new PushPresentation();
+    void FinishPushWithPresentation(float catchupSeconds){
+        // Sample the original path, including every turn and contact. Commit its
+        // logical result now, then compress the render playback into the catch-up window.
+        var presentation=new PushPresentation{playbackSeconds=catchupSeconds};
         foreach(var piece in magnets){
             if(!piece||!piece.gameObject.activeInHierarchy||!piece.geometry||MagnetStillAnimating(piece))continue;
             foreach(var renderer in piece.geometry.GetComponentsInChildren<MeshRenderer>()){
@@ -135,13 +136,14 @@ public sealed partial class GridPlayground {
     IEnumerator PlayPushPresentation(PushPresentation presentation){
         float elapsed=0;int count=presentation.tracks[0].frames.Count;
         float duration=Mathf.Max(PushSampleSeconds,(count-1)*PushSampleSeconds);
+        float speed=Mathf.Max(1f,duration/Mathf.Max(.01f,presentation.playbackSeconds));
         int nextContact=0;
         while(elapsed<duration){
             float sample=elapsed/PushSampleSeconds;int a=Mathf.Min((int)sample,count-1),b=Mathf.Min(a+1,count-1);
             foreach(var track in presentation.tracks)ApplyPushFrame(track,a,b,sample-a);
             while(nextContact<presentation.contacts.Count&&presentation.contacts[nextContact].seconds<=elapsed)
                 PlayContact(presentation.contacts[nextContact++]);
-            yield return null;elapsed+=Time.deltaTime;
+            yield return null;elapsed+=Time.deltaTime*speed;
         }
         foreach(var track in presentation.tracks)ApplyPushFrame(track,count-1,count-1,0);
         while(nextContact<presentation.contacts.Count)PlayContact(presentation.contacts[nextContact++]);

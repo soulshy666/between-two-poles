@@ -11,6 +11,20 @@ public sealed partial class PlayerPushPose:MonoBehaviour {
     float nextWalkFoot=1,walkFoot=1;
     PlayerFootstepAudio footsteps;
     float nextWalkSoundDistance;
+    bool flowPushing;
+    float flowDistance,flowCellSize,flowEffort,flowRelease=1;
+    public enum FlowPushStyle { Standard, LiftBar, ShoveBar }
+    FlowPushStyle flowStyle;
+    struct FlowStance {
+        public float lean,drop,armPitch,armY,armZ,armInset,armYaw,legDrive,stride;
+        public static FlowStance Blend(FlowStance a,FlowStance b,float t){
+            return new FlowStance{lean=Mathf.Lerp(a.lean,b.lean,t),drop=Mathf.Lerp(a.drop,b.drop,t),
+                armPitch=Mathf.Lerp(a.armPitch,b.armPitch,t),armY=Mathf.Lerp(a.armY,b.armY,t),
+                armZ=Mathf.Lerp(a.armZ,b.armZ,t),armInset=Mathf.Lerp(a.armInset,b.armInset,t),armYaw=Mathf.Lerp(a.armYaw,b.armYaw,t),
+                legDrive=Mathf.Lerp(a.legDrive,b.legDrive,t),stride=Mathf.Lerp(a.stride,b.stride,t)};
+        }
+    }
+    FlowStance flowStance,flowStartStance;
     bool balancing; float balanceTime; Vector2Int balanceDirection;
     const float BalanceSeconds=1.35f;
     public static void BeginEdgeBalance(Transform player,Vector2Int direction){
@@ -28,10 +42,64 @@ public sealed partial class PlayerPushPose:MonoBehaviour {
         pose.Initialize();pose.CancelIdle();pose.StopBreathing();return pose;
     }
     public static PlayerPushPose Begin(Transform player){
-        var pose=GetPose(player);pose.EndEdgeBalance();pose.walking=false;pose.pushing=true;pose.Sample(0);return pose;
+        var pose=GetPose(player);pose.EndEdgeBalance();pose.flowPushing=false;pose.walking=false;pose.pushing=true;pose.Sample(0);return pose;
+    }
+    public static PlayerPushPose BeginFlowPush(Transform player,float cellSize,FlowPushStyle style=FlowPushStyle.Standard){
+        var pose=GetPose(player);
+        if(!pose.flowPushing){pose.End();pose.flowDistance=0;pose.flowEffort=0;}
+        else pose.flowEffort*=pose.flowRelease;
+        pose.flowStartStance=FlowStance.Blend(default(FlowStance),pose.flowStance,pose.flowRelease);
+        pose.flowStyle=style;
+        pose.flowPushing=true;pose.pushing=true;pose.walking=false;
+        pose.flowCellSize=Mathf.Max(.01f,cellSize);pose.flowRelease=1;
+        return pose;
+    }
+    public void AdvanceFlowPush(float distance,float seconds,float progress=0){
+        flowDistance+=distance;
+        flowEffort=Mathf.MoveTowards(flowEffort,1,seconds/.07f);
+        float stride=Mathf.Sin(flowDistance/flowCellSize*Mathf.PI);
+        float p=Mathf.Clamp01(progress);
+        var target=new FlowStance{lean=13,drop=.035f,armPitch=-72,stride=stride};
+        if(flowStyle==FlowPushStyle.LiftBar){
+            // Reach beneath the flat bar, scoop upward, then follow through.
+            float lift=Mathf.SmoothStep(0,1,Mathf.InverseLerp(.18f,.72f,p));
+            float release=Mathf.SmoothStep(0,1,Mathf.InverseLerp(.78f,1,p));
+            target=new FlowStance{lean=Mathf.Lerp(32,14,lift),drop=Mathf.Lerp(.19f,.025f,lift),
+                armPitch=Mathf.Lerp(Mathf.Lerp(-24,-116,lift),-72,release),
+                armY=Mathf.Lerp(-.075f,.075f,lift)*(1-release),armZ=.075f,
+                armInset=.035f,armYaw=24,legDrive=7*Mathf.Sin(p*Mathf.PI),stride=stride*1.7f};
+        }else if(flowStyle==FlowPushStyle.ShoveBar){
+            float drive=Mathf.Sin(Mathf.PI*Mathf.Clamp01(p/.85f));
+            target=new FlowStance{lean=15+9*drive,drop=.035f+.025f*drive,
+                armPitch=-72-13*drive,armZ=.04f+.1f*drive,
+                armInset=.035f,armYaw=24,legDrive=18*drive,stride=stride*1.45f};
+        }
+        // Cross-fade from the actual last stance, including when a quick tap
+        // changes a flat bar into an upright bar on the very next grid step.
+        flowStance=FlowStance.Blend(flowStartStance,target,Mathf.SmoothStep(0,1,p/.24f));
+        ApplyFlowStance(flowStance,1);
+    }
+    void ApplyFlowStance(FlowStance stance,float weight){
+        if(!visual)return;
+        visual.localRotation=restRotation*Quaternion.Euler(stance.lean*weight,0,0);
+        visual.localPosition=restPosition+new Vector3(0,-stance.drop*weight,.035f*weight);
+        if(!posed)return;
+        for(int i=0;i<vertices.Length;i++){
+            float side=Mathf.Sign(vertices[i].x);
+            bool arm=arms[i],leg=legs[i];
+            var pivot=arm?new Vector3(side*.235f,.635f,0):new Vector3(side*.097f,.34f,0);
+            var rotation=Quaternion.Euler(0,arm?-side*stance.armYaw*weight:0,0)
+                *Quaternion.Euler((arm?stance.armPitch:stance.legDrive-26*stance.stride*side)*weight,0,0);
+            // Keep the feet above the floor as the torso lowers to scoop.
+            var offset=arm?new Vector3(-side*stance.armInset,stance.armY,stance.armZ):
+                new Vector3(0,stance.drop+.025f*Mathf.Max(0,stance.stride*side),0);
+            workVertices[i]=arm||leg?pivot+rotation*(vertices[i]-pivot)+offset*weight:vertices[i];
+            if(i<normals.Length)workNormals[i]=arm||leg?rotation*normals[i]:normals[i];
+        }
+        posed.vertices=workVertices;if(normals.Length==vertices.Length)posed.normals=workNormals;
     }
     public static PlayerPushPose BeginWalk(Transform player,float cellSize){
-        var pose=GetPose(player);pose.EndEdgeBalance();if(pose.pushing)return pose;
+        var pose=GetPose(player);pose.EndEdgeBalance();if(pose.flowPushing)pose.End();if(pose.pushing)return pose;
         pose.walking=true;pose.nextWalkSoundDistance=0;pose.walkFoot=pose.nextWalkFoot;pose.walkDistance=0;pose.walkCellSize=Mathf.Max(.01f,cellSize);pose.SampleWalk(0);return pose;
     }
     public static PlayerPushPose BeginCrossSweep(Transform player){
@@ -180,6 +248,8 @@ public sealed partial class PlayerPushPose:MonoBehaviour {
         posed.vertices=workVertices;if(normals.Length==vertices.Length)posed.normals=workNormals;
     }
     public void End(){
+        flowPushing=false;flowDistance=0;flowEffort=0;flowRelease=1;
+        flowStance=flowStartStance=default(FlowStance);
         readingMap=false;DockMapTablet();
         ResetPortalEntry();
         ResetStonePush();
@@ -218,6 +288,12 @@ public sealed partial class PlayerPushPose:MonoBehaviour {
     void LateUpdate(){
         if(collectingStarPose)return;
         if(readingMap){SampleMap(mapProgress);return;}
+        if(flowPushing&&(!board||!board.Busy)){
+            flowRelease=Mathf.MoveTowards(flowRelease,0,Time.deltaTime/.12f);
+            ApplyFlowStance(flowStance,flowRelease);
+            if(flowRelease<=0)End();
+            return;
+        }
         UpdateIdle();
         UpdateStonePush();
         if(balancing){

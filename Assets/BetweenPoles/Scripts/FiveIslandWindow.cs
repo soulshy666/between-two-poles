@@ -72,16 +72,27 @@ public sealed class FiveIslandWindow : MonoBehaviour {
     void RefreshBridgeLinks(){
         if(!board||!bridges||floor.Count==0)return;
         int signature=17;var spans=new Dictionary<Vector2Int,MagnetPiece>();
-        foreach(var m in board.magnets)if(m&&m.enabled&&m.gameObject.activeInHierarchy&&!board.IsKnockedFlying(m)&&!(board.RecoilFlying&&m==board.RecoilMagnet)&&(m.walkable||(!m.combined&&m.shape==MagnetShape.Bar&&!MagnetPiece.VerticalBar(m.Pose)))){unchecked{signature=signature*31+m.GetInstanceID();signature=signature*31+Cell(m.transform).GetHashCode();signature=signature*31+m.transform.rotation.GetHashCode();signature=signature*31+(int)m.product;signature=signature*31+m.bridgeDirection.GetHashCode();}spans[Cell(m.transform)]=m;if(m.product==MagnetProduct.Bridge)spans[Cell(m.transform)+m.bridgeDirection]=m;}
+        foreach(var m in board.magnets)if(m&&m.enabled&&m.gameObject.activeInHierarchy&&!board.IsKnockedFlying(m)&&!(board.RecoilFlying&&m==board.RecoilMagnet)&&(m.walkable||(!m.combined&&m.shape==MagnetShape.Bar&&!MagnetPiece.VerticalBar(m.Pose)))){unchecked{signature=signature*31+m.GetInstanceID();signature=signature*31+Cell(m.transform).GetHashCode();signature=signature*31+m.Pose.GetHashCode();signature=signature*31+(int)m.product;signature=signature*31+m.bridgeDirection.GetHashCode();}IndexBridgeSpan(spans,Cell(m.transform),m);if(m.product==MagnetProduct.Bridge)IndexBridgeSpan(spans,Cell(m.transform)+m.bridgeDirection,m);}
         if(signature==bridgeSignature)return;bridgeSignature=signature;
         var links=new List<PrejoinedTestBridges.Link>();
-        foreach(var pair in spans){var m=pair.Value;if(pair.Key!=Cell(m.transform))continue;var right=m.transform.right;var dir=m.product==MagnetProduct.Bridge?m.bridgeDirection:new Vector2Int(Mathf.RoundToInt(right.x),Mathf.RoundToInt(right.z));GridTile a=null,b=null;
+        foreach(var pair in spans){var m=pair.Value;if(pair.Key!=Cell(m.transform))continue;var right=m.Pose*Vector3.right;var dir=m.product==MagnetProduct.Bridge?m.bridgeDirection:new Vector2Int(Mathf.RoundToInt(right.x),Mathf.RoundToInt(right.z));GridTile a=null,b=null;
             for(int step=1;step<=3;step++){var p=pair.Key-dir*step;if(floor.TryGetValue(p,out a))break;if(!spans.ContainsKey(p))break;}
             for(int step=1;step<=3;step++){var p=pair.Key+dir*step;if(floor.TryGetValue(p,out b))break;if(!spans.ContainsKey(p))break;}
             if(a&&b&&tileOwners.TryGetValue(Cell(a.transform),out var ownerA)&&tileOwners.TryGetValue(Cell(b.transform),out var ownerB)&&ownerA!=ownerB)links.Add(new PrejoinedTestBridges.Link{shoreA=a,shoreB=b,magnet=m,renderers=m.GetComponentsInChildren<Renderer>(true)});
         }
         // Clear old shader overrides before a reset removes a completed bridge.
         bridges.enabled=false;bridges.links=links.ToArray();bridges.enabled=true;
+    }
+    static void IndexBridgeSpan(Dictionary<Vector2Int,MagnetPiece> spans,Vector2Int cell,MagnetPiece piece){
+        // Cargo shares a cell with its support. Keep the fixed deck as the
+        // projection link so depositing cargo cannot remove the bridge below it.
+        if(spans.TryGetValue(cell,out var previous)){
+            bool fixedDeck=piece.walkable&&!piece.CanBePushed;
+            bool previousDeck=previous.walkable&&!previous.CanBePushed;
+            if(previousDeck&&!fixedDeck)return;
+            if(previousDeck==fixedDeck&&previous.transform.position.y<=piece.transform.position.y)return;
+        }
+        spans[cell]=piece;
     }
     void RefreshPieces(){
         if(!board||visible.Count==0)return;

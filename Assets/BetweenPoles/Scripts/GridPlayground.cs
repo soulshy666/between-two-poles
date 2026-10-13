@@ -8,11 +8,15 @@ public sealed partial class GridPlayground:MonoBehaviour {
     public float LayerHeight {get{return cellSize*.5f;}}
     public float stepSeconds=.22f;
     [Range(.12f,.3f)] public float walkSeconds=.25f;
+    [Tooltip("Target catch-up time for fresh walking taps. Speed eases toward the target; held movement returns to normal pace.")]
+    [Range(.04f,.15f)] public float walkTapCatchupSeconds=.07f;
     [Tooltip("Turning duration. Ordinary walking turns while moving, without a startup pause.")]
     [Range(.04f,.16f)] public float turnSeconds=.05f;
     [Tooltip("Short landing pause between automatically repeated walking steps; fresh key presses bypass it.")]
-    [Range(0f,.1f)] public float heldStepPauseSeconds=.02f;
+    [Range(0f,.1f)] public float heldStepPauseSeconds=0f;
     [Range(.3f,.8f)] public float barPushSeconds=.46f;
+    [Tooltip("Tap catch-up target. Ordinary rolls ease toward a bounded speed; special interactions compress their remaining playback.")]
+    [Range(.06f,.18f)] public float pushTapCatchupSeconds=.10f;
     [Range(.2f,2f)] public float uRollSeconds=.7f;
     [Range(.6f,2.5f)] public float joinSeconds=1.35f;
     [Tooltip("Duration of one cross-magnet hand sweep and clockwise quarter-turn.")]
@@ -37,10 +41,16 @@ public sealed partial class GridPlayground:MonoBehaviour {
     bool reversibleWalk;
     bool completingWalkForTurn;
     Vector2Int walkDirection;
+    float walkTapSpeed;
+    float walkCurrentSpeed,walkTapTime;
     Vector3 walkOrigin,walkDestination;
     bool interruptiblePush,pushFeedbackOnly;
     Vector2Int pushDirection;
     WorldState pushUndo;
+    bool flowingPush,continuePushOnComplete;
+    float pushFlowProgress,pushFlowSpeed,pushFlowBoost;
+    float pushFlowTapTime;
+    float pushFlowCarryTime=-1;
     readonly Stack<IEnumerator> movementStack=new Stack<IEnumerator>();
     Coroutine movementPlayback;
     bool finishingMovement;
@@ -60,7 +70,23 @@ public sealed partial class GridPlayground:MonoBehaviour {
         }
         return false;
     }
-    IEnumerator PlayMovement(){while(AdvanceMovement())yield return null;movementPlayback=null;}
+    IEnumerator PlayMovement(){
+        while(AdvanceMovement())yield return null;
+        movementPlayback=null;
+        // Finish the transaction before starting the next one, but do not spend
+        // a rendered frame idle between two ordinary pushes.
+        if(continuePushOnComplete){
+            continuePushOnComplete=false;
+            while(bufferedSteps.Count>0&&Time.unscaledTime-bufferedSteps.Peek().time>InputBufferSeconds)bufferedSteps.Dequeue();
+            var direction=bufferedSteps.Count>0?bufferedSteps.Dequeue().direction:
+                DirectionHeld(heldDirection)?heldDirection:Vector2Int.zero;
+            if(direction!=Vector2Int.zero){
+                if(TryStep(direction)){if(flowingPush)yield break;}
+                else bufferedSteps.Clear();
+            }
+            pushFlowSpeed=pushFlowBoost=0;pushFlowCarryTime=-1;
+        }
+    }
     void FinishMovement(){
         if(movementPlayback!=null)StopCoroutine(movementPlayback);
         movementPlayback=null;
@@ -109,7 +135,7 @@ public sealed partial class GridPlayground:MonoBehaviour {
         foreach(var m in magnets)if(m&&m.geometry&&!m.combined&&m.product==MagnetProduct.None&&m.shape==MagnetShape.Horseshoe&&!MagnetPiece.FlatU(m.Pose)){
             m.geometry.rotation=MagnetPiece.FlatUPose(m.Pose);MagnetVisuals.Ground(m);
         }
-        currentIsland=Owner(Tile(Cell(player)));islandEntry=player.position;islandEntryRotation=player.rotation;
+        currentIsland=Owner(Tile(Cell(player)));CapturePlayerIslandEntries();
         history.Clear();initialState=SaveWorld();ReleaseUnusedGeometry();
     }
     public bool JumpTestRoom(int direction){
@@ -177,7 +203,7 @@ public sealed partial class GridPlayground:MonoBehaviour {
             direction=heldDirection;nextHeldStep=Time.unscaledTime+walkSeconds;
         }
         bool hadBufferedInput=bufferedSteps.Count>0;
-        PumpMovementInput(direction);
+        PumpMovementInput(direction,DirectionPressed(direction));
         // Holding does not enqueue extra steps: release stops repeats immediately,
         // while the current step and explicitly buffered taps may finish normally.
         if(direction==Vector2Int.zero&&!hadBufferedInput&&!Busy&&heldDirection!=Vector2Int.zero&&Time.unscaledTime>=nextHeldStep){
@@ -199,6 +225,8 @@ public sealed partial class GridPlayground:MonoBehaviour {
         return false;
     }
     void ClearMovementInput(){
+        walkTapSpeed=0;
+        pushFlowBoost=0;
         bufferedSteps.Clear();heldDirection=Vector2Int.zero;nextHeldStep=0;
         completingWalkForTurn=false;
         var pose=player?player.GetComponent<PlayerPushPose>():null;if(pose){pose.CancelIdle();pose.EndEdgeBalance();pose.EndStonePush();}
@@ -209,8 +237,20 @@ public sealed partial class GridPlayground:MonoBehaviour {
         if(heldDirection!=Vector2Int.zero&&!finishingMovement&&!recordingPush)
             nextHeldStep=Mathf.Max(nextHeldStep,Time.unscaledTime+Mathf.Clamp(heldStepPauseSeconds,0,.1f));
     }
-    void PumpMovementInput(Vector2Int direction){
-        if(CanInterruptPush(direction)){TryStep(direction);return;}
+    void PumpMovementInput(Vector2Int direction,bool freshPress=false){
+        // Ordinary rolls keep their live trajectory. A tap changes its speed,
+        // not its pose or coroutine, and the buffered step joins at the boundary.
+        if(flowingPush&&freshPress&&direction==pushDirection&&bufferedSteps.Count<2){
+            pushFlowBoost=Mathf.Max(pushFlowBoost,(1-pushFlowProgress)/Mathf.Clamp(pushTapCatchupSeconds,.06f,.18f));
+            pushFlowTapTime=Time.unscaledTime;
+        }
+        if(CanInterruptPush(direction,freshPress)){InterruptPush(direction);return;}
+        // A fresh tap advances the current stride faster and queues exactly one next step.
+        // Keep traversing the validated segment; never teleport across a cell boundary.
+        if(freshPress&&reversibleWalk&&!completingWalkForTurn&&direction==walkDirection&&bufferedSteps.Count<2){
+            walkTapSpeed=Mathf.Max(walkTapSpeed,Vector3.Distance(player.position,walkDestination)/Mathf.Clamp(walkTapCatchupSeconds,.04f,.15f));
+            walkTapTime=Time.unscaledTime;
+        }
         if(TryReverseWalk(direction))return;
         while(bufferedSteps.Count>0&&Time.unscaledTime-bufferedSteps.Peek().time>InputBufferSeconds)bufferedSteps.Dequeue();
         // Direction changes replace stale intent instead of waiting behind it.
@@ -221,7 +261,7 @@ public sealed partial class GridPlayground:MonoBehaviour {
             bufferedSteps.Enqueue(new BufferedStep{direction=direction,time=Time.unscaledTime});
         if(!Busy&&bufferedSteps.Count>0&&!TryStep(bufferedSteps.Dequeue().direction))bufferedSteps.Clear();
     }
-    void OnDisable(){ClearBridgeJunctionLinks();ClearMagnetHover();ClearMovementInput();ClearPushPresentations();}
+    void OnDisable(){ClearBridgeJunctionLinks();if(!portalMagnetPresentation)ClearMagnetHover();ClearMovementInput();ClearPushPresentations();}
     void OnApplicationFocus(bool focused){if(!focused)ClearMovementInput();}
     // Non-zero initial speed makes the first frame responsive; the end settles softly.
     static float MovementProgress(float progress){float p=Mathf.Clamp01(progress);return p+p*p-p*p*p;}
@@ -256,6 +296,8 @@ public sealed partial class GridPlayground:MonoBehaviour {
         if(!reversibleWalk||Mathf.Abs(direction.x)+Mathf.Abs(direction.y)!=1
             ||(direction==walkDirection&&!completingWalkForTurn))return false;
         if(direction==-walkDirection){
+            walkTapSpeed=0;
+            walkCurrentSpeed=cellSize/Mathf.Max(.01f,walkSeconds);
             // Retrace only the distance already travelled, even before the midpoint.
             // Swapping endpoints also allows another reversal during the return.
             var previousOrigin=walkOrigin;walkOrigin=walkDestination;walkDestination=previousOrigin;
@@ -268,6 +310,7 @@ public sealed partial class GridPlayground:MonoBehaviour {
         // Every perpendicular turn goes through the current target's centre,
         // even on open ground. Facing can respond before translation changes axis.
         completingWalkForTurn=true;
+        walkTapSpeed=0;
         bufferedSteps.Clear();
         bufferedSteps.Enqueue(new BufferedStep{direction=direction,time=Time.unscaledTime});
         FaceWalkDirection(direction);
@@ -295,33 +338,46 @@ public sealed partial class GridPlayground:MonoBehaviour {
             ||!PlainWalkCell(next,player.position.y,Owner(Tile(from))))return false;
         if(buffered)bufferedSteps.Dequeue();
         RecordHistory(SaveWorld());
+        if(direction!=walkDirection||Time.unscaledTime-walkTapTime>.24f)walkTapSpeed=0;
         walkOrigin=player.position;walkDestination=Position(next,Height(next));walkDirection=direction;
         completingWalkForTurn=false;return true;
     }
-    void ClearWalkInterrupt(){reversibleWalk=false;completingWalkForTurn=false;}
+    void ClearWalkInterrupt(){reversibleWalk=false;completingWalkForTurn=false;walkTapSpeed=0;}
     void BeginPushInterrupt(Vector2Int direction,bool feedbackOnly=false){pushHoverParticipants.Clear();if(!feedbackOnly)PlayMagnetPushSound();interruptiblePush=true;pushFeedbackOnly=feedbackOnly;pushDirection=direction;pushUndo=null;}
-    void EndPushInterrupt(){pushHoverParticipants.Clear();interruptiblePush=false;pushFeedbackOnly=false;pushUndo=null;}
-    bool CanInterruptPush(Vector2Int direction){
-        return Busy&&interruptiblePush&&(pushUndo!=null||pushFeedbackOnly)&&direction!=pushDirection&&Mathf.Abs(direction.x)+Mathf.Abs(direction.y)==1;
+    void EndPushInterrupt(){pushHoverParticipants.Clear();interruptiblePush=false;pushFeedbackOnly=false;pushUndo=null;flowingPush=false;}
+    bool CanInterruptPush(Vector2Int direction,bool freshPress=false){
+        return Busy&&interruptiblePush&&(pushUndo!=null||pushFeedbackOnly)
+            &&(direction!=pushDirection||(freshPress&&!pushFeedbackOnly&&!flowingPush))&&Mathf.Abs(direction.x)+Mathf.Abs(direction.y)==1;
     }
     bool InterruptPush(Vector2Int direction){
         bufferedSteps.Clear();
         var start=player.position;var facing=player.rotation;
+        bool continuePushing=direction==pushDirection&&!pushFeedbackOnly;
         deferredPushLanding=null;deferPushLanding=true;
-        try{FinishPushWithPresentation();}finally{deferPushLanding=false;}
+        try{FinishPushWithPresentation(Mathf.Clamp(pushTapCatchupSeconds,.06f,.18f));}finally{deferPushLanding=false;}
+        pushFlowSpeed=pushFlowBoost=0;pushFlowCarryTime=-1;
         var end=player.position;var landing=deferredPushLanding;deferredPushLanding=null;
-        if((end-start).sqrMagnitude<.000001f){if(landing.HasValue)NotifyLanding(landing.Value);TryStep(direction);return true;}
         player.SetPositionAndRotation(start,facing);
         bufferedSteps.Enqueue(new BufferedStep{direction=direction,time=Time.unscaledTime});
-        Busy=true;StartMovement(CompleteInterruptedPush(end,landing));
+        Busy=true;StartMovement(CompleteInterruptedPush(end,landing,continuePushing));
         return true;
     }
-    IEnumerator CompleteInterruptedPush(Vector3 end,Vector2Int? landing){
-        var pose=PlayerPushPose.BeginWalk(player,cellSize);
-        // Finish the visible remainder quickly, before evaluating the next step.
-        // Magnet render tracks continue independently at their original speed.
-        float seconds=Mathf.Clamp(Vector3.Distance(player.position,end)/cellSize*walkSeconds/1.6f,.04f,.18f);
-        try{yield return Slide(player,end,seconds);}finally{if(pose)pose.End();}
+    IEnumerator CompleteInterruptedPush(Vector3 end,Vector2Int? landing,bool continuePushing){
+        var pose=continuePushing?PlayerPushPose.Begin(player):PlayerPushPose.BeginWalk(player,cellSize);
+        var start=player.position;
+        float seconds=Mathf.Clamp(pushTapCatchupSeconds,.06f,.18f);
+        try{
+            for(float elapsed=0;elapsed<seconds;elapsed+=MovementDeltaTime){
+                float p=Mathf.Clamp01((elapsed+MovementDeltaTime)/seconds);
+                var previous=player.position;player.position=Vector3.Lerp(start,end,MovementProgress(p));
+                if(continuePushing)pose.Sample(.25f+p*.5f);else pose.AdvanceWalk(Vector3.Distance(previous,player.position));
+                yield return null;
+            }
+            player.position=end;
+            // Release input only after the render tracks reach the same committed state.
+            // The next push can then operate on the same piece without a visual jump.
+            while(pushPresentations.Count>0)yield return null;
+        }finally{if(pose)pose.End();}
         if(landing.HasValue)NotifyLanding(landing.Value);Busy=false;
     }
     IEnumerator MovePlayer(Vector2Int p){
@@ -339,14 +395,19 @@ public sealed partial class GridPlayground:MonoBehaviour {
         if(Floor(from)&&Floor(p)&&!Piece(from)&&!Piece(p)){
             var walkPose=PlayerPushPose.BeginWalk(player,cellSize);
             reversibleWalk=true;
+            walkTapSpeed=0;
+            walkCurrentSpeed=cellSize/Mathf.Max(.01f,walkSeconds);
             walkOrigin=player.position;walkDestination=Position(p,Height(p));walkDirection=p-from;
             while(true){
                 Vector3 end=walkDestination;
-                // Keep a stable speed within the cell; held repeats pause on landing.
+                // Carry speed across cells; fresh taps accelerate without a velocity jump.
                 var previous=player.position;
                 FaceWalkDirection(completingWalkForTurn&&bufferedSteps.Count>0?bufferedSteps.Peek().direction:walkDirection);
                 float speed=cellSize/Mathf.Max(.01f,walkSeconds)*(completingWalkForTurn?1.6f:1f);
-                player.position=Vector3.MoveTowards(player.position,end,speed*MovementDeltaTime);
+                if(Time.unscaledTime-walkTapTime>.24f)walkTapSpeed=0;
+                speed=Mathf.Max(speed,walkTapSpeed);
+                walkCurrentSpeed=Mathf.MoveTowards(walkCurrentSpeed,speed,cellSize/Mathf.Max(.01f,walkSeconds)*3*MovementDeltaTime/.07f);
+                player.position=Vector3.MoveTowards(player.position,end,walkCurrentSpeed*MovementDeltaTime);
                 walkPose.AdvanceWalk(Vector3.Distance(previous,player.position));
                 if((player.position-end).sqrMagnitude<.000001f){
                     player.position=end;NotifyLanding(CellAt(end));

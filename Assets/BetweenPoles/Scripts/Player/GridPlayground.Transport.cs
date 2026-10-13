@@ -76,6 +76,19 @@ public sealed partial class GridPlayground {
         var deck=Deck(cell,m);
         return deck&&(!GapWideBar(deck)||WideBarConnected(deck))&&SameHeight(DeckHeight(deck),m.transform.position.y);
     }
+    public bool TryPortalKickDestination(Vector2Int from,Vector2Int direction,float height,out Vector3 landing){
+        var cell=from+direction;landing=Position(cell,height);
+        if(IsWreckCell(cell)||BlackHolePortal.At(this,cell))return false;
+        var tile=Tile(cell);
+        if(tile&&(tile.blocked||!SameHeight(tile.surfaceHeight,height)))return false;
+        var occupant=Piece(cell);
+        if(!occupant)return true;
+        // A completed, shore-connected wide bar is a support, not a collision.
+        if(occupant.product!=MagnetProduct.WideBar||!occupant.walkable
+            ||!WideBarConnected(occupant)||!AlongDeck(occupant,direction)
+            ||!SameHeight(DeckHeight(occupant),height)||TransportObstacle(cell,null))return false;
+        landing.y=DeckHeight(occupant);return true;
+    }
     bool TravelSurface(Vector2Int from,float height,Vector2Int to,MagnetPiece moving,out float landing){
         landing=height;var tile=Tile(to);var deck=Deck(to,moving);var source=Deck(from,moving);
         if((tile&&tile.blocked)||!BridgePassage(from,to,moving))return false;

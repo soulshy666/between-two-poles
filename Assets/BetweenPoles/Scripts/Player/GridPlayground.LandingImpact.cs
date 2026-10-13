@@ -100,8 +100,8 @@ public sealed partial class GridPlayground {
         var cells=new List<Vector2Int>{CellAt(candidate.position)};
         if(candidate.product==MagnetProduct.Bridge||candidate.product==MagnetProduct.BridgeHalf)cells.Add(cells[0]+candidate.bridgeDirection);
         foreach(var cell in cells){
-            // The player's incoming berth is also reserved when a foreign arrival remains.
-            if(cell==CellAt(islandEntry)&&recoilArrivals.Exists(a=>a.active&&a.island==currentIsland))return true;
+            // Only other magnets block restoration. The player respawns on the
+            // restored top when their first landing cell matches this material.
             for(int j=0;j<magnets.Length;j++){
                 if(j==index||!magnets[j])continue;
                 var other=affected[j]?restore[j]:SavePiece(magnets[j]);

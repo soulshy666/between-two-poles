@@ -77,7 +77,7 @@ public sealed partial class GridPlayground {
     }
     void TrackIsland(GridTile tile){
         var owner=Owner(tile);if(owner==currentIsland)return;
-        currentIsland=owner;islandEntry=player.position;islandEntryRotation=player.rotation;
+        currentIsland=owner;RememberPlayerIslandEntry();
     }
     void RestorePieces(Snapshot[] saved,bool[] selected=null){
         // Detach first: undoing a merge may reverse a parent/child relationship.
@@ -104,6 +104,7 @@ public sealed partial class GridPlayground {
     void RestoreWorld(WorldState s){
         ClearPushPresentations();
         movementStack.Clear();movementPlayback=null;
+        continuePushOnComplete=false;pushFlowSpeed=pushFlowBoost=0;pushFlowCarryTime=-1;
         EndPushInterrupt();
         var pushPose=player.GetComponent<PlayerPushPose>();if(pushPose)pushPose.End();
         ClearWalkInterrupt();
@@ -158,12 +159,7 @@ public sealed partial class GridPlayground {
         }
         ResolveKnockReset(restore,affected);
         RestorePieces(restore,affected);
-        Vector3 spawn=islandEntry;var at=Tile(CellAt(spawn));
-        if(!at||at.blocked||Piece(CellAt(spawn))){
-            float best=float.PositiveInfinity;
-            foreach(var t in tiles){if(!t||t.blocked||Owner(t)!=currentIsland||Piece(Cell(t.transform)))continue;float d=(t.transform.position-islandEntry).sqrMagnitude;if(d<best){best=d;spawn=new Vector3(t.transform.position.x,t.surfaceHeight,t.transform.position.z);}}
-        }
-        player.SetPositionAndRotation(spawn,islandEntryRotation);
+        ResetPlayerOnCurrentIsland();
         foreach(var t in tiles)if(t&&t.goal&&Owner(t)==currentIsland){ReachedGoal=initialState.goal;if(goalLight)goalLight.sharedMaterial=initialState.goalMaterial;break;}
         RefreshRestoredIsland();ReleaseUnusedGeometry();LastRule="已重置当前小岛；Z 可撤销重置";return true;
     }

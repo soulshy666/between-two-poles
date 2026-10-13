@@ -8,7 +8,7 @@ public sealed partial class BlackHoleTravel {
     string testMessage;
     IEnumerator TestTravel(BlackHolePortal source){
         origin=source;Selecting=true;busy=true;var board=source.board;
-        bool wasEnabled=board.enabled;board.enabled=false;
+        bool wasEnabled=board.enabled;board.BeginPortalMagnetPresentation();board.enabled=false;
         var playerScale=board.player.localScale;
         bool undoRequested=false;
         try{
@@ -75,7 +75,7 @@ public sealed partial class BlackHoleTravel {
         }finally{
             EndNavigation();testPortals=null;testDestination=null;previewPortal=null;Selecting=false;busy=false;
             if(board&&board.player)board.player.localScale=playerScale;
-            if(board){board.EndPortalMagnetPresentation();board.enabled=wasEnabled;}
+            if(board){board.enabled=wasEnabled;board.EndPortalMagnetPresentation();}
             if(undoRequested&&board)board.UndoStep();
         }
     }

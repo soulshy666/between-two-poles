@@ -1,0 +1,1 @@
+PASS: flat-bar scoop and upright-bar shove on real astronaut mesh; pose distinction and seamless style handoff; continuous bar/U pushes; shared trajectory and gait; smooth release; collision; per-push undo; direction change; repulsion; assembly cleanup. Preview: output/bar-push-poses.png

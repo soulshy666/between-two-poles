@@ -107,7 +107,7 @@ public sealed partial class GridPlayground {
             bool stepToPlatform=destinationTile&&!destinationTile.blocked&&!m
                 &&destinationTile.surfaceHeight<=GroundHeight(from)+LayerHeight+.01f;
             bool stepToStone=destinationTile&&destinationTile.blocked&&!m
-                &&destinationTop.y<=GroundHeight(from)+LayerHeight+.01f;
+                &&destinationTop.y<=player.position.y+LayerHeight+.01f;
             if(destinationTop.y>player.position.y+.01f&&!(onObject&&(stepToPlatform||stepToStone)))return Reject("当前支撑只能跳上一层范围内的相邻顶面");
             var topPortal=BlackHolePortal.At(this,next);
             if(topPortal){Busy=true;StartMovement(JumpIntoPortal(topPortal,dir));LastRule="从物体顶面跳入黑洞";return true;}
@@ -332,7 +332,8 @@ public sealed partial class GridPlayground {
     IEnumerator RollThenWalk(MagnetPiece m,Vector2Int dir,Vector2Int target,Vector2Int next,List<MagnetRollStep> path){
         BeginPushInterrupt(dir);
         pushHoverParticipants.Add(m);
-        if(m.shape==MagnetShape.Bar)yield return PushSingleBar(m,dir,target,next);
+        if(path.Count==1)yield return FlowingRoll(m,path[0],target,next);
+        else if(m.shape==MagnetShape.Bar)yield return PushSingleBar(m,dir,target,next);
         else {
             Vector3 start=player.position,end=PushPlayerEnd(next,m);
             player.rotation=Quaternion.LookRotation(new Vector3(dir.x,0,dir.y));
@@ -345,7 +346,47 @@ public sealed partial class GridPlayground {
             }
             pushPose.End();player.position=end;NotifyLanding(next);
         }
+        bool flowed=flowingPush;
         EndPushInterrupt();Busy=false;
+        continuePushOnComplete=flowed&&!recordingPush&&!finishingMovement;
+    }
+    IEnumerator FlowingRoll(MagnetPiece m,MagnetRollStep step,Vector2Int target,Vector2Int next){
+        flowingPush=true;pushFlowProgress=0;
+        float normalSpeed=1/Mathf.Max(.01f,m.shape==MagnetShape.Bar?barPushSeconds:uRollSeconds);
+        if(pushFlowSpeed<=0)pushFlowSpeed=normalSpeed;
+        var start=m.transform.position;var end=Position(target,TransportHeight(m,target));
+        var actorStart=player.position;var actorEnd=PushPlayerEnd(next,m);
+        var rotation=m.Pose;var axis=new Vector3(step.direction.y,0,-step.direction.x);
+        player.rotation=Quaternion.LookRotation(new Vector3(step.direction.x,0,step.direction.y));
+        var style=m.shape!=MagnetShape.Bar?PlayerPushPose.FlowPushStyle.Standard:
+            MagnetPiece.VerticalBar(rotation)?PlayerPushPose.FlowPushStyle.ShoveBar:PlayerPushPose.FlowPushStyle.LiftBar;
+        var pose=PlayerPushPose.BeginFlowPush(player,cellSize,style);
+        while(pushFlowProgress<1){
+            float dt=pushFlowCarryTime>=0&&!recordingPush&&!finishingMovement?pushFlowCarryTime:MovementDeltaTime;
+            pushFlowCarryTime=-1;
+            bool continuing=(bufferedSteps.Count>0&&bufferedSteps.Peek().direction==pushDirection
+                    &&Time.unscaledTime-bufferedSteps.Peek().time<=InputBufferSeconds)
+                ||(heldDirection==pushDirection&&DirectionHeld(heldDirection));
+            if(Time.unscaledTime-pushFlowTapTime>.24f)pushFlowBoost=0;
+            float desired=Mathf.Clamp(Mathf.Max(normalSpeed,pushFlowBoost),normalSpeed,normalSpeed*4);
+            // Only the last step settles. Intermediate cell centres are not brakes.
+            if(!continuing)desired*=Mathf.Sqrt(Mathf.Clamp((1-pushFlowProgress)/.2f,.04f,1));
+            pushFlowSpeed=Mathf.MoveTowards(pushFlowSpeed,desired,normalSpeed*3*dt/.07f);
+            float remainingTime=(1-pushFlowProgress)/Mathf.Max(.001f,pushFlowSpeed);
+            pushFlowProgress=Mathf.Min(1,pushFlowProgress+pushFlowSpeed*dt);
+            var previous=player.position;
+            player.position=Vector3.Lerp(actorStart,actorEnd,pushFlowProgress);
+            m.transform.position=Vector3.Lerp(start,end,pushFlowProgress);
+            m.geometry.rotation=Quaternion.AngleAxis(step.degrees*pushFlowProgress,axis)*rotation;
+            MagnetVisuals.Ground(m);
+            pose.AdvanceFlowPush(Vector3.Distance(previous,player.position),dt,pushFlowProgress);
+            if(pushFlowProgress>=1){pushFlowCarryTime=Mathf.Max(0,dt-remainingTime);break;}
+            yield return null;
+        }
+        m.transform.position=end;m.geometry.rotation=step.pose;MagnetVisuals.Ground(m);
+        player.position=actorEnd;NotifyLanding(next);
+        // The movement driver may start the next validated push in this frame.
+        // PlayerPushPose releases the stance only when the chain actually stops.
     }
     // Flatten the existing roll animation so both paths share one movement clock.
     // This also lets interrupted pushes record and replay their remaining poses normally.
