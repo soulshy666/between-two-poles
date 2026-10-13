@@ -79,6 +79,18 @@ public sealed partial class ChapterAtlas {
         yield return new WaitForEndOfFrame();
         transitionFrame=ScreenCapture.CaptureScreenshotAsTexture();transitionFrame.filterMode=FilterMode.Point;transitionOpacity=1;
     }
+    IEnumerator ReturnToGameAnimated(){
+        // Finish an in-flight chart arrival before taking ownership of its camera.
+        while(chartTransitioning)yield return null;
+        int chapter=Mathf.Clamp(ReturnChapter,0,chapters.Length-1);
+        yield return ApproachPlanet(chapters[chapter].planet);
+        // Keep the captured planet close-up over the first restored gameplay frame.
+        // The atlas stays alive until the dissolve finishes, avoiding a one-frame cut.
+        HideChart();
+        ChapterMapReturn.ResumeGame(true);
+        yield return RevealInspection();
+        UnityEngine.SceneManagement.SceneManager.UnloadSceneAsync(gameObject.scene);
+    }
     IEnumerator RevealInspection(){
         yield return null;
         for(float age=0;age<.45f;age+=Mathf.Min(Time.unscaledDeltaTime,.05f)){transitionOpacity=1-Mathf.SmoothStep(0,1,age/.45f);yield return null;}

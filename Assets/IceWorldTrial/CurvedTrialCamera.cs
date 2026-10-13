@@ -55,7 +55,8 @@ namespace BetweenPoles {
   readonly Vector4[] anchors=new Vector4[16];
   void OnEnable(){Apply(editFocus);}
   void OnPreCull(){IslandSurfaceAnchor.UpdatePlanarCullingBounds();}
-  void OnDisable(){Shader.SetGlobalFloat("_IslandPlanar",0);Shader.SetGlobalFloat("_IslandRigidLayout",0);Shader.SetGlobalFloat("_IslandFlatEnabled",0);flatInitialized=false;}
+  bool OtherChapterOwnsView {get{return ChapterRecoilTravel.IsPreparing(gameObject.scene)||(ChapterRecoilTravel.Active&&ChapterRecoilTravel.FlightView!=this);}}
+  void OnDisable(){if(OtherChapterOwnsView)return;Shader.SetGlobalFloat("_IslandPlanar",0);Shader.SetGlobalFloat("_IslandRigidLayout",0);Shader.SetGlobalFloat("_IslandFlatEnabled",0);flatInitialized=false;}
   void UpdateFlatIsland(FiveIslandWindow window,Vector3 focus){
    bool valid=island&&island.board&&island.islandCenters!=null&&island.islandCenters.Length>0;
    if(!valid){Shader.SetGlobalFloat("_IslandFlatEnabled",0);flatInitialized=false;return;}
@@ -98,6 +99,8 @@ namespace BetweenPoles {
    Vector3 focus=Application.isPlaying&&island.enabled?transform.position-island.viewingOffset:editFocus;Apply(focus);}
   public static Vector3 SphereNormal(Vector3 point,float radius=10){float d=new Vector2(point.x,point.z).magnitude;return d<.001f?Vector3.up:new Vector3(point.x/d*Mathf.Sin(d/radius),Mathf.Cos(d/radius),point.z/d*Mathf.Sin(d/radius));}
   public void Apply(Vector3 focus){
+   // Additive destination cameras may receive OnEnable/Start before sceneLoaded disables them.
+   if(OtherChapterOwnsView)return;
    // Share the physical camera offset in edit mode and during island transitions.
    if(island)island.ApplyView(focus);
    bool planar=PlanarChapter;
@@ -137,6 +140,10 @@ namespace BetweenPoles {
    if(planet)Shader.SetGlobalVector("_IceDiskCenter",planet.position);
    Shader.SetGlobalVector("_IceDiskRight",transform.right);Shader.SetGlobalVector("_IceDiskUp",transform.up);
    var camera=GetComponent<Camera>();if(camera){
+    if(ChapterRecoilTravel.Active&&ChapterRecoilTravel.FlightView==this&&recoil){
+     camera.orthographicSize=ChapterRecoilTravel.FlightSize;
+     targetZoomSize=camera.orthographicSize;zoomVelocity=0;zoomInitialized=true;return;
+    }
     // Flat chapters no longer need the wide margin reserved for the globe.
     float size=planningSize*(planar?.8f:1f);
     float framingMargin=planar?1.4f:2.8f;

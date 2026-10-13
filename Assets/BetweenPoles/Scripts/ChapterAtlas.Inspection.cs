@@ -1,4 +1,4 @@
-﻿using System.Collections;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -81,7 +81,11 @@ public sealed partial class ChapterAtlas {
     public void CloseInspection(){if(!IsInspecting||inspectionLoading)return;StartCoroutine(FinishInspectionView());}
     IEnumerator FinishInspectionView(){
         inspectionLoading=true;
-        if(!returnAfterInspection&&inspectionNavigation){
+        if(returnAfterInspection&&inspectionNavigation){
+            yield return inspectionNavigation.ReturnInspectionToPlayer();
+            yield return new WaitForEndOfFrame();
+        }
+        if(inspectionNavigation){
             transitionFrame=inspectionNavigation.CaptureInspectionFrame();transitionOpacity=1;
         }
         if(inspectionNavigation)inspectionNavigation.FinishInspection();
@@ -91,6 +95,14 @@ public sealed partial class ChapterAtlas {
         else foreach(var pair in inspectedScripts)if(pair.Key)pair.Key.enabled=pair.Value;
         inspectedRoots.Clear();inspectedScripts.Clear();InspectionScenePath=null;
         SceneManager.SetActiveScene(gameObject.scene);
+        if(returnAfterInspection&&ChapterMapReturn.HasSuspendedGame){
+            // The inspection already shows the islands. Never restore or approach the chart here.
+            returning=true;returnAfterInspection=false;
+            ChapterMapReturn.ResumeGame(true);
+            yield return RevealInspection();
+            SceneManager.UnloadSceneAsync(gameObject.scene);
+            yield break;
+        }
         foreach(var pair in hiddenChartRenderers)if(pair.Key)pair.Key.enabled=pair.Value;
         foreach(var pair in hiddenChartBehaviours)if(pair.Key)pair.Key.enabled=pair.Value;
         hiddenChartRenderers.Clear();hiddenChartBehaviours.Clear();canvas.enabled=true;
@@ -106,9 +118,9 @@ public sealed partial class ChapterAtlas {
         }
         var matrix=GUI.matrix;float scale=Mathf.Max(.7f,Screen.height/900f);GUI.matrix=Matrix4x4.Scale(new Vector3(scale,scale,1));
         GUI.enabled=true;
-        if(PixelGameUI.Button(new Rect(22,22,210,48),"返回岛屿（M）"))ReturnToGame();
+        if(PixelGameUI.Button(new Rect(Screen.width/scale-240,22,218,48),"返回游戏（Esc）"))ReturnToGame();
         GUI.enabled=!inspectionLoading;
-        if(PixelGameUI.Button(new Rect(22,80,210,48),"返回星际航图"))CloseInspection();
+        if(PixelGameUI.Button(new Rect(22,22,210,48),"星际航图"))CloseInspection();
         GUI.enabled=true;
         GUI.Label(new Rect(248,25,900,48),inspectionMessage,PixelGameUI.Text(17));
         GUI.matrix=matrix;

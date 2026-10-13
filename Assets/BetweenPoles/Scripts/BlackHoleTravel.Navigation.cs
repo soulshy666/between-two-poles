@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using UnityEngine;
 namespace BetweenPoles {
 public sealed partial class BlackHoleTravel {
@@ -13,18 +13,45 @@ public sealed partial class BlackHoleTravel {
     readonly Dictionary<Renderer,bool> navigationRenderers=new Dictionary<Renderer,bool>();
     GridPlayground inspectionBoard;
     Vector3? inspectionPosition;
-    bool allowChartZoom;
-    float chartZoomThreshold;
-    public bool ChartZoomRequested {get;private set;}
+    float navigationStartSize;
     public bool PlayerReturnRequested {get;private set;}
     bool playerReturnPressed;
-    public void BeginInspection(GridPlayground board,bool allowStarChartZoom=false){inspectionBoard=board;allowChartZoom=allowStarChartZoom;ChartZoomRequested=false;Vector3 position;inspectionPosition=ChapterMapReturn.TrySuspendedPosition(board.gameObject.scene.path,out position)?(Vector3?)position:null;BeginNavigation(board);chartZoomThreshold=Mathf.Clamp(viewSize*2.2f,24f,65f);if(inspectionPosition.HasValue){viewFocus=inspectionPosition.Value;ApplyNavigation();}}
+    public void BeginInspection(GridPlayground board,bool preserveCurrentView=false){
+        inspectionBoard=board;
+        Vector3 position;
+        inspectionPosition=ChapterMapReturn.TrySuspendedPosition(board.gameObject.scene.path,out position)?(Vector3?)position:null;
+        BeginNavigation(board);
+        // Local inspection inherits the island framing; player position is only for the marker.
+        if(!preserveCurrentView&&inspectionPosition.HasValue){viewFocus=inspectionPosition.Value;ApplyNavigation();}
+    }
+
     public System.Collections.IEnumerator PullBackInspection(){
         if(!viewCamera)yield break;float start=viewCamera.orthographicSize;
         navigationSmoothTime=.1f;if(navigationCurve)navigationCurve.navigationZoomSmoothTime=.1f;
         for(float age=0;age<.55f;age+=Mathf.Min(Time.unscaledDeltaTime,.05f)){
             viewSize=Mathf.Lerp(start,Mathf.Min(80,start*1.65f),Mathf.SmoothStep(0,1,age/.55f));ApplyNavigation();yield return null;
         }
+    }
+    public System.Collections.IEnumerator ReturnInspectionToPlayer(){
+        if(!viewCamera||!inspectionBoard||!inspectionPosition.HasValue)yield break;
+        Vector3 startFocus=viewFocus;
+        Vector3 target=navigationCamera.CurrentIsland?navigationCamera.CurrentIsland.position:inspectionPosition.Value;
+        float startSize=viewCamera.orthographicSize,endSize=savedSize;
+        if(navigationCurve){
+            navigationCurve.fitIsland=curveFit;navigationCurve.planningSize=savedSize;navigationCurve.Apply(target);
+            endSize=navigationCurve.TargetZoomSize;
+            navigationCurve.fitIsland=false;
+        }
+        for(float age=0;age<.85f;age+=Mathf.Min(Time.unscaledDeltaTime,.05f)){
+            float t=Mathf.SmoothStep(0,1,age/.85f);
+            viewFocus=Vector3.Lerp(startFocus,target,t);
+            viewSize=Mathf.Exp(Mathf.Lerp(Mathf.Log(startSize),Mathf.Log(endSize),t));
+            ApplyNavigation();viewCamera.orthographicSize=viewSize;
+            if(navigationCurve)navigationCurve.ResetZoomVelocity();
+            yield return null;
+        }
+        viewFocus=target;viewSize=endSize;ApplyNavigation();viewCamera.orthographicSize=endSize;
+        if(navigationCurve)navigationCurve.ResetZoomVelocity();
     }
     public Texture2D CaptureInspectionFrame(){
         if(!viewCamera)return null;
@@ -35,7 +62,7 @@ public sealed partial class BlackHoleTravel {
         finally{RenderTexture.active=previous;}
     }
     public void TickInspection(){PlayerReturnRequested=false;if(inspectionBoard)UpdateNavigation();}
-    public void FinishInspection(){EndNavigation();inspectionBoard=null;inspectionPosition=null;allowChartZoom=false;ChartZoomRequested=false;PlayerReturnRequested=false;playerReturnPressed=false;}
+    public void FinishInspection(){EndNavigation();inspectionBoard=null;inspectionPosition=null;PlayerReturnRequested=false;playerReturnPressed=false;}
     bool VisitedRoom(string room){
         if(inspectionBoard)return SessionExploration.GetInt(ChapterAtlas.Key(inspectionBoard.gameObject.scene.path,room),0)>0;
         if(!origin)return false;
@@ -46,10 +73,11 @@ public sealed partial class BlackHoleTravel {
         foreach(var camera in FindObjectsOfType<IslandCamera>())if(camera.enabled&&camera.board==board){navigationCamera=camera;break;}
         if(!navigationCamera)throw new System.InvalidOperationException("黑洞总览找不到当前关卡镜头");
         viewCamera=navigationCamera.GetComponent<Camera>();navigationCurve=navigationCamera.GetComponent<CurvedTrialCamera>();
+        navigationStartSize=viewCamera.orthographicSize;
         savedViewingOffset=navigationCamera.viewingOffset;savedFarClip=viewCamera.farClipPlane;navigationZoomVelocity=0;navigationSmoothTime=1.4f;
         cameraEnabled=navigationCamera.enabled;viewFocus=navigationCamera.transform.position-navigationCamera.viewingOffset;
         navigationCamera.enabled=false;
-        if(navigationCurve){savedFocus=navigationCurve.editFocus;savedSize=navigationCurve.planningSize;curveFit=navigationCurve.fitIsland;navigationCurve.fitIsland=false;navigationCurve.navigationZoomSmoothTime=1.4f;}
+        if(navigationCurve){savedFocus=navigationCurve.editFocus;savedSize=navigationCurve.planningSize;curveFit=navigationCurve.fitIsland;navigationCurve.fitIsland=false;navigationCurve.navigationZoomSmoothTime=1.4f;navigationCurve.ResetZoomVelocity();}
         else savedSize=viewCamera.orthographicSize;
         viewSize=inspectionBoard?viewCamera.orthographicSize*1.8f:Mathf.Max(12f,viewCamera.orthographicSize*1.15f);
         navigationWindow=board.GetComponent<FiveIslandWindow>();
@@ -63,6 +91,7 @@ public sealed partial class BlackHoleTravel {
             foreach(var renderer in m.GetComponentsInChildren<Renderer>())SetNavigationVisible(renderer,show);
         }
         BeginUnknownIslands(board);
+        BeginMapLighting(board);
         dragging=false;playerReturnPressed=false;PlayerReturnRequested=false;ApplyNavigation();
     }
     void SetNavigationVisible(Renderer renderer,bool show){
@@ -74,7 +103,7 @@ public sealed partial class BlackHoleTravel {
         if(Input.GetMouseButton(1)||Input.GetMouseButton(2))playerReturnPressed=false;
         // Orthographic zoom widens the ground footprint without moving the lens.
         // Retreat along the same viewing direction so its near plane cannot slice that footprint.
-        float depth=Mathf.Max(savedViewingOffset.magnitude,Mathf.Max(viewSize,viewCamera.orthographicSize)*1.5f+5f);
+        float depth=savedViewingOffset.magnitude+Mathf.Max(0,viewCamera.orthographicSize-navigationStartSize)*1.5f;
         navigationCamera.viewingOffset=savedViewingOffset.normalized*depth;
         viewCamera.farClipPlane=Mathf.Max(savedFarClip,depth+Mathf.Max(viewSize,viewCamera.orthographicSize)*2f+50f);
         if(navigationCurve){navigationCurve.editFocus=viewFocus;navigationCurve.planningSize=viewSize/(navigationCurve.PlanarChapter?.8f:1f);navigationCurve.Apply(viewFocus);}
@@ -132,8 +161,7 @@ public sealed partial class BlackHoleTravel {
         navigationSmoothTime=.1f;
         if(navigationCurve)navigationCurve.navigationZoomSmoothTime=navigationSmoothTime;
         viewSize=Mathf.Clamp(viewSize-scroll*1.5f,4,80);
-        // Only the local map opts in; portal selection and remote inspections stay local.
-        if(inspectionBoard&&allowChartZoom&&scroll<0&&viewSize>=chartZoomThreshold)ChartZoomRequested=true;
+        // Wheel input only changes this map; the chart is opened explicitly by its button.
     }
     Vector3 NavigationScreenPoint(Vector3 world){
         // The world camera renders into a small pixel buffer, not the GUI-sized screen.
@@ -182,7 +210,7 @@ public sealed partial class BlackHoleTravel {
         var texture=new Texture2D(size,size,TextureFormat.RGBA32,false){name="Black hole position arrow "+heading,filterMode=FilterMode.Point,wrapMode=TextureWrapMode.Clamp,hideFlags=HideFlags.HideAndDontSave};
         texture.SetPixels(colors);texture.Apply();originArrows[heading]=texture;return texture;
     }
-    void OnDestroy(){EndUnknownIslands();foreach(var texture in originArrows)if(texture){if(Application.isPlaying)Destroy(texture);else DestroyImmediate(texture);}}
+    void OnDestroy(){ReleaseMapLighting();EndUnknownIslands();foreach(var texture in originArrows)if(texture){if(Application.isPlaying)Destroy(texture);else DestroyImmediate(texture);}}
     void DrawOriginIndicator(){
         if(Event.current.type!=EventType.Repaint)return;
         Vector2 position,direction;bool offscreen;if(!OriginIndicator(out position,out direction,out offscreen))return;
@@ -190,10 +218,11 @@ public sealed partial class BlackHoleTravel {
         var old=GUI.color;GUI.color=Color.white;
         GUI.DrawTexture(new Rect(Mathf.Round(position.x)-42,Mathf.Round(position.y)-42,85,85),OriginArrowTexture(heading));
         GUI.color=Color.white;
-        GUI.Label(new Rect(Mathf.Clamp(position.x-50,8,Screen.width-108),Mathf.Clamp(position.y+39,96,Screen.height-48),100,24),"当前位置",PixelGameUI.Text(14,TextAnchor.MiddleCenter));
+
         GUI.color=old;
     }
     void EndNavigation(){
+        mapIslands.Clear();
         EndUnknownIslands();
         foreach(var item in navigationRenderers)if(item.Key)item.Key.enabled=item.Value;navigationRenderers.Clear();
         if(viewCamera)viewCamera.farClipPlane=savedFarClip;
@@ -238,12 +267,15 @@ public sealed partial class BlackHoleTravel {
         try{
             for(float age=0;age<1.1f;age+=Mathf.Min(Time.unscaledDeltaTime,.05f)){
                 float t=Mathf.SmoothStep(0,1,age/1.1f);
+                // Restore scene brightness together with the return-camera movement.
+                mapLightingExitWeight=1f-t;
                 viewFocus=Vector3.Lerp(startFocus,target,t);
                 viewSize=Mathf.Exp(Mathf.Lerp(Mathf.Log(startSize),Mathf.Log(endSize),t));
                 ApplyNavigation();camera.orthographicSize=viewSize;
                 if(curve)curve.ResetZoomVelocity();yield return null;
             }
         }finally{
+            mapLightingExitWeight=0f;
             EndNavigation();
             if(rig){rig.FocusIsland(target);if(curve){curve.Apply(target);curve.ResetZoomVelocity();}if(camera)camera.orthographicSize=endSize;}
         }
@@ -254,13 +286,6 @@ public sealed partial class BlackHoleTravel {
         if(testPortals==null||busy||!Selecting)return;
         PixelGameUI.Panel(new Rect(16,16,Mathf.Min(Screen.width-32,790),72));
         GUI.Label(new Rect(30,25,750,54),testMessage,PixelGameUI.Text(17));
-        foreach(var portal in testPortals){if(!portal||!viewCamera)continue;
-            var point=viewCamera.WorldToViewportPoint(CrashColorReveal.DisplayPoint(portal.transform.position));
-            if(point.z<0||point.x<0||point.x>1||point.y<0||point.y>1)continue;
-            // Passive labels leave input to the drag/click discriminator, so dragging
-            // across a portal never accidentally teleports the player.
-            GUI.Label(new Rect(point.x*Screen.width-40,(1-point.y)*Screen.height-42,80,24),"点击传送",PixelGameUI.Text(14,TextAnchor.MiddleCenter));
-        }
         DrawOriginIndicator();
     }
 }
