@@ -1,11 +1,11 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 namespace BetweenPoles {
 public static partial class IceRockVisuals {
     static readonly Dictionary<int,Mesh> lowVariants=new Dictionary<int,Mesh>();
     // Coordinates use the same footprint and 1.12 vertical scale as the legacy rocks.
     static Mesh LowVariant(int theme,int variant){
-        int key=theme*10+variant;Mesh cached;if(lowVariants.TryGetValue(key,out cached))return cached;
+        int key=theme*10+variant;Mesh cached;if(lowVariants.TryGetValue(key,out cached)&&cached)return cached;
         var vertices=new List<Vector3>();var groups=new List<int>[palettes[theme].Length];
         for(int i=0;i<groups.Length;i++)groups[i]=new List<int>();
         System.Action<Vector3,Vector3,Vector3,int> face=(a,b,c,mat)=>{

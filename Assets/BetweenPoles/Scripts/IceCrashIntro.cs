@@ -85,8 +85,18 @@ public sealed class IceCrashIntro:MonoBehaviour {
         var c=g.GetComponent<Collider>();c.enabled=false;Destroy(c);
         var r=g.GetComponent<Renderer>();r.sharedMaterial=material;r.shadowCastingMode=UnityEngine.Rendering.ShadowCastingMode.Off;r.localBounds=new Bounds(Vector3.zero,Vector3.one*300);return g.transform;
     }
+    bool skipRequested;
+    public void Skip(){
+        if(!Playing)return;
+        if(!ready){skipRequested=true;return;}
+        PlaybackTime=EndTime;Sample(EndTime);
+        revealAge=RevealBirth+RevealHold+colorRevealSeconds+RevealTail;
+        Finish();
+    }
     void Update(){
+        if(Playing&&Input.GetKeyDown(KeyCode.Escape)){skipRequested=true;}
         if(!ready)return;
+        if(Playing&&skipRequested){Skip();return;}
         if(Playing){
             float step=Mathf.Min(Time.deltaTime,.05f);
             bool hold=FreezeOpeningFrame;

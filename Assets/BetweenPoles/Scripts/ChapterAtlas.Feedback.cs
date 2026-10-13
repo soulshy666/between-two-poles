@@ -1,4 +1,4 @@
-﻿using System.Collections;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 namespace BetweenPoles {
@@ -22,13 +22,13 @@ public sealed partial class ChapterAtlas {
         if(loaded.IsValid()&&loaded.isLoaded){
             foreach(var sceneRoot in loaded.GetRootGameObjects()){
                 var window=sceneRoot.GetComponentInChildren<FiveIslandWindow>(true);if(!window)continue;
-                foreach(var room in window.rooms)if(PlayerPrefs.GetInt(Key(data.scene,room.id),0)>0||room.center&&PlayerPrefs.GetInt(Key(data.scene,room.center.name),0)>0)return true;
+                foreach(var room in window.rooms)if(SessionExploration.GetInt(Key(data.scene,room.id),0)>0||room.center&&SessionExploration.GetInt(Key(data.scene,room.center.name),0)>0)return true;
             }
             return false;
         }
         if(data.islands==null||data.islands.Length==0)return false;
-        if(PlayerPrefs.GetInt(WorldVisitKey(data.scene),0)>0)return true;
-        foreach(var island in data.islands)if(PlayerPrefs.GetInt(Key(data.scene,island.id),0)>0)return true;
+        if(SessionExploration.GetInt(WorldVisitKey(data.scene),0)>0)return true;
+        foreach(var island in data.islands)if(SessionExploration.GetInt(Key(data.scene,island.id),0)>0)return true;
         return false;
     }
     public void ClickPlanet(Vector2 screen){

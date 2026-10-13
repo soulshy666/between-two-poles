@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 namespace BetweenPoles {
 // Replace only obstacle artwork; retain tile ownership, renderer references and grid rules.
@@ -27,11 +27,14 @@ public static partial class IceRockVisuals {
         if(filters.Length==0)return;
         var target=filters[0];var renderer=target.GetComponent<MeshRenderer>();if(!renderer)return;
         int theme=Mathf.Clamp(tile.rockTheme,0,4);
-        if(!meshes.ContainsKey(theme))Build(theme);
+        if(!ValidCache(theme))Build(theme);
         var selectedMesh=meshes[theme][Mathf.Clamp(tile.rockStyle,0,2)];
         if(tile.rockStyle==2&&tile.lowRockVariant>0)selectedMesh=LowVariant(theme,Mathf.Clamp(tile.lowRockVariant,1,2));
         target.transform.rotation=Quaternion.Euler(0,tile.rockYaw,0);
-        if(target.sharedMesh==selectedMesh)return;
+        bool paletteMatches=renderer.sharedMaterials.Length==palettes[theme].Length;
+        var assigned=renderer.sharedMaterials;
+        if(paletteMatches)for(int i=0;i<assigned.Length;i++)if(assigned[i]!=palettes[theme][i]){paletteMatches=false;break;}
+        if(target.sharedMesh==selectedMesh&&paletteMatches)return;
         // Reuse renderers registered with island visibility and curvature systems.
         foreach(var filter in filters)if(filter!=target)filter.sharedMesh=null;
         target.sharedMesh=selectedMesh;renderer.sharedMaterials=palettes[theme];
@@ -39,6 +42,14 @@ public static partial class IceRockVisuals {
         Vector3 scale=target.transform.parent?target.transform.parent.lossyScale:Vector3.one;
         float width=cell*.86f;
         target.transform.localScale=new Vector3(width/scale.x,1.12f/scale.y,width/scale.z);
+    }
+    // Unity may release native resources while managed static cache entries survive.
+    static bool ValidCache(int theme){
+        if(!meshes.TryGetValue(theme,out var cached)||cached==null||cached.Length!=3)return false;
+        foreach(var item in cached)if(!item)return false;
+        if(!palettes.TryGetValue(theme,out var palette)||palette==null||palette.Length==0)return false;
+        foreach(var item in palette)if(!item)return false;
+        return true;
     }
     static void Build(int theme){
         var colors=new[]{new Color(.25f,.30f,.33f),new Color(.34f,.40f,.43f),new Color(.44f,.49f,.51f),new Color(.90f,.95f,.97f)};

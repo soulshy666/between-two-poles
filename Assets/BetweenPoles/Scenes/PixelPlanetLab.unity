@@ -3641,7 +3641,7 @@ MonoBehaviour:
   pixels: 100
   rotation: 12
   speed: 1
-  light: {x: 1, y: 0.07002492}
+  light: {x: 0, y: 0.41889858}
   dither: 1
   paused: 0
   showPanel: 1
@@ -3681,7 +3681,7 @@ MonoBehaviour:
   duration: 8
   columns: 8
   margin: 0
-  phase: 5436.209
+  phase: 5636.359
 --- !u!4 &1718645030
 Transform:
   m_ObjectHideFlags: 0

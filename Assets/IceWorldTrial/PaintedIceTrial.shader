@@ -1,7 +1,7 @@
 Shader "BetweenPoles/PaintedIceTrial" {
  Properties{_Color("Tint",Color)=(1,1,1,1) _Grid("Grid",Float)=0 _Snow("Snow",Float)=0 _IceArt("Ice art shading",Float)=0 _Painted("Painted ice",Float)=0 _Cracks("Crack strength",Range(0,1))=.3}
  SubShader{Tags{"RenderType"="Opaque" "DisableBatching"="True"} CGPROGRAM
- #pragma surface surf Lambert vertex:bend addshadow
+ #pragma surface surf Lambert vertex:bend addshadow finalcolor:DiscoveryColor
  #include "UnityCG.cginc"
  fixed4 _Color;float _Grid,_Snow,_IceArt,_Painted,_Cracks;float _CockpitClip;float4 _CockpitPlane;struct Input{float3 worldPos;float3 worldNormal;float2 logicalXZ;float4 iceTint;float2 iceSurface;};
  float4 _IceFocus,_IslandAnchors[16],_ExplicitIsland;int _IslandCount;float _IceRadius,_IslandFlatten;float3 _IslandViewOffset;float _IceDiskRadius;float3 _IceDiskCenter,_IceDiskRight,_IceDiskUp;float4x4 _IceRotation;float _IslandDisplayScale;
@@ -106,6 +106,8 @@ Shader "BetweenPoles/PaintedIceTrial" {
  float iceNoise(float2 p){float2 k=floor(p),f=frac(p);f=f*f*(3-2*f);return lerp(lerp(iceHash(k),iceHash(k+float2(1,0)),f.x),lerp(iceHash(k+float2(0,1)),iceHash(k+1),f.x),f.y);}
  float iceField(float2 p){return iceNoise(p)*.65+iceNoise(p*2.03+7)*.25+iceNoise(p*4.1)*.1;}
  float cracks(float2 p){float2 id=floor(p),f=frac(p);float nearest=9,second=9;for(int y=-1;y<=1;y++)for(int x=-1;x<=1;x++){float2 cell=float2(x,y);float2 seed=float2(iceHash(id+cell),iceHash(id+cell+41));float d=length(cell+seed-f);if(d<nearest){second=nearest;nearest=d;}else second=min(second,d);}return 1-smoothstep(.014,.05,second-nearest);}
+ #include "Assets/BetweenPoles/Shaders/IslandDiscovery.cginc"
+ void DiscoveryColor(Input i,SurfaceOutput o,inout fixed4 color){color.rgb*=1-DiscoveryHidden(i.logicalXZ);}
  void surf(Input i,inout SurfaceOutput o){
  if(_CockpitClip>.5)clip(i.iceSurface.x);
  if(_IslandWindowClipEnabled>.5 && _SpaceAirborne<.5){float2 edge=min(i.logicalXZ-_IslandWindowBounds.xy,_IslandWindowBounds.zw-i.logicalXZ);clip(min(edge.x,edge.y));}

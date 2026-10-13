@@ -26,6 +26,7 @@ public sealed partial class BlackHoleTravel {
             board.player.localScale=Vector3.zero;
             testPortals=board.gameObject.scene.GetRootGameObjects().SelectMany(r=>r.GetComponentsInChildren<BlackHolePortal>()).Where(p=>p.board==board&&VisitedRoom(p.Room)).ToArray();testDestination=null;previewPortal=null;
             BeginNavigation(board);
+            yield return OpenPortalMap();
 
             testMessage="左键拖拽查看已探索的小岛，滚轮缩放，点击黑洞直接从那里出来。";
             busy=false;
@@ -39,7 +40,7 @@ public sealed partial class BlackHoleTravel {
             bool valid=PlanExit(destination,direction,cargo,out plan);
             if(!valid)yield break;
 
-            EndNavigation();destination.Disarm();
+            destination.Disarm();
             board.player.SetPositionAndRotation(new Vector3(destination.tile.transform.position.x,destination.tile.surfaceHeight,destination.tile.transform.position.z),entryFacing);
             board.CompletePortalLanding(destination.Cell);
             yield return WaitForExitView(destination);

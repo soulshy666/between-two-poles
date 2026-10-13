@@ -40,6 +40,7 @@ namespace BetweenPoles {
   int lastNavigationZoomFrame=-1;
   float zoomVelocity;
   float targetZoomSize;
+  public float TargetZoomSize {get{return targetZoomSize;}}
   public bool FramingSettled {
    get {
     var camera=GetComponent<Camera>();
@@ -53,6 +54,7 @@ namespace BetweenPoles {
   bool flatInitialized;
   readonly Vector4[] anchors=new Vector4[16];
   void OnEnable(){Apply(editFocus);}
+  void OnPreCull(){IslandSurfaceAnchor.UpdatePlanarCullingBounds();}
   void OnDisable(){Shader.SetGlobalFloat("_IslandPlanar",0);Shader.SetGlobalFloat("_IslandRigidLayout",0);Shader.SetGlobalFloat("_IslandFlatEnabled",0);flatInitialized=false;}
   void UpdateFlatIsland(FiveIslandWindow window,Vector3 focus){
    bool valid=island&&island.board&&island.islandCenters!=null&&island.islandCenters.Length>0;

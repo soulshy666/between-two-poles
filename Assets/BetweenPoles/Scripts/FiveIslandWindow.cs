@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 
 namespace BetweenPoles {
-// Only presentation is culled. Puzzle objects stay alive so snapshots and pushed pieces survive travel.
+// Keep every island visible; the camera frustum determines what appears on screen.
 [ExecuteAlways, DefaultExecutionOrder(-100)]
 public sealed class FiveIslandWindow : MonoBehaviour {
     [Serializable] public class Room {
@@ -29,7 +29,7 @@ public sealed class FiveIslandWindow : MonoBehaviour {
     int bridgeSignature=int.MinValue;
     Vector4 previewBounds;
     MaterialPropertyBlock previewBlock;
-    void OnEnable(){if(board)board.Landed+=OnLanded;}
+    void OnEnable(){if(Application.isPlaying&&!GetComponent<IslandDiscoveryView>())gameObject.AddComponent<IslandDiscoveryView>();if(board)board.Landed+=OnLanded;}
     void OnDisable(){if(previewBlock==null)previewBlock=new MaterialPropertyBlock();if(board)board.Landed-=OnLanded;foreach(var room in rooms)foreach(var renderer in room.surfaces)if(renderer){renderer.GetPropertyBlock(previewBlock);previewBlock.SetFloat("_IslandWindowClipEnabled",0);renderer.SetPropertyBlock(previewBlock);}}
     void Start(){if(enabled)Show(initialRoom);}
     void OnLanded(GridTile tile){
@@ -42,8 +42,7 @@ public sealed class FiveIslandWindow : MonoBehaviour {
         if(index<0||index>=rooms.Length)return;
         CurrentRoom=index;visible.Clear();visible.Add(rooms[index].center);
         if(tileOwners.Count==0&&board)foreach(var tile in board.tiles){if(!tile||!tile.gameObject.activeInHierarchy)continue;var owner=tile.GetComponentInParent<IslandSurfaceAnchor>();var key=Cell(tile.transform);floor[key]=tile;if(owner&&owner.center)tileOwners[key]=owner.center;}
-        // Adjacency is a graph, not one nearest island per compass direction. Never include neighbors-of-neighbors.
-        foreach(var neighbor in IslandVisibility.Neighbors(tileOwners,rooms[index].center,IslandVisibility.GapForScene(gameObject.scene.name)))visible.Add(neighbor);
+        foreach(var room in rooms)if(room.center)visible.Add(room.center);
         Vector2 min=new Vector2(float.PositiveInfinity,float.PositiveInfinity),max=new Vector2(float.NegativeInfinity,float.NegativeInfinity);
         foreach(var pair in tileOwners)if(pair.Value==rooms[index].center){var p=(Vector2)pair.Key*board.cellSize;min=Vector2.Min(min,p);max=Vector2.Max(max,p);}
         float margin=(edgePreviewCells+.5f)*board.cellSize;
@@ -90,16 +89,11 @@ public sealed class FiveIslandWindow : MonoBehaviour {
             if(!piece||!piece.enabled)continue;
             if((board.RecoilFlying&&piece==board.RecoilMagnet)||board.IsKnockedFlying(piece)){foreach(var r in piece.GetComponentsInChildren<Renderer>())r.enabled=true;continue;}
             var binding=piece.GetComponent<IslandSurfaceAnchor>();
-            if(!binding)continue;
+            if(!binding){foreach(var renderer in piece.GetComponentsInChildren<Renderer>(true)){renderer.enabled=true;ApplyPreview(renderer,false);}continue;}
             // Moving pieces adopt the island they actually occupy; floating pieces retain their authored owner.
             Vector3 position=piece.transform.position;var cell=new Vector2Int(Mathf.RoundToInt(position.x/board.cellSize),Mathf.RoundToInt(position.z/board.cellSize));
             if(tileOwners.TryGetValue(cell,out var owner))binding.center=owner;
-            bool show=visible.Contains(binding.center);
-            if(bridges&&bridges.links!=null)foreach(var link in bridges.links)if(link.magnet==piece){
-                var a=link.shoreA.GetComponentInParent<IslandSurfaceAnchor>();var b=link.shoreB.GetComponentInParent<IslandSurfaceAnchor>();
-                show=a&&b&&visible.Contains(a.center)&&visible.Contains(b.center);break;
-            }
-            foreach(var renderer in piece.GetComponentsInChildren<Renderer>(true)){renderer.enabled=show;ApplyPreview(renderer,binding.center!=rooms[CurrentRoom].center);}
+            foreach(var renderer in piece.GetComponentsInChildren<Renderer>(true)){renderer.enabled=true;ApplyPreview(renderer,binding.center!=rooms[CurrentRoom].center);}
         }
     }
 }

@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 namespace BetweenPoles {
 // A deliberate chapter exit, separate from ordinary failed recoil flights.
 public sealed class ChapterRecoilExit:MonoBehaviour {
@@ -21,7 +21,7 @@ public sealed class ChapterRecoilExit:MonoBehaviour {
         if(!Debug.isDebugBuild)return;var old=GUI.matrix;float scale=Mathf.Max(.7f,Screen.height/900f);GUI.matrix=Matrix4x4.Scale(new Vector3(scale,scale,1));
         GUI.enabled=!Board.Busy&&!BlackHoleTravel.InTransit;
         // Reserve the first two rows for returning to the island and star chart.
-        if(GUI.Button(new Rect(22,138,210,48),"测试：冰雪末岛"))JumpToFinalIsland();
+        if(PixelGameUI.Button(new Rect(22,138,210,48),"测试：冰雪末岛"))JumpToFinalIsland();
         GUI.enabled=true;GUI.matrix=old;
     }
 }

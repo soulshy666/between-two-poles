@@ -1,7 +1,7 @@
 Shader "BetweenPoles/ImportedIslandSurface" {
  Properties{_Color("Tint",Color)=(1,1,1,1) _Grid("Grid",Float)=0 _Snow("Snow",Float)=0 _IceArt("Ice art shading",Float)=0}
  SubShader{Tags{"RenderType"="Opaque" "DisableBatching"="True"} CGPROGRAM
- #pragma surface surf Lambert vertex:bend addshadow
+ #pragma surface surf Lambert vertex:bend addshadow finalcolor:DiscoveryColor
  #include "UnityCG.cginc"
  fixed4 _Color;float _Grid,_Snow,_IceArt;struct Input{float3 worldPos;float3 worldNormal;float2 logicalXZ;float4 iceTint;};
  float4 _IceFocus,_IslandAnchors[16],_ExplicitIsland;int _IslandCount;float _IceRadius,_IslandFlatten;float3 _IslandViewOffset;float _IceDiskRadius;float3 _IceDiskCenter,_IceDiskRight,_IceDiskUp;float4x4 _IceRotation;float _IslandDisplayScale;
@@ -87,6 +87,8 @@ Shader "BetweenPoles/ImportedIslandSurface" {
  v.normal=mul((float3x3)unity_WorldToObject,normal);
  }
 
+ #include "Assets/BetweenPoles/Shaders/IslandDiscovery.cginc"
+ void DiscoveryColor(Input i,SurfaceOutput o,inout fixed4 color){color.rgb*=1-DiscoveryHidden(i.logicalXZ);}
  void surf(Input i,inout SurfaceOutput o){
  if(_IslandWindowClipEnabled>.5){float2 edge=min(i.logicalXZ-_IslandWindowBounds.xy,_IslandWindowBounds.zw-i.logicalXZ);clip(min(edge.x,edge.y));}if(_IceDiskRadius>0 && _RecoilFlying<.5){float3 relative=i.worldPos-_IceDiskCenter;float2 disk=float2(dot(relative,_IceDiskRight),dot(relative,_IceDiskUp));clip(_IceDiskRadius*_IceDiskRadius-dot(disk,disk));}float3 col=_Color.rgb*lerp(float3(1,1,1),i.iceTint.rgb,_IceArt);float2 g=abs(frac((i.logicalXZ+.75)/1.5)-.5);float seam=smoothstep(.452,.486,max(g.x,g.y))*_Grid;float up=saturate(i.worldNormal.y);col=lerp(col,lerp(float3(.20,.49,.62),col,smoothstep(.3,.85,up)),_Snow);col=lerp(col,float3(.18,.36,.48),seam*.68);o.Albedo=col;o.Emission=col*.10;o.Alpha=1;}
  ENDCG} FallBack "Diffuse" }
