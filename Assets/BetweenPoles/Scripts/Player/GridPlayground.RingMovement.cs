@@ -20,7 +20,7 @@ public sealed partial class GridPlayground {
         // Roll off the last supported cell, then hover at the first gap.
         if(!tip)while(cells<tiles.Length+magnets.Length*2){
             var cell=origin+dir*cells;float nextHeight;
-            if(BlackHolePortal.At(this,cell+dir))break;
+            if(BlackHolePortal.At(this,cell))break;
             if(!(Floor(cell)||Deck(cell,ring))||!RingCanEnter(ring,cell,height,cell+dir,out nextHeight))break;
             height=nextHeight;cells++;
         }
@@ -62,6 +62,7 @@ public sealed partial class GridPlayground {
         }
         ring.transform.position=end;ring.geometry.rotation=Quaternion.AngleAxis(degrees,axis)*pose;
         MagnetVisuals.Ground(ring);ring.walkable=MagnetPiece.FlatU(ring.Pose);
+        yield return SettleMagnetArrival(ring,path[cells-1]);
         EndPushInterrupt();pushPose.End();player.position=playerEnd;NotifyLanding(origin);Busy=false;
     }
 }

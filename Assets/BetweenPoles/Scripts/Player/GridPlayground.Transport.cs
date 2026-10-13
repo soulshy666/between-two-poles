@@ -76,20 +76,38 @@ public sealed partial class GridPlayground {
         var deck=Deck(cell,m);
         return deck&&(!GapWideBar(deck)||WideBarConnected(deck))&&SameHeight(DeckHeight(deck),m.transform.position.y);
     }
+    public enum MagnetLandingKind { Ground, Deck, Portal, Space, Magnet, Blocked }
+    public struct MagnetLanding {
+        public MagnetLandingKind kind;
+        public Vector3 position;
+        public BlackHolePortal portal;
+        public MagnetPiece obstacle;
+    }
+    // One read-only destination query for every source of magnetic movement.
+    public MagnetLanding InspectMagnetDestination(Vector2Int from,float height,Vector2Int cell,MagnetPiece moving){
+        var result=new MagnetLanding{kind=MagnetLandingKind.Blocked,position=Position(cell,height)};
+        if(IsWreckCell(cell))return result;
+        float landing;
+        if(!TravelSurfaceCore(from,height,cell,moving,out landing))return result;
+        result.position=Position(cell,landing);
+        result.portal=BlackHolePortal.At(this,cell);
+        if(result.portal){
+            if(result.portal.CanArrive&&(!result.portal.Cargo||result.portal.Cargo==moving))result.kind=MagnetLandingKind.Portal;
+            return result;
+        }
+        result.obstacle=TransportObstacle(cell,moving);
+        result.kind=result.obstacle?MagnetLandingKind.Magnet:Deck(cell,moving)?MagnetLandingKind.Deck:Tile(cell)?MagnetLandingKind.Ground:MagnetLandingKind.Space;
+        return result;
+    }
     public bool TryPortalKickDestination(Vector2Int from,Vector2Int direction,float height,out Vector3 landing){
-        var cell=from+direction;landing=Position(cell,height);
-        if(IsWreckCell(cell)||BlackHolePortal.At(this,cell))return false;
-        var tile=Tile(cell);
-        if(tile&&(tile.blocked||!SameHeight(tile.surfaceHeight,height)))return false;
-        var occupant=Piece(cell);
-        if(!occupant)return true;
-        // A completed, shore-connected wide bar is a support, not a collision.
-        if(occupant.product!=MagnetProduct.WideBar||!occupant.walkable
-            ||!WideBarConnected(occupant)||!AlongDeck(occupant,direction)
-            ||!SameHeight(DeckHeight(occupant),height)||TransportObstacle(cell,null))return false;
-        landing.y=DeckHeight(occupant);return true;
+        var result=InspectMagnetDestination(from,height,from+direction,null);landing=result.position;
+        return result.kind!=MagnetLandingKind.Blocked&&result.kind!=MagnetLandingKind.Magnet;
     }
     bool TravelSurface(Vector2Int from,float height,Vector2Int to,MagnetPiece moving,out float landing){
+        var result=InspectMagnetDestination(from,height,to,moving);landing=result.position.y;
+        return result.kind!=MagnetLandingKind.Blocked;
+    }
+    bool TravelSurfaceCore(Vector2Int from,float height,Vector2Int to,MagnetPiece moving,out float landing){
         landing=height;var tile=Tile(to);var deck=Deck(to,moving);var source=Deck(from,moving);
         if((tile&&tile.blocked)||!BridgePassage(from,to,moving))return false;
         // A two-cell bridge is a route only on its unsupported cells, including

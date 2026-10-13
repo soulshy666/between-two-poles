@@ -1,0 +1,1 @@
+PASS: four orientations; rock anchors wide bar, bridge access and hover; magnet-top jump to reachable stone; excessive height and ground-level ascent rejected.

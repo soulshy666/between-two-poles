@@ -97,6 +97,31 @@ namespace BetweenPoles.EditorTools {
     static IEnumerator Run(){
         scene=SceneManager.CreateScene("PushResponseValidation-"+Guid.NewGuid().ToString("N"));
         ValidateStances();
+        // Exercise real keyboard routing in all eight perpendicular orientations.
+        foreach(var first in new[]{Vector2Int.right,Vector2Int.left,Vector2Int.up,Vector2Int.down}){
+            foreach(int sign in new[]{-1,1}){
+                Setup(MagnetShape.Bar);
+                b.magnets[0].gameObject.SetActive(false);b.magnets=new MagnetPiece[0];
+                var origin=new Vector2Int(4,first.y<0?1:0);
+                if(first.x!=0)origin.y=sign<0?1:0;
+                var second=first.x!=0?new Vector2Int(0,sign):new Vector2Int(sign,0);
+                b.player.position=new Vector3(origin.x*b.cellSize,0,origin.y*b.cellSize);
+                b.CaptureInitialState();yield return null;yield return null;
+                Tap(first);yield return null;
+                var before=b.player.position;Tap(second);yield return null;
+                var delta=b.player.position-before;
+                var incoming=new Vector3(first.x,0,first.y);var outgoing=new Vector3(second.x,0,second.y);
+                Check(Vector3.Dot(delta,incoming)>Vector3.Dot(delta,outgoing)*2,"Walking turn cut diagonally at entry: "+first+" -> "+second+" before="+before+" delta="+delta+" dt="+Time.deltaTime);
+                Check(Vector3.Dot(delta,outgoing)>0,"Walking curve did not respond on next frame");
+                while(b.Busy){
+                    before=b.player.position;yield return null;
+                    Check(Vector3.Distance(before,b.player.position)<=b.cellSize/b.walkSeconds*1.5f*Time.deltaTime+.004f,"Walking curve exceeded speed cap");
+                }
+                Check(b.PlayerCell==origin+first+second,"Walking curve landed in wrong cell");
+                Check(b.UndoStep()&&b.PlayerCell==origin+first,"Walking curve lost corner undo");
+                Check(b.UndoStep()&&b.PlayerCell==origin,"Walking curve lost origin undo");
+            }
+        }
         foreach(var shape in new[]{MagnetShape.Bar,MagnetShape.Horseshoe}){
             Setup(shape);float began=Time.time;Check(b.TryStep(Vector2Int.right),"First push rejected");
             while(b.Busy)yield return null;float normal=Time.time-began;
@@ -116,6 +141,8 @@ namespace BetweenPoles.EditorTools {
             while(b.Busy){
                 Pump();yield return null;
                 Check(!Animating(),"Ordinary push allocated replay geometry");
+                float normalPushSeconds=shape==MagnetShape.Bar?b.barPushSeconds:b.uRollSeconds;
+                Check((float)typeof(GridPlayground).GetField("pushFlowSpeed",Flags).GetValue(b)<=b.maxPushSpeedMultiplier/normalPushSeconds+.0001f,"Push exceeded configured speed cap");
                 Check(Mathf.Abs(b.magnets[0].transform.position.x-b.player.position.x-b.cellSize)<.001f,"Player and magnet travel diverged");
                 float distance=(float)typeof(PlayerPushPose).GetField("flowDistance",Flags).GetValue(pose);
                 Check(Mathf.Abs(distance-b.player.position.x)<.001f,"Push gait restarted or diverged from distance");
@@ -141,9 +168,9 @@ namespace BetweenPoles.EditorTools {
         while(b.Busy){Pump();yield return null;}Pump();
         Check(!b.Busy&&b.UndoCount==1&&b.MagnetAt(new Vector2Int(2,0)),"Rapid push passed obstacle");
         Setup(MagnetShape.Bar);Tap(Vector2Int.right);
-        int taps=1;float nextTap=Time.time+.09f;
+        int taps=1;float nextTap=Time.time+.25f;
         while(b.Busy||taps<5){
-            if(taps<5&&Time.time>=nextTap){Tap(Vector2Int.right);taps++;nextTap=Time.time+.09f;}
+            if(taps<5&&Time.time>=nextTap){Tap(Vector2Int.right);taps++;nextTap=Time.time+.25f;}
             Pump();yield return null;
         }
         Check(b.PlayerCell==new Vector2Int(5,0)&&b.UndoCount==5&&!Animating(),"Five rapid taps lost steps or undo records");
@@ -152,9 +179,45 @@ namespace BetweenPoles.EditorTools {
         Check(b.UndoStep()&&!b.Busy&&!Animating(),"Undo during flowing push did not cancel playback");
         var undone=b.player.position;yield return null;yield return null;
         Check(b.player.position==undone,"Flow coroutine moved player after undo");
+        foreach(var shape in new[]{MagnetShape.Bar,MagnetShape.Horseshoe}){
+            Setup(shape);Tap(Vector2Int.right);yield return null;
+            float angle=Quaternion.Angle(b.player.rotation,Quaternion.LookRotation(Vector3.forward));
+            var inputPosition=b.player.position;
+            Tap(Vector2Int.up);
+            Check(Quaternion.Angle(b.player.rotation,Quaternion.LookRotation(Vector3.forward))<angle,"Turn did not respond on input frame");
+            Check(b.player.position.z>inputPosition.z&&b.player.position.x<b.cellSize,"New direction did not move immediately before old cell centre");
+            var firstDelta=b.player.position-inputPosition;
+            Check(firstDelta.x>firstDelta.z*2,"Turn began as a diagonal shortcut instead of following the old direction");
+            Check(Vector3.Distance(inputPosition,b.player.position)<=b.cellSize/b.walkSeconds*1.5f*Time.deltaTime+.001f,"Input teleported visible player");
+            Check(b.UndoCount==2,"New logical step was not committed independently");
+            bool walkedBeforeMagnetFinished=false;
+            while(b.Busy){
+                var before=b.player.position;Pump();yield return null;
+                var delta=b.player.position-before;
+                if(b.player.position.z>0&&Animating())walkedBeforeMagnetFinished=true;
+                Check(delta.magnitude<=b.cellSize/b.walkSeconds*1.5f*Time.deltaTime+.015f,"Turn exceeded movement cap: distance="+delta.magnitude+" dt="+Time.deltaTime+" from="+before+" to="+b.player.position);
+            }
+            Check(walkedBeforeMagnetFinished,"Player waited for magnet presentation before turning");
+            Check(b.PlayerCell==Vector2Int.one,"Turn during push lost input");
+            Check(b.UndoStep()&&b.PlayerCell==Vector2Int.right&&!Animating(),"Turn undo failed to clean independent animation");
+            Check(b.UndoStep()&&b.PlayerCell==Vector2Int.zero,"Push undo after turn failed");
+        }
+        // Block the inside corner: blending must fall back to the cardinal path.
+        Setup(MagnetShape.Bar);b.tiles[9].blocked=true;
+        Tap(Vector2Int.right);yield return null;Tap(Vector2Int.up);
+        Check(Mathf.Abs(b.player.position.z)<.00001f,"Turn cut across blocked inner corner");
+        while(b.Busy){Pump();yield return null;
+            Check(Mathf.Abs(b.player.position.z)<.00001f||Mathf.Abs(b.player.position.x-b.cellSize)<.00001f,"Visible path crossed obstacle");
+        }
+        Check(b.PlayerCell==Vector2Int.one,"Safe corner fallback missed destination");
+        Setup(MagnetShape.Bar);b.tiles[10].blocked=true;
+        Tap(Vector2Int.right);yield return null;Tap(Vector2Int.up);
+        while(b.Busy){Pump();yield return null;}Pump();
+        Check(b.PlayerCell==Vector2Int.right&&b.UndoCount==1,"Blocked new direction created a step");
         Setup(MagnetShape.Bar);Tap(Vector2Int.right);yield return null;Tap(Vector2Int.up);
-        while(b.Busy){Pump();yield return null;}Pump();while(b.Busy){Pump();yield return null;}
-        Check(b.PlayerCell==Vector2Int.one,"Turn during push lost input");
+        Check(b.UndoStep()&&b.PlayerCell==Vector2Int.right&&!Animating(),"Mid-blend undo did not restore logical corner");
+        var restored=b.player.position;yield return null;yield return null;
+        Check(b.player.position==restored,"Blend kept running after undo");
         Setup(MagnetShape.Bar,true);Tap(Vector2Int.right);yield return null;Tap(Vector2Int.right);
         while(b.Busy){Pump();yield return null;}Pump();while(b.Busy){Pump();yield return null;}
         Check(b.PlayerCell==new Vector2Int(2,0)&&b.MagnetAt(new Vector2Int(3,0))&&b.MagnetAt(new Vector2Int(4,0)),"Repulsion continuation failed");

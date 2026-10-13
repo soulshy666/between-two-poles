@@ -10,6 +10,11 @@ public sealed partial class GridPlayground:MonoBehaviour {
     [Range(.12f,.3f)] public float walkSeconds=.25f;
     [Tooltip("Target catch-up time for fresh walking taps. Speed eases toward the target; held movement returns to normal pace.")]
     [Range(.04f,.15f)] public float walkTapCatchupSeconds=.07f;
+    [Tooltip("Maximum walking speed relative to normal walking, including rapid taps and turns.")]
+    [Range(1f,1.5f)] public float maxWalkSpeedMultiplier=1.5f;
+    [Tooltip("Maximum push acceleration relative to each magnet's normal timing.")]
+    [Range(1f,1.5f)] public float maxPushSpeedMultiplier=1.5f;
+    float WalkSpeedLimit => cellSize/Mathf.Max(.01f,walkSeconds)*Mathf.Clamp(maxWalkSpeedMultiplier,1f,1.5f);
     [Tooltip("Turning duration. Ordinary walking turns while moving, without a startup pause.")]
     [Range(.04f,.16f)] public float turnSeconds=.05f;
     [Tooltip("Short landing pause between automatically repeated walking steps; fresh key presses bypass it.")]
@@ -40,6 +45,7 @@ public sealed partial class GridPlayground:MonoBehaviour {
     float nextHeldStep;
     bool reversibleWalk;
     bool completingWalkForTurn;
+    bool curvedWalkRequested;
     Vector2Int walkDirection;
     float walkTapSpeed;
     float walkCurrentSpeed,walkTapTime;
@@ -55,6 +61,8 @@ public sealed partial class GridPlayground:MonoBehaviour {
     Coroutine movementPlayback;
     bool finishingMovement;
     bool deferPushLanding;
+    bool exitingPush;
+    Vector2Int pushExitDirection;
     Vector2Int? deferredPushLanding;
     float MovementDeltaTime {get{return recordingPush?PushSampleSeconds:finishingMovement?10f:Time.deltaTime;}}
     void StartMovement(IEnumerator action){
@@ -177,6 +185,7 @@ public sealed partial class GridPlayground:MonoBehaviour {
         LastRule="测试跳转：房间编号 "+targetNumber+"（"+(next+1)+" / "+centers.Count+"）";return true;
     }
     void Update(){
+        if(BlackHoleTravel.SkipTransitionActive){ClearMovementInput();return;}
         if(player&&(Input.anyKey||Input.mouseScrollDelta.sqrMagnitude>0
             ||Mathf.Abs(Input.GetAxisRaw("Mouse X"))+Mathf.Abs(Input.GetAxisRaw("Mouse Y"))>.001f)){
             var pose=player.GetComponent<PlayerPushPose>();if(pose)pose.CancelIdle();
@@ -225,6 +234,8 @@ public sealed partial class GridPlayground:MonoBehaviour {
         return false;
     }
     void ClearMovementInput(){
+        exitingPush=false;
+        curvedWalkRequested=false;
         walkTapSpeed=0;
         pushFlowBoost=0;
         bufferedSteps.Clear();heldDirection=Vector2Int.zero;nextHeldStep=0;
@@ -238,6 +249,11 @@ public sealed partial class GridPlayground:MonoBehaviour {
             nextHeldStep=Mathf.Max(nextHeldStep,Time.unscaledTime+Mathf.Clamp(heldStepPauseSeconds,0,.1f));
     }
     void PumpMovementInput(Vector2Int direction,bool freshPress=false){
+        if(exitingPush&&direction!=Vector2Int.zero){
+            pushExitDirection=direction;
+            bufferedSteps.Clear();
+            bufferedSteps.Enqueue(new BufferedStep{direction=direction,time=Time.unscaledTime});
+        }
         // Ordinary rolls keep their live trajectory. A tap changes its speed,
         // not its pose or coroutine, and the buffered step joins at the boundary.
         if(flowingPush&&freshPress&&direction==pushDirection&&bufferedSteps.Count<2){
@@ -251,7 +267,7 @@ public sealed partial class GridPlayground:MonoBehaviour {
             walkTapSpeed=Mathf.Max(walkTapSpeed,Vector3.Distance(player.position,walkDestination)/Mathf.Clamp(walkTapCatchupSeconds,.04f,.15f));
             walkTapTime=Time.unscaledTime;
         }
-        if(TryReverseWalk(direction))return;
+        if(TryReverseWalk(direction)){curvedWalkRequested=freshPress&&completingWalkForTurn;return;}
         while(bufferedSteps.Count>0&&Time.unscaledTime-bufferedSteps.Peek().time>InputBufferSeconds)bufferedSteps.Dequeue();
         // Direction changes replace stale intent instead of waiting behind it.
         // Repeated taps in the same direction still retain the existing two-step buffer.
@@ -307,8 +323,8 @@ public sealed partial class GridPlayground:MonoBehaviour {
             return true;
         }
         if(direction==walkDirection){completingWalkForTurn=false;bufferedSteps.Clear();return true;}
-        // Every perpendicular turn goes through the current target's centre,
-        // even on open ground. Facing can respond before translation changes axis.
+        // A fresh keyboard turn may round this corner on clear floor. Otherwise
+        // finish the validated axis before starting the queued perpendicular step.
         completingWalkForTurn=true;
         walkTapSpeed=0;
         bufferedSteps.Clear();
@@ -342,7 +358,7 @@ public sealed partial class GridPlayground:MonoBehaviour {
         walkOrigin=player.position;walkDestination=Position(next,Height(next));walkDirection=direction;
         completingWalkForTurn=false;return true;
     }
-    void ClearWalkInterrupt(){reversibleWalk=false;completingWalkForTurn=false;walkTapSpeed=0;}
+    void ClearWalkInterrupt(){reversibleWalk=false;completingWalkForTurn=false;curvedWalkRequested=false;walkTapSpeed=0;}
     void BeginPushInterrupt(Vector2Int direction,bool feedbackOnly=false){pushHoverParticipants.Clear();if(!feedbackOnly)PlayMagnetPushSound();interruptiblePush=true;pushFeedbackOnly=feedbackOnly;pushDirection=direction;pushUndo=null;}
     void EndPushInterrupt(){pushHoverParticipants.Clear();interruptiblePush=false;pushFeedbackOnly=false;pushUndo=null;flowingPush=false;}
     bool CanInterruptPush(Vector2Int direction,bool freshPress=false){
@@ -353,32 +369,114 @@ public sealed partial class GridPlayground:MonoBehaviour {
         bufferedSteps.Clear();
         var start=player.position;var facing=player.rotation;
         bool continuePushing=direction==pushDirection&&!pushFeedbackOnly;
+        var currentPose=player.GetComponent<PlayerPushPose>();
+        var release=!continuePushing&&currentPose?currentPose.CapturePushRelease():null;
+        // Recording must not bake a tap boost into an already accelerated replay.
+        if(flowingPush){pushFlowBoost=0;pushFlowSpeed=0;}
         deferredPushLanding=null;deferPushLanding=true;
         try{FinishPushWithPresentation(Mathf.Clamp(pushTapCatchupSeconds,.06f,.18f));}finally{deferPushLanding=false;}
         pushFlowSpeed=pushFlowBoost=0;pushFlowCarryTime=-1;
         var end=player.position;var landing=deferredPushLanding;deferredPushLanding=null;
+        // The push is now committed. Start a legal walking step immediately,
+        // while its visible path blends from the pre-commit player position.
+        if(!continuePushing&&CanBlendPushExit(start,end,direction)){
+            if(landing.HasValue)NotifyLanding(landing.Value);
+            var beforeWalk=SaveWorld();
+            var destination=CellAt(end)+direction;
+            RecordHistory(beforeWalk);
+            player.SetPositionAndRotation(start,facing);
+            exitingPush=true;pushExitDirection=direction;
+            Busy=true;StartMovement(BlendPushExit(end,Position(destination,end.y),destination,release));
+            return true;
+        }
         player.SetPositionAndRotation(start,facing);
         bufferedSteps.Enqueue(new BufferedStep{direction=direction,time=Time.unscaledTime});
-        Busy=true;StartMovement(CompleteInterruptedPush(end,landing,continuePushing));
+        exitingPush=!continuePushing;pushExitDirection=direction;
+        Busy=true;StartMovement(CompleteInterruptedPush(end,landing,continuePushing,release));
         return true;
     }
-    IEnumerator CompleteInterruptedPush(Vector3 end,Vector2Int? landing,bool continuePushing){
+    bool CanBlendPushExit(Vector3 visible,Vector3 committed,Vector2Int direction){
+        var incoming=committed-visible;
+        if(incoming.sqrMagnitude<.000001f||Mathf.Abs(Vector3.Dot(incoming.normalized,new Vector3(direction.x,0,direction.y)))>.01f)return false;
+        var from=CellAt(committed);var owner=Owner(Tile(from));
+        if(!SameHeight(visible.y,committed.y)||!PlainWalkCell(from,committed.y,owner)
+            ||!PlainWalkCell(from+direction,committed.y,owner))return false;
+        var destination=Position(from+direction,committed.y);
+        // Conservatively require the entire swept rectangle, including the
+        // character's width, to be plain floor. Near hazards use the grid corner.
+        float margin=cellSize*.18f;
+        int minX=Mathf.FloorToInt((Mathf.Min(visible.x,destination.x)-margin)/cellSize+.5f);
+        int maxX=Mathf.FloorToInt((Mathf.Max(visible.x,destination.x)+margin)/cellSize+.5f);
+        int minZ=Mathf.FloorToInt((Mathf.Min(visible.z,destination.z)-margin)/cellSize+.5f);
+        int maxZ=Mathf.FloorToInt((Mathf.Max(visible.z,destination.z)+margin)/cellSize+.5f);
+        for(int x=minX;x<=maxX;x++)for(int z=minZ;z<=maxZ;z++)
+            if(!PlainWalkCell(new Vector2Int(x,z),committed.y,owner))return false;
+        return true;
+    }
+    static Vector3 RoundedTurnPoint(Vector3 start,Vector3 corner,Vector3 end,float t){
+        // Quadratic curve: enters along the old axis and leaves along the new.
+        return Vector3.Lerp(Vector3.Lerp(start,corner,t),Vector3.Lerp(corner,end,t),t);
+    }
+    IEnumerator BlendPushExit(Vector3 corner,Vector3 destination,Vector2Int landing,System.Action<float> release,PlayerPushPose walkingPose=null){
+        var pose=walkingPose?walkingPose:PlayerPushPose.BeginWalk(player,cellSize);
+        var start=player.position;
+        const int samples=64;
+        var path=new Vector3[samples+1];path[0]=start;
+        for(int i=1;i<=samples;i++)path[i]=RoundedTurnPoint(start,corner,destination,(float)i/samples);
+        int segment=1;
+        float elapsed=0;
+        try{
+            while(segment<=samples){
+                float dt=MovementDeltaTime;elapsed+=dt;
+                var previous=player.position;
+                float budget=WalkSpeedLimit*dt,travelled=0;
+                while(segment<=samples&&budget>0){
+                    float remaining=Vector3.Distance(player.position,path[segment]);
+                    float step=Mathf.Min(remaining,budget);
+                    player.position=Vector3.MoveTowards(player.position,path[segment],step);
+                    budget-=step;travelled+=step;
+                    if(remaining<=step+.000001f)segment++;else break;
+                }
+                var tangent=player.position-previous;tangent.y=0;
+                if(tangent.sqrMagnitude>.000001f)player.rotation=Quaternion.RotateTowards(player.rotation,Quaternion.LookRotation(tangent),180f/Mathf.Max(.085f,turnSeconds)*dt);
+                pose.AdvanceWalk(travelled);
+                release?.Invoke(Mathf.Clamp01(elapsed/.08f));
+                yield return null;
+            }
+            player.position=destination;
+        }finally{if(pose)pose.End();}
+        exitingPush=false;NotifyLanding(landing);Busy=false;
+        continuePushOnComplete=!finishingMovement&&!recordingPush;
+    }
+    IEnumerator CompleteInterruptedPush(Vector3 end,Vector2Int? landing,bool continuePushing,System.Action<float> release){
         var pose=continuePushing?PlayerPushPose.Begin(player):PlayerPushPose.BeginWalk(player,cellSize);
         var start=player.position;
         float seconds=Mathf.Clamp(pushTapCatchupSeconds,.06f,.18f);
+        // MovementProgress has a peak derivative of 4/3. Bound peak, not average speed.
+        float limit=continuePushing?cellSize/Mathf.Max(.01f,barPushSeconds)*Mathf.Clamp(maxPushSpeedMultiplier,1f,1.5f):WalkSpeedLimit;
+        seconds=Mathf.Max(seconds,Vector3.Distance(start,end)*4f/(3f*limit));
         try{
-            for(float elapsed=0;elapsed<seconds;elapsed+=MovementDeltaTime){
-                float p=Mathf.Clamp01((elapsed+MovementDeltaTime)/seconds);
+            float elapsed=0;
+            while(elapsed<seconds){
+                elapsed+=MovementDeltaTime;
+                float p=Mathf.Clamp01(elapsed/seconds);
                 var previous=player.position;player.position=Vector3.Lerp(start,end,MovementProgress(p));
+                if(!continuePushing)FaceWalkDirection(pushExitDirection);
                 if(continuePushing)pose.Sample(.25f+p*.5f);else pose.AdvanceWalk(Vector3.Distance(previous,player.position));
+                if(!continuePushing)release?.Invoke(Mathf.Clamp01(elapsed/.08f));
                 yield return null;
             }
             player.position=end;
             // Release input only after the render tracks reach the same committed state.
             // The next push can then operate on the same piece without a visual jump.
-            while(pushPresentations.Count>0)yield return null;
+            if(continuePushing)while(pushPresentations.Count>0)yield return null;
         }finally{if(pose)pose.End();}
+        exitingPush=false;
         if(landing.HasValue)NotifyLanding(landing.Value);Busy=false;
+        if(!continuePushing&&!finishingMovement&&!recordingPush){
+            // Let the movement driver start the queued direction this frame.
+            continuePushOnComplete=true;
+        }
     }
     IEnumerator MovePlayer(Vector2Int p){
         Busy=true;
@@ -399,14 +497,27 @@ public sealed partial class GridPlayground:MonoBehaviour {
             walkCurrentSpeed=cellSize/Mathf.Max(.01f,walkSeconds);
             walkOrigin=player.position;walkDestination=Position(p,Height(p));walkDirection=p-from;
             while(true){
+                if(curvedWalkRequested&&completingWalkForTurn&&bufferedSteps.Count>0){
+                    var direction=bufferedSteps.Peek().direction;
+                    if(CanBlendPushExit(player.position,walkDestination,direction)){
+                        var visible=player.position;var corner=walkDestination;
+                        player.position=corner;NotifyLanding(CellAt(corner));RecordHistory(SaveWorld());
+                        player.position=visible;bufferedSteps.Dequeue();ClearWalkInterrupt();
+                        exitingPush=true;pushExitDirection=direction;
+                        var target=CellAt(corner)+direction;
+                        yield return BlendPushExit(corner,Position(target,corner.y),target,null,walkPose);
+                        yield break;
+                    }
+                    curvedWalkRequested=false;
+                }
                 Vector3 end=walkDestination;
                 // Carry speed across cells; fresh taps accelerate without a velocity jump.
                 var previous=player.position;
                 FaceWalkDirection(completingWalkForTurn&&bufferedSteps.Count>0?bufferedSteps.Peek().direction:walkDirection);
                 float speed=cellSize/Mathf.Max(.01f,walkSeconds)*(completingWalkForTurn?1.6f:1f);
                 if(Time.unscaledTime-walkTapTime>.24f)walkTapSpeed=0;
-                speed=Mathf.Max(speed,walkTapSpeed);
-                walkCurrentSpeed=Mathf.MoveTowards(walkCurrentSpeed,speed,cellSize/Mathf.Max(.01f,walkSeconds)*3*MovementDeltaTime/.07f);
+                speed=Mathf.Min(WalkSpeedLimit,Mathf.Max(speed,walkTapSpeed));
+                walkCurrentSpeed=Mathf.Min(WalkSpeedLimit,Mathf.MoveTowards(walkCurrentSpeed,speed,cellSize/Mathf.Max(.01f,walkSeconds)*3*MovementDeltaTime/.07f));
                 player.position=Vector3.MoveTowards(player.position,end,walkCurrentSpeed*MovementDeltaTime);
                 walkPose.AdvanceWalk(Vector3.Distance(previous,player.position));
                 if((player.position-end).sqrMagnitude<.000001f){

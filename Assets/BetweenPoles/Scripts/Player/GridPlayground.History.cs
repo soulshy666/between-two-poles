@@ -11,6 +11,7 @@ public sealed partial class GridPlayground {
         public Quaternion playerRotation,entryRotation;
         public Transform island;
         public bool goal;
+        public StandingSurface support;
         public Material goalMaterial;
     }
     public const int UndoLimit=20;
@@ -71,8 +72,9 @@ public sealed partial class GridPlayground {
     Transform Owner(MagnetPiece m){var tile=Tile(Cell(m.transform));if(tile)return Owner(tile);var a=m.GetComponent<IslandSurfaceAnchor>();return a?a.center:null;}
     Snapshot SavePiece(MagnetPiece m){return new Snapshot{portalEntryPosition=m.portalEntryPosition,storedInPortal=m.storedInPortal,parent=m.transform.parent,position=m.transform.position,rotation=m.transform.rotation,geometry=m.geometry,pose=m.geometry.localRotation,geoPosition=m.geometry.localPosition,scale=m.geometry.localScale,combined=m.combined,walkable=m.walkable,enabled=m.enabled,active=m.gameObject.activeSelf,product=m.product,baseNorth=m.baseNorth,bridgeDirection=m.bridgeDirection,north=m.north,shape=m.shape,owner=Owner(m)};}
     WorldState SaveWorld(){
+        if(!Busy)RefreshPlayerSupport();
         var s=new WorldState{pieces=new Snapshot[magnets.Length],arrivals=recoilArrivals.ToArray(),playerPosition=player.position,playerRotation=player.rotation,island=currentIsland,entryPosition=islandEntry,entryRotation=islandEntryRotation,goal=ReachedGoal,goalMaterial=goalLight?goalLight.sharedMaterial:null};
-        s.knockPoints=knockCheckpoints.ToArray();s.knockFlights=knockedFlights.ToArray();
+        s.support=standingSurface;s.knockPoints=knockCheckpoints.ToArray();s.knockFlights=knockedFlights.ToArray();
         for(int i=0;i<magnets.Length;i++){s.pieces[i]=SavePiece(magnets[i]);recordedGeometry.Add(s.pieces[i].geometry);}return s;
     }
     void TrackIsland(GridTile tile){
@@ -113,7 +115,7 @@ public sealed partial class GridPlayground {
         recoilArrivals.Clear();if(s.arrivals!=null)recoilArrivals.AddRange(s.arrivals);
         knockCheckpoints.Clear();if(s.knockPoints!=null)knockCheckpoints.AddRange(s.knockPoints);
         if(s.knockFlights!=null)foreach(var f in s.knockFlights){knockedFlights.Add(f);if(f.magnet)KnockRendering(f.magnet,true,f.lands?Vector3.Lerp(f.offset,SurfaceOffset(f.end),Mathf.Clamp01(f.elapsed/f.duration)):f.offset);}
-        player.SetPositionAndRotation(s.playerPosition,s.playerRotation);currentIsland=s.island;islandEntry=s.entryPosition;islandEntryRotation=s.entryRotation;
+        player.SetPositionAndRotation(s.playerPosition,s.playerRotation);standingSurface=s.support;RefreshPlayerSupport();currentIsland=s.island;islandEntry=s.entryPosition;islandEntryRotation=s.entryRotation;
         ReachedGoal=s.goal;if(goalLight)goalLight.sharedMaterial=s.goalMaterial;RefreshRestoredIsland();
     }
     public bool UndoStep(){

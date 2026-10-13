@@ -28,7 +28,7 @@ public sealed partial class BlackHoleTravel {
             BeginNavigation(board);
             yield return OpenPortalMap();
 
-            testMessage="左键拖拽查看已探索的小岛，滚轮缩放，点击黑洞直接从那里出来。";
+            testMessage="点击已探索的黑洞出洞；出口受阻时会弹回入口。左键拖拽查看，滚轮缩放。";
             busy=false;
             while(!testDestination){
                 if(Input.GetKeyDown(KeyCode.Z)){undoRequested=true;yield break;}
@@ -37,16 +37,27 @@ public sealed partial class BlackHoleTravel {
             busy=true;var destination=testDestination;
             ExitPlan plan;var direction=entryDirection;
             var cargo=source.Cargo;
-            bool valid=PlanExit(destination,direction,cargo,out plan);
+            bool valid=PlanJourneyExit(destination,direction,cargo,out plan);
             if(!valid)yield break;
 
+            yield return PlayAnimation(ExitAnimationKind(plan,cargo),CompleteExitJourney(source,destination,direction,cargo,plan,playerScale));
+        }finally{
+            EndNavigation();testPortals=null;testDestination=null;previewPortal=null;Selecting=false;busy=false;
+            if(board&&board.player)board.player.localScale=playerScale;
+            if(board){board.SetPortalBusy(false);board.enabled=wasEnabled;board.EndPortalMagnetPresentation();}
+            if(undoRequested&&board)board.UndoStep();
+        }
+    }
+    IEnumerator CompleteExitJourney(BlackHolePortal source,BlackHolePortal destination,Vector2Int direction,MagnetPiece cargo,ExitPlan plan,Vector3 playerScale){
+        var board=source.board;
             destination.Disarm();
             board.player.SetPositionAndRotation(new Vector3(destination.tile.transform.position.x,destination.tile.surfaceHeight,destination.tile.transform.position.z),entryFacing);
             board.CompletePortalLanding(destination.Cell);
             yield return WaitForExitView(destination);
             board.player.localScale=playerScale;
-            yield return Eject(destination,direction,cargo,plan);
-            if(plan.unstableLanding){
+            if(plan.failedExit)yield return FailedPortalExit(destination,direction,cargo,playerScale);
+            else yield return Eject(destination,direction,cargo,plan);
+            if(plan.unstableLanding||plan.failedExit||plan.kickRebound){
                 // Return to the original entrance automatically, without reopening
                 // navigation. Reverse the original entry direction to reach its shore.
                 board.player.localScale=Vector3.zero;
@@ -61,8 +72,9 @@ public sealed partial class BlackHoleTravel {
                 // manually selected exit, or the entire return animation is invisible.
                 board.player.localScale=playerScale;
                 ExitPlan returnPlan;
-                if(PlanExit(source,returnDirection,null,out returnPlan)&&!returnPlan.unstableLanding){
-                    yield return Eject(source,returnDirection,null,returnPlan);
+                var returningCargo=plan.failedExit?source.Cargo:null;
+                if(PlanExit(source,returnDirection,returningCargo,out returnPlan)&&!returnPlan.unstableLanding&&!returnPlan.bounce&&!returnPlan.kickRebound){
+                    yield return Eject(source,returnDirection,returningCargo,returnPlan);
                 }else{
                     // If the former entry side is no longer safe, recover on the
                     // entrance tile itself instead of repeating a failed landing.
@@ -72,17 +84,11 @@ public sealed partial class BlackHoleTravel {
                     board.CompletePortalLanding(source.Cell);
                 }
             }
-        }finally{
-            EndNavigation();testPortals=null;testDestination=null;previewPortal=null;Selecting=false;busy=false;
-            if(board&&board.player)board.player.localScale=playerScale;
-            if(board){board.enabled=wasEnabled;board.EndPortalMagnetPresentation();}
-            if(undoRequested&&board)board.UndoStep();
-        }
     }
     bool SelectTestPortal(BlackHolePortal portal){
         ExitPlan plan;
-        bool valid=portal&&PlanExit(portal,entryDirection,origin.Cargo,out plan);
-        if(!valid){testMessage="出口无法安全落脚或组合：检查出口、竖直磁铁倒下的一格，以及磁铁弹回入口的位置。";return false;}
+        bool valid=portal&&PlanJourneyExit(portal,entryDirection,origin.Cargo,out plan);
+        if(!valid){testMessage="这个黑洞已不存在，请选择其他黑洞。";return false;}
         testDestination=portal;return true;
     }
 }

@@ -109,9 +109,10 @@ namespace BetweenPoles.EditorTools {
                 float gaitBefore=(float)typeof(PlayerPushPose).GetField("walkDistance",Private).GetValue(pose);
                 AdvanceCardinal(accelerated,board);
                 float travelled=Vector3.Distance(beforeTap,board.player.position);
+                Check(travelled<=board.cellSize/board.walkSeconds*board.maxWalkSpeedMultiplier/60f+.00001f,"Walking exceeded speed cap");
                 float gaitAfter=(float)typeof(PlayerPushPose).GetField("walkDistance",Private).GetValue(pose);
                 Check(Mathf.Abs(gaitAfter-gaitBefore-travelled)<.00001f,"Gait did not follow accelerated movement");
-                if(fresh)Check(travelled>board.cellSize/board.walkSeconds/60f*1.5f,"Fresh tap did not accelerate");
+                if(fresh)Check(travelled>board.cellSize/board.walkSeconds/60f*1.1f,"Fresh tap did not accelerate");
                 else Check(Mathf.Abs(travelled-board.cellSize/board.walkSeconds/60f)<.00001f,"Held input accelerated");
                 int frames=1;while(AdvanceCardinal(accelerated,board))Check(++frames<100,"Tap walk stuck");
                 Check(board.PlayerCell==new Vector2Int(2,0)&&!board.Busy,"Tap did not finish exactly two steps");

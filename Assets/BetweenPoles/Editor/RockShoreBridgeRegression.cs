@@ -31,6 +31,9 @@ public static class RockShoreBridgeRegression {
                 Check((bool)Call(b,"BridgePassage",Vector2Int.zero,dir,null),"Rock-to-bridge path blocked");
                 Check(!(bool)Call(b,"ShouldHover",bridge),"Connected bridge still hovers");
                 float height=(float)Call(b,"DeckHeight",bridge);
+                Check(!b.TryStep(dir),"An exact one-layer drop must be rejected");
+                rock.transform.localPosition=Vector3.up*.275f;rock.transform.localScale=new Vector3(1,.55f,1);
+                Check(BlackHolePortal.TrySurface(b,Vector2Int.zero,out found,out top),"Low shore top missing");b.player.position=top;
                 Check(b.TryStep(dir),"Rock-to-bridge input rejected: "+b.LastRule);Call(b,"FinishMovement");
                 Check(b.PlayerCell==dir&&Mathf.Abs(b.player.position.y-height)<.001f,"Jump missed bridge height");
                 rock.name="调试高台";
@@ -54,6 +57,13 @@ public static class RockShoreBridgeRegression {
                 var floorTile=floorObject.AddComponent<GridTile>();b.tiles=new[]{tile,floorTile};b.InvalidateTileLookup();
                 var single=MagnetVisuals.Create(root.transform,axis*1.5f,MagnetShape.Bar,false,yaw,1.5f,root.transform);b.magnets=new[]{single};
                 Check(BlackHolePortal.TrySurface(b,dir,out found,out top),"Single top missing");
+                rock.name="调试高台";
+                for(int theme=0;theme<5;theme++){
+                    tile.rockTheme=theme;tile.rockStyle=0;tile.lowRockVariant=0;IceRockVisuals.Apply(b);b.player.position=top;
+                    Check(b.TryStep(-dir),"Normal authored stone rejected from single theme="+theme+": "+b.LastRule);
+                    Call(b,"FinishMovement");
+                }
+                UnityEngine.Object.DestroyImmediate(rock);rock=GameObject.CreatePrimitive(PrimitiveType.Cube);rock.transform.SetParent(shore.transform);
                 b.player.position=top;
                 float reachable=top.y+b.LayerHeight-.04f;
                 rock.transform.localScale=new Vector3(1,reachable,1);rock.transform.localPosition=Vector3.up*(reachable*.5f);

@@ -20,6 +20,9 @@ public sealed class BlackHolePortal : MonoBehaviour {
         return TrySurface(board,Cell+direction,out exit,out landing);
     }
     public static bool TrySurface(GridPlayground board,Vector2Int cell,out GridTile exit,out Vector3 landing){
+        return board.TryLandingSurface(cell,out exit,out landing);
+    }
+    internal static bool TryGeometrySurface(GridPlayground board,Vector2Int cell,out GridTile exit,out Vector3 landing){
         exit=board.TileAt(cell);
         landing=new Vector3(cell.x*board.cellSize,exit?exit.surfaceHeight:float.NegativeInfinity,cell.y*board.cellSize);
         if(board.IsWreckCell(cell))return false;
@@ -34,7 +37,7 @@ public sealed class BlackHolePortal : MonoBehaviour {
         return support;
     }
     static bool FindTop(GridPlayground board,Transform root,Vector2Int cell,ref Vector3 landing){
-        bool found=false;float nearest=float.PositiveInfinity;Vector3 center=new Vector3(cell.x*board.cellSize,0,cell.y*board.cellSize);
+        bool found=false,centered=false;float nearest=float.PositiveInfinity;Vector3 center=new Vector3(cell.x*board.cellSize,0,cell.y*board.cellSize);
         // Renderer bounds are deliberately enlarged for spherical rendering; use real mesh triangles.
         foreach(var filter in root.GetComponentsInChildren<MeshFilter>(true)){
             if(!filter.gameObject.activeSelf||filter.transform.IsChildOf(board.player)||filter.GetComponentInParent<BlackHolePortal>(true))continue;
@@ -45,7 +48,14 @@ public sealed class BlackHolePortal : MonoBehaviour {
                 var point=ClosestTopPoint(center,a,b,c);var delta=point-center;
                 if(Mathf.Abs(delta.x)>board.cellSize*.5f||Mathf.Abs(delta.z)>board.cellSize*.5f)continue;
                 float distance=delta.x*delta.x+delta.z*delta.z;
-                if(point.y>landing.y+.001f||Mathf.Abs(point.y-landing.y)<.001f&&distance<nearest){landing=point;nearest=distance;found=true;}
+                bool atCenter=distance<.000001f;
+                // On a sloped rock, the foothold is directly below the cell centre,
+                // not a higher outer edge of another triangle. Rings still use an edge.
+                if(centered&&!atCenter)continue;
+                if((atCenter&&found&&!centered)||point.y>landing.y+.001f
+                    ||Mathf.Abs(point.y-landing.y)<.001f&&distance<nearest){
+                    landing=point;nearest=distance;found=true;centered=atCenter;
+                }
             }
         }
         return found;

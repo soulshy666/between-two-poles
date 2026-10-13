@@ -25,6 +25,20 @@ public sealed partial class PlayerPushPose:MonoBehaviour {
         }
     }
     FlowStance flowStance,flowStartStance;
+    public System.Action<float> CapturePushRelease(){
+        Initialize();if(!visual)return null;
+        var position=visual.localPosition;var rotation=visual.localRotation;
+        var savedVertices=posed?posed.vertices:null;var savedNormals=posed?posed.normals:null;
+        return progress=>{
+            float blend=Mathf.SmoothStep(0,1,progress);
+            visual.localPosition=Vector3.Lerp(position,visual.localPosition,blend);
+            visual.localRotation=Quaternion.Slerp(rotation,visual.localRotation,blend);
+            if(!posed)return;
+            for(int i=0;i<workVertices.Length;i++)workVertices[i]=Vector3.Lerp(savedVertices[i],workVertices[i],blend);
+            for(int i=0;i<workNormals.Length;i++)workNormals[i]=Vector3.Lerp(savedNormals[i],workNormals[i],blend).normalized;
+            posed.vertices=workVertices;if(normals.Length==vertices.Length)posed.normals=workNormals;
+        };
+    }
     bool balancing; float balanceTime; Vector2Int balanceDirection;
     const float BalanceSeconds=1.35f;
     public static void BeginEdgeBalance(Transform player,Vector2Int direction){
