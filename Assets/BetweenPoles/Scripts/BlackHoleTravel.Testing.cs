@@ -12,6 +12,7 @@ public sealed partial class BlackHoleTravel {
         var playerScale=board.player.localScale;
         bool undoRequested=false;
         try{
+            board.BeginPortalMagnetPresentation();
             entryDirection=source.EntryDirection;
             if(Mathf.Abs(entryDirection.x)+Mathf.Abs(entryDirection.y)!=1){
                 var forward=board.player.forward;
@@ -74,7 +75,7 @@ public sealed partial class BlackHoleTravel {
         }finally{
             EndNavigation();testPortals=null;testDestination=null;previewPortal=null;Selecting=false;busy=false;
             if(board&&board.player)board.player.localScale=playerScale;
-            if(board)board.enabled=wasEnabled;
+            if(board){board.EndPortalMagnetPresentation();board.enabled=wasEnabled;}
             if(undoRequested&&board)board.UndoStep();
         }
     }
