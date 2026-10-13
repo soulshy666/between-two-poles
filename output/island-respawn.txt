@@ -1,0 +1,1 @@
+PASS: knocked magnet returns from displaced checkpoint and space below player; foreign arrival checkpoint and home recall; first entry survives revisit and undo; rock-top respawn; starting island; Z undo.

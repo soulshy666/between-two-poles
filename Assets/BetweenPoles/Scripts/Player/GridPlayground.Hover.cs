@@ -11,6 +11,18 @@ public sealed partial class GridPlayground {
     readonly List<Vector3> hoverVertices=new List<Vector3>();
     readonly Dictionary<Vector2Int,MagnetPiece> hoverNeighbors=new Dictionary<Vector2Int,MagnetPiece>();
     bool portalMagnetPresentation;
+    int portalHoverFrame=-1;
+    readonly HashSet<MagnetPiece> portalAnimatedMagnets=new HashSet<MagnetPiece>();
+    public float PortalMagnetOffset(MagnetPiece magnet){
+        IndexHoverNeighbors();
+        float time=hoveringMagnets.TryGetValue(magnet,out var age)?age:0;
+        return EdgeHoverLevel(magnet)+MagnetHoverAmplitude*Mathf.Sin(time*Mathf.PI*2/MagnetHoverPeriod)
+            *Mathf.SmoothStep(0,1,Mathf.Clamp01(time/.4f));
+    }
+    public void AnimatePortalMagnet(MagnetPiece magnet,bool active){
+        RestoreMagnetHover(null);
+        if(active)portalAnimatedMagnets.Add(magnet);else portalAnimatedMagnets.Remove(magnet);
+    }
     // Portal selection disables gameplay, but bridge geometry must retain the
     // same render-only shore alignment throughout navigation and exit playback.
     public void BeginPortalMagnetPresentation(){
@@ -20,7 +32,8 @@ public sealed partial class GridPlayground {
     }
     public void EndPortalMagnetPresentation(){
         portalMagnetPresentation=false;
-        if(!isActiveAndEnabled)ClearMagnetHover();else RestoreMagnetHover(null);
+        RestoreMagnetHover(null);
+        if(!isActiveAndEnabled)ClearMagnetHover();
     }
     void IndexHoverNeighbors(){
         hoverNeighbors.Clear();
@@ -104,20 +117,24 @@ public sealed partial class GridPlayground {
         foreach(var m in expiredHovers){hoveringMagnets.Remove(m);hoverLevels.Remove(m);}
         foreach(var m in magnets){
             if(!ShouldHover(m))continue;
+            if(portalAnimatedMagnets.Contains(m))continue;
             if(!hoveringMagnets.ContainsKey(m))hoveringMagnets.Add(m,0);
             float target=EdgeHoverLevel(m);
             if(!hoverLevels.ContainsKey(m))hoverLevels[m]=0;
-            hoverLevels[m]=Mathf.MoveTowards(hoverLevels[m],target,Time.deltaTime*.8f);
+            hoverLevels[m]=Mathf.MoveTowards(hoverLevels[m],target,(portalMagnetPresentation?Time.unscaledDeltaTime:Time.deltaTime)*.8f);
             // Docking/rolling has priority; restart gently once the push settles.
             hoveringMagnets[m]=Busy&&interruptiblePush&&pushHoverParticipants.Contains(m)
-                ?0:hoveringMagnets[m]+Time.deltaTime;
+                ?0:hoveringMagnets[m]+(portalMagnetPresentation?Time.unscaledDeltaTime:Time.deltaTime);
         }
     }
     void RenderMagnetHover(Camera camera){
         RestoreMagnetHover(null);
         if(!Application.isPlaying||!gameObject.activeInHierarchy||(!enabled&&!portalMagnetPresentation))return;
+        if(portalMagnetPresentation&&!enabled&&portalHoverFrame!=Time.frameCount){
+            portalHoverFrame=Time.frameCount;UpdateMagnetHover();
+        }
         foreach(var entry in hoveringMagnets){
-            var m=entry.Key;if(!m||!m.geometry||!m.gameObject.activeInHierarchy)continue;
+            var m=entry.Key;if(!m||!m.geometry||!m.gameObject.activeInHierarchy||portalAnimatedMagnets.Contains(m))continue;
             float t=entry.Value;
             float offset=(hoverLevels.TryGetValue(m,out float level)?level:0)+MagnetHoverAmplitude*Mathf.Sin(t*Mathf.PI*2/MagnetHoverPeriod)
                 *Mathf.SmoothStep(0,1,Mathf.Clamp01(t/.4f));
@@ -142,6 +159,7 @@ public sealed partial class GridPlayground {
     }
     void ClearMagnetHover(){
         portalMagnetPresentation=false;
+        portalAnimatedMagnets.Clear();
         Camera.onPreCull-=RenderMagnetHover;Camera.onPostRender-=RestoreMagnetHover;
         RestoreMagnetHover(null);hoveringMagnets.Clear();hoverLevels.Clear();
     }

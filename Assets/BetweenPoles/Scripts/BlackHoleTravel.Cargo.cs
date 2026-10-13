@@ -28,12 +28,9 @@ public sealed partial class BlackHoleTravel {
                 if(!tile||tile.blocked||board.IsWreckCell(cell)||BlackHolePortal.At(board,cell)
                     ||Mathf.Abs(tile.surfaceHeight-target.tile.surfaceHeight)>.01f
                     ||Mathf.Abs(obstacle.transform.position.y-tile.surfaceHeight)>.01f)return false;
-                var next=cell+direction;var ground=board.TileAt(next);
-                if(board.MagnetAt(next)||board.IsWreckCell(next)||BlackHolePortal.At(board,next)
-                    ||(ground&&(ground.blocked||Mathf.Abs(ground.surfaceHeight-tile.surfaceHeight)>.01f)))return false;
+                if(!board.TryPortalKickDestination(cell,direction,tile.surfaceHeight,out plan.kicked))return false;
                 plan.exitKickTarget=obstacle;plan.kick=true;plan.magnet=obstacle.transform.position;
                 plan.player=new Vector3(cell.x*board.cellSize,tile.surfaceHeight,cell.y*board.cellSize);
-                plan.kicked=new Vector3(next.x*board.cellSize,tile.surfaceHeight,next.y*board.cellSize);
             }else plan.player=top;
             return true;
         }
@@ -82,9 +79,7 @@ public sealed partial class BlackHoleTravel {
         plan.player=plan.magnet;
         if(plan.kick){
             if(!tile)return false; // The player must stand where the upright cargo first emerges.
-            var next=cell+direction;var ground=board.TileAt(next);
-            if(board.MagnetAt(next)||board.IsWreckCell(next)||BlackHolePortal.At(board,next)||(ground&&(ground.blocked||Mathf.Abs(ground.surfaceHeight-height)>.01f)))return false;
-            plan.kicked=new Vector3(next.x*board.cellSize,height,next.y*board.cellSize);
+            if(!board.TryPortalKickDestination(cell,direction,height,out plan.kicked))return false;
         }
         return true;
     }
@@ -96,10 +91,8 @@ public sealed partial class BlackHoleTravel {
         if(!ground||ground.blocked||source.board.MagnetAt(returnCell)||source.board.IsWreckCell(returnCell)||BlackHolePortal.At(source.board,returnCell))return false;
         plan.kick=cargo.product==MagnetProduct.Ring?!MagnetPiece.FlatU(cargo.Pose):cargo.shape==MagnetShape.Bar&&MagnetPiece.VerticalBar(cargo.Pose);
         if(plan.kick){
-            var back=returnCell-source.Cell;var next=returnCell+back;var nextGround=source.board.TileAt(next);
-            if(source.board.MagnetAt(next)||source.board.IsWreckCell(next)||BlackHolePortal.At(source.board,next)
-                ||(nextGround&&(nextGround.blocked||Mathf.Abs(nextGround.surfaceHeight-ground.surfaceHeight)>.01f)))return false;
-            plan.kicked=new Vector3(next.x*source.board.cellSize,ground.surfaceHeight,next.y*source.board.cellSize);
+            var back=returnCell-source.Cell;
+            if(!source.board.TryPortalKickDestination(returnCell,back,ground.surfaceHeight,out plan.kicked))return false;
         }
         plan.bounce=true;plan.player=cargo.portalEntryPosition;
         return true;
@@ -184,55 +177,96 @@ public sealed partial class BlackHoleTravel {
         }finally{if(player){player.localScale=playerScale;var pose=player.GetComponent<PlayerPushPose>();if(pose)pose.End();}if(board)board.SetPortalBusy(false);}
     }
     IEnumerator UnstablePortalLanding(Transform player,BlackHolePortal portal,Vector2Int direction,Vector3 hole,Vector3 landing,Vector3 scale){
-        var pose=PlayerPushPose.Begin(player);
+        var board=portal.board;var magnet=board.MagnetAt(portal.Cell+direction);
+        var geometry=magnet.geometry;board.AnimatePortalMagnet(magnet,true);
+        var restPosition=geometry.position;var restRotation=geometry.rotation;
         var outward=new Vector3(direction.x,0,direction.y);
-        // Hands face the island when hanging; root is outside the lip, below its surface.
-        var lip=hole+outward*(portal.board.cellSize*.5f);
-        var hanging=lip+outward*.22f-Vector3.up*.82f;
+        var pose=PlayerPushPose.Begin(player);
+        // The root remains on its logical layer; feet follow the displayed top.
+        float offset=board.PortalMagnetOffset(magnet);
+        landing.y+=offset;
+        // The prone mesh extends forward from its feet. Centre the entire body
+        // over the span, rather than placing its feet in the centre of the gap.
+        pose.SamplePortalProne();
+        float back=float.PositiveInfinity,front=float.NegativeInfinity;
+        foreach(var filter in player.GetComponentsInChildren<MeshFilter>())if(filter.sharedMesh&&filter.sharedMesh.isReadable){
+            foreach(var vertex in filter.sharedMesh.vertices){
+                float along=Vector3.Dot(filter.transform.TransformPoint(vertex)-player.position,outward);
+                back=Mathf.Min(back,along);front=Mathf.Max(front,along);
+            }
+        }
+        float bodyCentre=float.IsInfinity(back)?board.cellSize*.32f:(back+front)*.5f;
+        float spanCentre=Vector3.Dot(magnet.transform.position-landing,outward);
+        landing+=outward*(spanCentre-bodyCentre);
+        pose.SampleUnstablePortalArrival(0);
+        var launch=landing;
         try{
+            geometry.position=restPosition+Vector3.up*offset;
             for(float t=0;t<1.05f;t+=Time.unscaledDeltaTime){
-                float a=t/1.05f;player.localScale=scale*Mathf.Clamp01(a*5);
-                player.position=ThrownPosition(hole,landing,a);pose.SamplePortalFlight(a);yield return null;
+                float a=Mathf.Clamp01(t/1.05f);player.localScale=scale*Mathf.Clamp01(a*5);
+                player.position=ThrownPosition(hole,landing,a);
+                // Blend into the same prone pose used by the recovery, without a pose reset.
+                pose.SampleUnstablePortalArrival(a);yield return null;
             }
             player.localScale=scale;player.position=landing;
-            for(float t=0;t<1.1f;t+=Time.unscaledDeltaTime){pose.SamplePortalLedge(0,t/1.1f);yield return null;}
+            // Impact and spring compression share one displacement: the prone
+            // actor stays in contact with the magnetic surface until release.
+            float depth=board.cellSize*.32f;
+            for(float t=0;t<.3f;t+=Time.unscaledDeltaTime){
+                float a=Mathf.Clamp01(t/.3f),dip=-depth*Mathf.Sin(a*Mathf.PI*.5f);
+                geometry.position=restPosition+Vector3.up*(offset+dip);
+                player.position=landing+Vector3.up*dip;
+                pose.SamplePortalProne();yield return null;
+            }
+            const float reboundSeconds=.18f;
+            for(float t=0;t<reboundSeconds;t+=Time.unscaledDeltaTime){
+                float a=Mathf.Clamp01(t/reboundSeconds),dip=-depth*Mathf.Cos(a*Mathf.PI*.5f);
+                geometry.position=restPosition+Vector3.up*(offset+dip);
+                player.position=landing+Vector3.up*dip;
+                pose.SamplePortalProne();yield return null;
+            }
+            launch=landing;player.position=launch;
             var facing=player.rotation;
-            for(float t=0;t<.5f;t+=Time.unscaledDeltaTime){
-                float a=Mathf.Clamp01(t/.5f);
-                player.position=Vector3.Lerp(landing,hanging,a*a);
-                player.rotation=Quaternion.Slerp(facing,Quaternion.LookRotation(-outward),Mathf.Clamp01(a*2));
-                pose.SamplePortalLedge(Mathf.SmoothStep(0,1,a),0);yield return null;
-            }
-            player.position=hanging;player.rotation=Quaternion.LookRotation(-outward);
-            for(float t=0;t<.65f;t+=Time.unscaledDeltaTime){pose.SamplePortalLedge(1,0);yield return null;}
-            var standing=lip-outward*.28f;
-            for(float t=0;t<.95f;t+=Time.unscaledDeltaTime){
-                float a=Mathf.SmoothStep(0,1,t/.95f);
-                var lifted=hanging+Vector3.up*(hole.y-hanging.y+.12f);
-                player.position=a<.65f?Vector3.Lerp(hanging,lifted,a/.65f):Vector3.Lerp(lifted,standing,(a-.65f)/.35f);
-                pose.SamplePortalLedge(1-Mathf.SmoothStep(0,1,Mathf.InverseLerp(.45f,1,a)),0);yield return null;
-            }
-            player.position=standing;
-            for(float t=0;t<.65f;t+=Time.unscaledDeltaTime){
-                float a=Mathf.Clamp01(t/.65f);player.position=Vector3.Lerp(standing,hole,a)+Vector3.up*(.5f*Mathf.Sin(a*Mathf.PI));
-                pose.SamplePortalEntry(a);yield return null;
+            // Match the spring's upward release speed, then follow a ballistic
+            // arc whose endpoint is inside the mouth of the same black hole.
+            float velocity=depth*Mathf.PI/(2*reboundSeconds);
+            const float flightSeconds=1.05f;
+            var entry=hole-Vector3.up*.22f;
+            float gravity=2*(launch.y+velocity*flightSeconds-entry.y)/(flightSeconds*flightSeconds);
+            for(float t=0;t<flightSeconds;t+=Time.unscaledDeltaTime){
+                float a=Mathf.Clamp01(t/flightSeconds);
+                player.position=Vector3.Lerp(launch,entry,a);
+                var position=player.position;position.y=launch.y+velocity*t-.5f*gravity*t*t;player.position=position;
+                player.rotation=Quaternion.Slerp(facing,Quaternion.LookRotation(-outward),Mathf.SmoothStep(0,1,Mathf.Clamp01(a/.35f)));
+                pose.SamplePortalSpringFlight(a);
+                player.localScale=scale*(1-Mathf.SmoothStep(0,1,Mathf.InverseLerp(.83f,1,a)));
+                // The unloaded magnet overshoots and settles back into its hover.
+                float spring=.13f*Mathf.Sin(t*18)*Mathf.Exp(-t*5);
+                geometry.position=restPosition;
+                float hover=board.PortalMagnetOffset(magnet);
+                geometry.position=restPosition+Vector3.up*(Mathf.Lerp(offset,hover,Mathf.SmoothStep(0,1,a))+spring);
+                yield return null;
             }
             player.position=hole;player.localScale=Vector3.zero;
-        }finally{pose.End();}
+        }finally{
+            geometry.position=restPosition;geometry.rotation=restRotation;
+            board.AnimatePortalMagnet(magnet,false);pose.End();
+        }
     }
     IEnumerator KickExitPlayer(Transform player,MagnetPiece cargo,Vector3 portalPosition,Vector2Int direction,ExitPlan plan,Quaternion pose,Vector3 playerScale){
                     player.localScale=playerScale;var axis=new Vector3(direction.y,0,-direction.x);
                     var fallen=cargo.product==MagnetProduct.Ring?Quaternion.FromToRotation(pose*Vector3.up,Vector3.up)*pose:Quaternion.AngleAxis(90,axis)*pose;
                     var kickPose=PlayerPushPose.Begin(player);
+                    var landing=PortalProneLanding(player,kickPose,plan.player,playerScale);
                     for(float t=0;t<.8f;t+=Time.unscaledDeltaTime){
                         float a=Mathf.SmoothStep(0,1,t/.8f);
                         cargo.transform.position=Vector3.Lerp(plan.magnet,plan.kicked,a);
                         cargo.geometry.rotation=Quaternion.Slerp(pose,fallen,a);MagnetVisuals.Ground(cargo);kickPose.SamplePortalFlight(a);
-                        player.position=ThrownPosition(portalPosition,plan.player,a);yield return null;
+                        player.position=ThrownPosition(portalPosition,landing,a);yield return null;
                     }
-                    kickPose.End();cargo.transform.position=plan.kicked;cargo.geometry.rotation=fallen;MagnetVisuals.Ground(cargo);
+                    cargo.transform.position=plan.kicked;cargo.geometry.rotation=fallen;MagnetVisuals.Ground(cargo);
                     if(cargo.product==MagnetProduct.Ring)cargo.walkable=MagnetPiece.FlatU(cargo.Pose);
-                    player.position=plan.player;yield return RecoverPlayer(player);
+                    player.position=landing;yield return RecoverPlayer(player,plan.player);
     }
     static Vector3 ThrownPosition(Vector3 start,Vector3 end,float progress){
         float a=Mathf.Clamp01(progress),horizontal=Mathf.SmoothStep(0,1,Mathf.InverseLerp(.18f,1,a));
@@ -243,20 +277,37 @@ public sealed partial class BlackHoleTravel {
     }
     IEnumerator EjectPlayer(Transform player,Vector3 start,Vector3 end,Vector3 scale){
         var flight=PlayerPushPose.Begin(player);
+        var landing=PortalProneLanding(player,flight,end,scale);
         for(float t=0;t<1.05f;t+=Time.unscaledDeltaTime){
             float a=t/1.05f;player.localScale=scale*Mathf.Lerp(.05f,1,Mathf.Clamp01(a*5));
-            player.position=ThrownPosition(start,end,a);flight.SamplePortalFlight(a);yield return null;
+            player.position=ThrownPosition(start,landing,a);flight.SamplePortalFlight(a);yield return null;
         }
-        player.localScale=scale;player.position=end;yield return RecoverPlayer(player);
+        player.localScale=scale;player.position=landing;yield return RecoverPlayer(player,end);
     }
-    IEnumerator RecoverPlayer(Transform player){
+    static Vector3 PortalProneLanding(Transform player,PlayerPushPose pose,Vector3 centre,Vector3 scale){
+        var savedScale=player.localScale;player.localScale=scale;
+        pose.SamplePortalProne();
+        var forward=player.forward;forward.y=0;forward.Normalize();
+        float back=float.PositiveInfinity,front=float.NegativeInfinity;
+        foreach(var filter in player.GetComponentsInChildren<MeshFilter>())if(filter.sharedMesh&&filter.sharedMesh.isReadable){
+            foreach(var vertex in filter.sharedMesh.vertices){
+                float along=Vector3.Dot(filter.transform.TransformPoint(vertex)-player.position,forward);
+                back=Mathf.Min(back,along);front=Mathf.Max(front,along);
+            }
+        }
+        player.localScale=savedScale;pose.SamplePortalFlight(0);
+        return centre-forward*(float.IsInfinity(back)?.48f:(back+front)*.5f);
+    }
+    IEnumerator RecoverPlayer(Transform player,Vector3 centre){
         var pose=PlayerPushPose.Begin(player);
+        var landing=player.position;
         try{
             for(float t=0;t<1.25f;t+=Time.unscaledDeltaTime){
                 float rise=Mathf.SmoothStep(0,1,Mathf.InverseLerp(.38f,1.25f,t));
-                pose.SampleCrashPose(1-rise,Mathf.Sin(rise*Mathf.PI));yield return null;
+                player.position=Vector3.Lerp(landing,centre,rise);
+                pose.SamplePortalRecovery(rise);yield return null;
             }
-        }finally{if(pose)pose.End();}
+        }finally{if(player)player.position=centre;if(pose)pose.End();}
     }
     IEnumerator ThrowCargo(MagnetPiece cargo,Vector3 start,Vector3 end,Quaternion pose,Vector3 scale,float seconds,float arc,MagnetPiece displaced=null,Vector3 displacedEnd=default(Vector3)){
         var displacedStart=displaced?displaced.transform.position:Vector3.zero;

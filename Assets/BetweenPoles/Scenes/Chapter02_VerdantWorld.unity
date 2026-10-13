@@ -99320,7 +99320,7 @@ MonoBehaviour:
   stepSeconds: 0.22
   walkSeconds: 0.25
   turnSeconds: 0.05
-  heldStepPauseSeconds: 0.02
+  heldStepPauseSeconds: 0
   barPushSeconds: 0.46
   uRollSeconds: 0.7
   joinSeconds: 1.35

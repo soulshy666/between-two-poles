@@ -1,0 +1,1 @@
+PASS: hover survives disable and continues ticking; shore offset; spring compression and high airborne return; hidden entry and magnet restoration.

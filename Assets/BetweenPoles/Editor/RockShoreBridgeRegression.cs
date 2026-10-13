@@ -31,14 +31,44 @@ public static class RockShoreBridgeRegression {
                 Check((bool)Call(b,"BridgePassage",Vector2Int.zero,dir,null),"Rock-to-bridge path blocked");
                 Check(!(bool)Call(b,"ShouldHover",bridge),"Connected bridge still hovers");
                 float height=(float)Call(b,"DeckHeight",bridge);
-                Drain((IEnumerator)Call(b,"WalkOffObject",dir,axis*1.5f+Vector3.up*height));
+                Check(b.TryStep(dir),"Rock-to-bridge input rejected: "+b.LastRule);Call(b,"FinishMovement");
                 Check(b.PlayerCell==dir&&Mathf.Abs(b.player.position.y-height)<.001f,"Jump missed bridge height");
+                rock.name="调试高台";
+                for(int theme=0;theme<5;theme++)for(int variant=0;variant<3;variant++){
+                    tile.rockTheme=theme;tile.rockStyle=2;tile.lowRockVariant=variant;IceRockVisuals.Apply(b);
+                    Check(BlackHolePortal.TrySurface(b,Vector2Int.zero,out found,out top),"Authored rock top missing");
+                    b.player.position=top;
+                    Check(b.TryStep(dir),"Authored rock-to-bridge rejected theme="+theme+" variant="+variant+": "+b.LastRule);
+                    Call(b,"FinishMovement");
+                    Check(b.PlayerCell==dir&&Mathf.Abs(b.player.position.y-height)<.001f,"Authored rock jump missed bridge");
+                }
+                // Restore simple geometry for the height-limit checks below.
+                UnityEngine.Object.DestroyImmediate(rock);rock=GameObject.CreatePrimitive(PrimitiveType.Cube);rock.transform.SetParent(shore.transform);
                 Check((bool)Call(b,"BridgePassage",dir,dir*2,null),"Bridge-to-island path blocked");
                 var side=new Vector2Int(-dir.y,dir.x);Check(!(bool)Call(b,"BridgePassage",dir,dir+side,null),"Side entry allowed");
                 b.tiles=new[]{tile};b.InvalidateTileLookup();Check(!(bool)Call(b,"WideBarConnected",bridge)&&(bool)Call(b,"ShouldHover",bridge),"Missing far shore still connected");
+                // Stand on a flat single on land: use its top, not the land below,
+                // as the takeoff height for an adjacent rock.
+                bridge.gameObject.SetActive(false);
+                var floorObject=new GameObject("Magnet floor");floorObject.transform.SetParent(root.transform);floorObject.transform.position=axis*1.5f;
+                var floorTile=floorObject.AddComponent<GridTile>();b.tiles=new[]{tile,floorTile};b.InvalidateTileLookup();
+                var single=MagnetVisuals.Create(root.transform,axis*1.5f,MagnetShape.Bar,false,yaw,1.5f,root.transform);b.magnets=new[]{single};
+                Check(BlackHolePortal.TrySurface(b,dir,out found,out top),"Single top missing");
+                b.player.position=top;
+                float reachable=top.y+b.LayerHeight-.04f;
+                rock.transform.localScale=new Vector3(1,reachable,1);rock.transform.localPosition=Vector3.up*(reachable*.5f);
+                Check((bool)Call(b,"TryStepCore",-dir),"Magnet height ignored when jumping to rock: "+b.LastRule);
+                Call(b,"FinishMovement");
+                Check(b.PlayerCell==Vector2Int.zero&&Mathf.Abs(b.player.position.y-reachable)<.001f,"Jump did not land on stone top");
+                b.player.position=top;
+                float tooHigh=top.y+b.LayerHeight+.1f;
+                rock.transform.localScale=new Vector3(1,tooHigh,1);rock.transform.localPosition=Vector3.up*(tooHigh*.5f);
+                Check(!(bool)Call(b,"TryStepCore",-dir),"Jump exceeded takeoff height limit");
+                b.player.position=floorObject.transform.position;
+                Check(!(bool)Call(b,"TryStepCore",-dir),"Ground-level player climbed stone");
                 UnityEngine.Object.DestroyImmediate(root);
             }
-            Directory.CreateDirectory("output");File.WriteAllText("output/rock-shore-bridge.txt","PASS: four orientations; rock anchors wide bar, no hover, rock-top jump lands at deck height, onward shore access, side/missing-shore rejection.");
+            Directory.CreateDirectory("output");File.WriteAllText("output/rock-shore-bridge.txt","PASS: four orientations; rock anchors wide bar, bridge access and hover; magnet-top jump to reachable stone; excessive height and ground-level ascent rejected.");
         }catch(Exception ex){Directory.CreateDirectory("output");File.WriteAllText("output/rock-shore-bridge.txt","FAIL: "+ex);throw;}
         finally{EditorSceneManager.ClosePreviewScene(scene);}
     }

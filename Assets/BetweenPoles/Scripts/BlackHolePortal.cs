@@ -42,13 +42,36 @@ public sealed class BlackHolePortal : MonoBehaviour {
             for(int i=0;i<indices.Length;i+=3){
                 var a=filter.transform.TransformPoint(vertices[indices[i]]);var b=filter.transform.TransformPoint(vertices[indices[i+1]]);var c=filter.transform.TransformPoint(vertices[indices[i+2]]);
                 var normal=Vector3.Cross(b-a,c-a).normalized;if(normal.y<.5f)continue;
-                var point=(a+b+c)/3;var delta=point-center;
+                var point=ClosestTopPoint(center,a,b,c);var delta=point-center;
                 if(Mathf.Abs(delta.x)>board.cellSize*.5f||Mathf.Abs(delta.z)>board.cellSize*.5f)continue;
                 float distance=delta.x*delta.x+delta.z*delta.z;
                 if(point.y>landing.y+.001f||Mathf.Abs(point.y-landing.y)<.001f&&distance<nearest){landing=point;nearest=distance;found=true;}
             }
         }
         return found;
+    }
+    // Project the cell centre onto the triangle, rather than using its centroid.
+    // Outside a triangle, retain the nearest solid edge (important for rings).
+    static Vector3 ClosestTopPoint(Vector3 center,Vector3 a,Vector3 b,Vector3 c){
+        var ab=new Vector2(b.x-a.x,b.z-a.z);var ac=new Vector2(c.x-a.x,c.z-a.z);
+        var p=new Vector2(center.x-a.x,center.z-a.z);
+        float determinant=ab.x*ac.y-ab.y*ac.x;
+        if(Mathf.Abs(determinant)>.000001f){
+            float u=(p.x*ac.y-p.y*ac.x)/determinant;
+            float v=(ab.x*p.y-ab.y*p.x)/determinant;
+            if(u>=0&&v>=0&&u+v<=1)return a+(b-a)*u+(c-a)*v;
+        }
+        var best=ClosestTopEdge(center,a,b);
+        var next=ClosestTopEdge(center,b,c);
+        if(TopDistance(center,next)<TopDistance(center,best))best=next;
+        next=ClosestTopEdge(center,c,a);
+        return TopDistance(center,next)<TopDistance(center,best)?next:best;
+    }
+    static float TopDistance(Vector3 a,Vector3 b){float x=a.x-b.x,z=a.z-b.z;return x*x+z*z;}
+    static Vector3 ClosestTopEdge(Vector3 center,Vector3 a,Vector3 b){
+        var edge=b-a;float length=edge.x*edge.x+edge.z*edge.z;
+        float t=length>.000001f?Mathf.Clamp01(((center.x-a.x)*edge.x+(center.z-a.z)*edge.z)/length):0;
+        return a+edge*t;
     }
     void Update(){
         if(!Application.isPlaying||!board||!tile||!board.player)return;
