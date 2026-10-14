@@ -116,14 +116,11 @@ public sealed partial class ChapterAtlas {
             if(canvas&&!canvas.enabled&&PixelGameUI.Button(new Rect(Screen.width-240,22,218,52),"返回游戏（Esc）"))ReturnToGame();
             return;
         }
-        var matrix=GUI.matrix;float scale=Mathf.Max(.7f,Screen.height/900f);GUI.matrix=Matrix4x4.Scale(new Vector3(scale,scale,1));
         GUI.enabled=true;
-        if(PixelGameUI.Button(new Rect(Screen.width/scale-240,22,218,48),"返回游戏（Esc）"))ReturnToGame();
+        ElementGameUI.NavigationButton("return",true,ReturnToGame);
         GUI.enabled=!inspectionLoading;
-        if(PixelGameUI.Button(new Rect(22,22,210,48),"星际航图"))CloseInspection();
+        ElementGameUI.NavigationButton("chart",false,CloseInspection);
         GUI.enabled=true;
-        GUI.Label(new Rect(248,25,900,48),inspectionMessage,PixelGameUI.Text(17));
-        GUI.matrix=matrix;
     }
 }
 }
