@@ -1,11 +1,11 @@
-using System.Collections;
+﻿using System.Collections;
 using System.Linq;
 using UnityEngine;
 namespace BetweenPoles {
 public sealed partial class BlackHoleTravel {
     public struct ExitPlan {
         public Vector3 player,magnet,kicked;
-        public bool kick,bounce,unstableLanding,failedExit,kickRebound;
+        public bool kick,bounce,unstableLanding,failedExit,kickRebound,separateCargo;
         public MagnetPiece receiver;
         public MagnetPiece displaced;
         public MagnetPiece exitKickTarget;
@@ -20,7 +20,10 @@ public sealed partial class BlackHoleTravel {
         plan=new ExitPlan{failedExit=true};return true;
     }
     public static bool PlanExit(BlackHolePortal target,Vector2Int direction,MagnetPiece cargo,out ExitPlan plan){
-        plan=new ExitPlan();if(!target||!target.CanArrive||(target.Cargo&&target.Cargo!=cargo)||Mathf.Abs(direction.x)+Mathf.Abs(direction.y)!=1)return false;
+        return PlanExitCore(target,direction,cargo,out plan,false);
+    }
+    static bool PlanExitCore(BlackHolePortal target,Vector2Int direction,MagnetPiece cargo,out ExitPlan plan,bool cargoOnly){
+        plan=new ExitPlan();if(!target||!target.CanArrive||(cargo&&target.Cargo&&target.Cargo!=cargo)||Mathf.Abs(direction.x)+Mathf.Abs(direction.y)!=1)return false;
         var board=target.board;var cell=target.Cell+direction;GridTile tile;Vector3 top;
         if(!cargo){
             if(!target.TryExitLanding(direction,out tile,out top))return false;
@@ -61,7 +64,7 @@ public sealed partial class BlackHoleTravel {
                 if(board.MagnetAt(next)||board.IsWreckCell(next)||BlackHolePortal.At(board,next)
                     ||(ground&&Mathf.Abs(ground.surfaceHeight-tile.surfaceHeight)>.01f))return false;
                 // The arriving upright piece would need this same cell for its subsequent kick.
-                if(cargo.shape==MagnetShape.Bar&&MagnetPiece.VerticalBar(cargo.Pose))return false;
+                if(!cargoOnly&&cargo.shape==MagnetShape.Bar&&MagnetPiece.VerticalBar(cargo.Pose))return false;
                 plan.displaced=receiver;
                 plan.displacedPosition=receiver.transform.position+new Vector3(direction.x,0,direction.y)*board.cellSize;
                 plan.magnet=new Vector3(cell.x*board.cellSize,tile.surfaceHeight,cell.y*board.cellSize);
@@ -90,6 +93,7 @@ public sealed partial class BlackHoleTravel {
             plan.unstableLanding=true;
             if(!plan.kick)return true;
         }
+        if(cargoOnly){plan.kick=false;plan.unstableLanding=false;return true;}
         if(plan.kick){
             if(!PlanExitKick(board,cargo,cell,direction,height,ref plan))return false;
         }
@@ -165,6 +169,11 @@ public sealed partial class BlackHoleTravel {
                 yield return ThrowCargo(cargo,portalPosition,plan.magnet,pose,scale,plan.bounce?.28f:.55f,plan.bounce?.24f:.38f,plan.displaced,plan.displacedPosition,slide);
                 // Stone contact reverses immediately; clear landings briefly settle first.
                 if(!plan.bounce)yield return AnimationWait(.12f);
+                if(plan.separateCargo){
+                    if(plan.receiver)yield return board.AssemblePortalCargo(cargo,plan.receiver,direction,plan.product);
+                    else yield return board.SettleMagnetArrival(cargo,portalPosition,true);
+                    yield break;
+                }
                 if(plan.bounce){
                     yield return BounceCargo(cargo,source,target,plan.magnet,portalPosition,pose,scale,playerScale);
                     var returnCell=new Vector2Int(Mathf.RoundToInt(cargo.portalEntryPosition.x/board.cellSize),Mathf.RoundToInt(cargo.portalEntryPosition.z/board.cellSize));

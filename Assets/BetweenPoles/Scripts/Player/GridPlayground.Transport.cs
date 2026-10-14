@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using System.Collections.Generic;
 namespace BetweenPoles {
 public sealed partial class GridPlayground {
@@ -57,10 +57,14 @@ public sealed partial class GridPlayground {
             if(!result||DeckHeight(m)>DeckHeight(result))result=m;
         return result;
     }
+    bool SpaceRing(MagnetPiece ring){
+        return ring&&ring.product==MagnetProduct.Ring&&!Tile(Cell(ring.transform));
+    }
     bool ShoreLevelBridge(MagnetPiece deck){
         if(!deck||!deck.walkable)return false;
         var cell=Cell(deck.transform);
-        return deck.product==MagnetProduct.WideBar&&!Tile(cell)
+        return SpaceRing(deck)&&MagnetPiece.FlatU(deck.Pose)
+            ||deck.product==MagnetProduct.WideBar&&!Tile(cell)
             ||deck.product==MagnetProduct.Bridge&&(!Tile(cell)||!Tile(cell+deck.bridgeDirection));
     }
     float DeckHeight(MagnetPiece deck){
@@ -86,7 +90,7 @@ public sealed partial class GridPlayground {
     // One read-only destination query for every source of magnetic movement.
     public MagnetLanding InspectMagnetDestination(Vector2Int from,float height,Vector2Int cell,MagnetPiece moving){
         var result=new MagnetLanding{kind=MagnetLandingKind.Blocked,position=Position(cell,height)};
-        if(IsWreckCell(cell))return result;
+        if(IsWreckCell(cell)||RingRouteReserved(cell))return result;
         float landing;
         if(!TravelSurfaceCore(from,height,cell,moving,out landing))return result;
         result.position=Position(cell,landing);

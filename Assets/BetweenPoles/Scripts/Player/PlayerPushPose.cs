@@ -11,7 +11,7 @@ public sealed partial class PlayerPushPose:MonoBehaviour {
     float nextWalkFoot=1,walkFoot=1;
     PlayerFootstepAudio footsteps;
     float nextWalkSoundDistance;
-    bool flowPushing;
+    bool flowPushing,flowReleaseRequested;
     float flowDistance,flowCellSize,flowEffort,flowRelease=1;
     public enum FlowPushStyle { Standard, LiftBar, ShoveBar }
     FlowPushStyle flowStyle;
@@ -64,10 +64,11 @@ public sealed partial class PlayerPushPose:MonoBehaviour {
         else pose.flowEffort*=pose.flowRelease;
         pose.flowStartStance=FlowStance.Blend(default(FlowStance),pose.flowStance,pose.flowRelease);
         pose.flowStyle=style;
-        pose.flowPushing=true;pose.pushing=true;pose.walking=false;
+        pose.flowPushing=true;pose.flowReleaseRequested=false;pose.pushing=true;pose.walking=false;
         pose.flowCellSize=Mathf.Max(.01f,cellSize);pose.flowRelease=1;
         return pose;
     }
+    public void ReleaseFlowPush(){if(flowPushing)flowReleaseRequested=true;}
     public void AdvanceFlowPush(float distance,float seconds,float progress=0){
         flowDistance+=distance;
         flowEffort=Mathf.MoveTowards(flowEffort,1,seconds/.07f);
@@ -351,7 +352,7 @@ public sealed partial class PlayerPushPose:MonoBehaviour {
         posed.vertices=workVertices;if(normals.Length==vertices.Length)posed.normals=workNormals;
     }
     public void End(){
-        flowPushing=false;flowDistance=0;flowEffort=0;flowRelease=1;
+        flowPushing=false;flowReleaseRequested=false;flowDistance=0;flowEffort=0;flowRelease=1;
         flowStance=flowStartStance=default(FlowStance);
         readingMap=false;DockMapTablet();
         ResetPortalEntry();
@@ -391,7 +392,7 @@ public sealed partial class PlayerPushPose:MonoBehaviour {
     void LateUpdate(){
         if(collectingStarPose)return;
         if(readingMap){SampleMap(mapProgress);return;}
-        if(flowPushing&&(!board||!board.Busy)){
+        if(flowPushing&&(flowReleaseRequested||!board||!board.Busy)){
             flowRelease=Mathf.MoveTowards(flowRelease,0,Time.deltaTime/.12f);
             ApplyFlowStance(flowStance,flowRelease);
             if(flowRelease<=0)End();

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using UnityEditor;
@@ -53,9 +53,30 @@ public static class PortalRepulsionRegression {
             checks+=EmptySpaceLedgeCases(scene);
             checks+=SkipSettlementCases(scene);
             checks+=GroundBarInertiaCases(scene);
+            checks+=IndependentCargoCases(scene);
+            checks+=BlockedChainCases(scene);
+            checks+=RingResponseCases(scene);
+            checks+=RingEditorCases(scene);
+            checks+=FlatRingShoreCases(scene);
+            checks+=RingRecipeCases(scene);
             Directory.CreateDirectory("output");File.WriteAllText("output/portal-repulsion.txt","PASS: "+checks+" checks; four directions; stone/high platform rebound; wide-bar support and visibility; kick onto ground/space/second portal; occupied portal rejection with animated return; cargo retention and mouth recovery.");
         }catch(Exception ex){Directory.CreateDirectory("output");File.WriteAllText("output/portal-repulsion.txt","FAIL: "+ex);throw;}
         finally{EditorSceneManager.ClosePreviewScene(scene);}
+    }
+    static int RingRecipeCases(UnityEngine.SceneManagement.Scene scene){
+        int checks=0;var root=new GameObject("Universal ring recipe");root.SetActive(false);UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(root,scene);
+        try{
+            var near=MagnetVisuals.Create(root.transform,Vector3.zero,MagnetShape.Horseshoe,true,Quaternion.identity,1.5f,root.transform);
+            var far=MagnetVisuals.Create(root.transform,Vector3.forward*1.5f,MagnetShape.Horseshoe,false,Quaternion.identity,1.5f,root.transform);
+            foreach(var dir in new[]{Vector2Int.right,Vector2Int.left,Vector2Int.up,Vector2Int.down})
+            for(int a=0;a<4;a++)for(int b=0;b<4;b++)foreach(bool same in new[]{false,true})foreach(bool supported in new[]{false,true}){
+                var facing=Quaternion.LookRotation(new Vector3(dir.x,0,dir.y));
+                near.geometry.rotation=facing*Quaternion.Euler(0,a*90,0);far.geometry.rotation=facing*Quaternion.Euler(0,b*90,0);far.north=same;
+                var expected=!same&&a==0&&b==2?MagnetProduct.Ring:MagnetProduct.None;
+                Check(GridPlayground.Recipe(near,near.Pose,far,supported,dir)==expected,"Ring recipe accepted non-facing openings or same poles");checks++;
+            }
+        }finally{UnityEngine.Object.DestroyImmediate(root);}
+        return checks;
     }
     static int WideBarKickCases(UnityEngine.SceneManagement.Scene scene){
         int checks=0;
@@ -120,6 +141,232 @@ public static class PortalRepulsionRegression {
         }
         return checks;
     }
+    static int FlatRingShoreCases(UnityEngine.SceneManagement.Scene scene){
+        int checks=0;var flags=System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Instance;
+        foreach(var dir in new[]{Vector2Int.right,Vector2Int.left,Vector2Int.up,Vector2Int.down}){
+            var root=new GameObject("Flat ring shore slide");root.SetActive(false);UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(root,scene);
+            try{
+                var b=root.AddComponent<GridPlayground>();b.enabled=false;var forward=new Vector3(dir.x,0,dir.y);
+                b.player=new GameObject("Actor").transform;b.player.SetParent(root.transform);b.player.position=-forward*b.cellSize;
+                var floor=new GameObject("Floor");floor.transform.SetParent(root.transform);b.tiles=new[]{floor.AddComponent<GridTile>()};
+                var ring=MagnetVisuals.Create(root.transform,Vector3.zero,MagnetShape.Horseshoe,true,Quaternion.identity,b.cellSize,root.transform);
+                MagnetVisuals.Product(ring,MagnetProduct.Ring,b.cellSize,Quaternion.identity,true);MagnetVisuals.Ground(ring);
+                b.magnets=new[]{ring};root.SetActive(true);typeof(GridPlayground).GetField("recordingPush",flags).SetValue(b,true);
+                var initial=ring.Pose;bool tilted=false,sunk=false;int guard=10000;
+                var stack=new Stack<System.Collections.IEnumerator>();stack.Push((System.Collections.IEnumerator)typeof(GridPlayground).GetMethod("MoveRing",flags).Invoke(b,new object[]{ring,dir,Vector2Int.zero,1,true}));
+                while(stack.Count>0){
+                    Check(--guard>0,"Flat shore slide stalled");var current=stack.Peek();if(!current.MoveNext()){stack.Pop();continue;}
+                    if(current.Current is System.Collections.IEnumerator child){stack.Push(child);continue;}
+                    Check(Quaternion.Angle(ring.Pose,initial)<25,"Flat ring stood upright while leaving shore");
+                    float travel=Vector3.Dot(ring.transform.position,forward);
+                    if(travel<b.cellSize-.001f&&Quaternion.Angle(ring.Pose,initial)>2){
+                        tilted=true;
+                        var localFront=Quaternion.Inverse(initial)*forward;
+                        Check((ring.Pose*localFront).y<0,"Leading edge tilted up instead of down");
+                    }
+                    if((float)typeof(GridPlayground).GetMethod("MagnetGeometryTop",flags).Invoke(b,new object[]{ring})<-.01f)sunk=true;
+                }
+                Check(tilted&&sunk,"Flat ring missed gradual tipping or sinking");checks++;
+                Check(Quaternion.Angle(ring.Pose,initial)<.1f&&ring.walkable,"Flat ring changed coloured face or lost walkability");checks++;
+                Check((ring.transform.position-forward*b.cellSize).sqrMagnitude<.0001f&&Mathf.Abs((float)typeof(GridPlayground).GetMethod("MagnetGeometryTop",flags).Invoke(b,new object[]{ring}))<.001f,"Flat ring missed final cell or shore height");checks++;
+                Check((bool)typeof(GridPlayground).GetMethod("ShouldHover",flags).Invoke(b,new object[]{ring}),"Walkable space ring excluded from hovering");checks++;
+                b.player.position=ring.transform.position;
+                var visual=new GameObject("Visual").transform;visual.SetParent(b.player,false);
+                var logical=b.player.position;var rest=visual.position;
+                Check(Mathf.Abs((float)typeof(GridPlayground).GetMethod("RingRiderWeight",flags).Invoke(b,new object[]{ring})-1)<.001f,"Ring rider does not fully follow at rest");checks++;
+                foreach(float bob in new[]{.09f,-.09f}){
+                    typeof(GridPlayground).GetMethod("RenderRingRider",flags).Invoke(b,new object[]{bob});
+                    Check(Vector3.Distance(visual.position,rest+Vector3.up*bob)<.001f&&b.player.position==logical,"Rider bob changed grid state or did not follow both directions");checks++;
+                    typeof(GridPlayground).GetMethod("RestoreMagnetHover",flags).Invoke(b,new object[]{null});
+                    Check(visual.position==rest,"Rider render offset accumulated between cameras");checks++;
+                }
+                b.player.position=logical-forward*b.cellSize;
+                Check((float)typeof(GridPlayground).GetMethod("RingRiderWeight",flags).Invoke(b,new object[]{ring})==0,"Rider kept floating after leaving ring");checks++;
+            }finally{UnityEngine.Object.DestroyImmediate(root);}
+        }
+        return checks;
+    }
+    static int RingEditorCases(UnityEngine.SceneManagement.Scene scene){
+        int checks=0;var flags=System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Instance;
+        for(int pose=0;pose<3;pose++)for(int yaw=0;yaw<4;yaw++){
+            var root=new GameObject("Ring editor roundtrip");root.SetActive(false);UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(root,scene);
+            try{
+                var b=root.AddComponent<GridPlayground>();b.enabled=false;b.magnets=new MagnetPiece[0];
+                b.player=new GameObject("Actor").transform;b.player.SetParent(root.transform);b.player.position=Vector3.left*b.cellSize;
+                var floor=new GameObject("Floor");floor.transform.SetParent(root.transform);b.tiles=new[]{floor.AddComponent<GridTile>()};
+                var panel=root.AddComponent<MagnetDebugPanel>();panel.enabled=false;root.SetActive(true);
+                var type=typeof(MagnetDebugPanel);
+                type.GetField("board",flags).SetValue(panel,b);type.GetField("selected",flags).SetValue(panel,Vector2Int.zero);
+                type.GetField("shape",flags).SetValue(panel,3);type.GetField("pose",flags).SetValue(panel,pose);type.GetField("yaw",flags).SetValue(panel,yaw);
+                Check(panel.Place(),"Ring editor rejected placement");checks++;
+                var ring=b.MagnetAt(Vector2Int.zero);var expected=Quaternion.Euler(0,yaw*90,0)*Quaternion.Euler(pose==1?90:pose==2?180:0,0,0);
+                Check(ring&&Quaternion.Angle(ring.Pose,expected)<.1f&&ring.walkable==(pose!=1),"Ring editor lost pose or walkability");checks++;
+                type.GetMethod("SelectCell",flags).Invoke(panel,new object[]{Vector2Int.zero});
+                Check((int)type.GetField("pose",flags).GetValue(panel)==pose&&(int)type.GetField("yaw",flags).GetValue(panel)==yaw,"Ring selection lost controls");checks++;
+                ring.geometry.rotation=Quaternion.Euler(35,23,12);b.ResetPuzzle();
+                Check(Quaternion.Angle(ring.Pose,expected)<.1f&&ring.walkable==(pose!=1),"Ring reset lost edited orientation");checks++;
+            }finally{UnityEngine.Object.DestroyImmediate(root);}
+        }
+        return checks;
+    }
+    static int RingResponseCases(UnityEngine.SceneManagement.Scene scene){
+        int checks=0;var flags=System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Instance;
+        foreach(var dir in new[]{Vector2Int.right,Vector2Int.left,Vector2Int.up,Vector2Int.down})for(int mode=0;mode<4;mode++)for(int obstacleKind=0;obstacleKind<(mode==2?3:1);obstacleKind++){
+            var root=new GameObject("Ring response");root.SetActive(false);UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(root,scene);
+            try{
+                var b=root.AddComponent<GridPlayground>();b.enabled=false;var axis=new Vector3(dir.x,0,dir.y);
+                b.player=new GameObject("Actor").transform;b.player.SetParent(root.transform);b.player.position=-axis*b.cellSize;
+                var tiles=new List<GridTile>();for(int n=-1;n<=4;n++){var go=new GameObject("Floor");go.transform.SetParent(root.transform);go.transform.position=axis*n*b.cellSize;tiles.Add(go.AddComponent<GridTile>());}
+                b.tiles=tiles.ToArray();var ring=MagnetVisuals.Create(root.transform,Vector3.zero,MagnetShape.Horseshoe,true,Quaternion.identity,b.cellSize,root.transform);
+                if(mode==2){b.tiles[b.tiles.Length-1].blocked=obstacleKind==0;if(obstacleKind==1)b.tiles[b.tiles.Length-1].surfaceHeight=b.LayerHeight;}
+                if(mode==3)b.tiles=tiles.GetRange(0,4).ToArray();
+                MagnetVisuals.Product(ring,MagnetProduct.Ring,b.cellSize,Quaternion.identity,true);
+                if(mode>0)ring.geometry.rotation=Quaternion.FromToRotation(Vector3.up,mode==1?axis:Vector3.Cross(Vector3.up,axis));
+                MagnetVisuals.Ground(ring);ring.walkable=mode==0;b.magnets=new[]{ring};if(mode==2&&obstacleKind==2){
+                    var blocker=MagnetVisuals.Create(root.transform,axis*4*b.cellSize,MagnetShape.Bar,false,Quaternion.identity,b.cellSize,root.transform);
+                    b.magnets=new[]{ring,blocker};
+                }
+                root.SetActive(true);
+                var initialPose=ring.Pose;var initialPosition=ring.transform.position;
+                var history=(System.Collections.IList)typeof(GridPlayground).GetField("history",flags).GetValue(b);
+                history.Add(typeof(GridPlayground).GetMethod("SaveWorld",flags).Invoke(b,null));
+                typeof(GridPlayground).GetProperty("Busy").SetValue(b,true);
+                typeof(GridPlayground).GetField("recordingPush",flags).SetValue(b,true);
+                var routine=(System.Collections.IEnumerator)typeof(GridPlayground).GetMethod("MoveRing",flags).Invoke(b,new object[]{ring,dir,Vector2Int.zero,mode>=2?3:1,mode<2});
+                Check(routine.MoveNext()&&Vector3.Dot(ring.transform.position,axis)>0,"Ring did not respond on first animation frame");checks++;
+                Check((bool)typeof(GridPlayground).GetField("interruptiblePush",flags).GetValue(b),"Ring disabled push interruption");checks++;
+                if(mode<2){
+                    Check((bool)typeof(GridPlayground).GetField("flowingPush",flags).GetValue(b),"Ring tipping bypassed continuous push clock");checks++;
+                    typeof(GridPlayground).GetField("pushUndo",flags).SetValue(b,typeof(GridPlayground).GetMethod("SaveWorld",flags).Invoke(b,null));
+                    Check(!(bool)typeof(GridPlayground).GetMethod("CanInterruptPush",flags).Invoke(b,new object[]{dir,true}),"Same-direction ring tap restarted animation");checks++;
+                    Check((bool)typeof(GridPlayground).GetMethod("CanInterruptPush",flags).Invoke(b,new object[]{-dir,true}),"Ring direction change lost responsiveness");checks++;
+                }
+                bool sunk=false,turned=false,rose=false;
+                float peak=0;bool reversed=false;var stack=new Stack<System.Collections.IEnumerator>();stack.Push(routine);int guard=10000;
+                while(stack.Count>0){
+                    Check(--guard>0,"Ring motion stalled");var current=stack.Peek();
+                    if(!current.MoveNext()){stack.Pop();continue;}
+                    if(current.Current is System.Collections.IEnumerator child){stack.Push(child);continue;}
+                    if(mode>=2&&Vector3.Distance(b.player.position,Vector3.zero)<.001f){
+                        var actorPose=b.player.GetComponent<PlayerPushPose>();
+                        Check((bool)typeof(PlayerPushPose).GetField("flowReleaseRequested",flags).GetValue(actorPose),"Player held push pose after releasing rolling ring");
+                    }
+                    if(mode==3){
+                        float travel=Vector3.Dot(ring.transform.position,axis);
+                        bool flat=MagnetPiece.FlatU(ring.Pose);
+                        float top=(float)typeof(GridPlayground).GetMethod("MagnetGeometryTop",flags).Invoke(b,new object[]{ring});
+                        if(travel<3*b.cellSize-.001f)Check(!flat&&Mathf.Abs((ring.Pose*Vector3.up).y)<.001f,"Ring flattened while still crossing shore");
+                        else{
+                            if(!flat&&top<-.01f)sunk=true;
+                            if(flat&&top<-.01f){Check(sunk,"Ring turned flat before sinking clear of shore");turned=true;}
+                            if(turned&&top>-.05f)rose=true;
+                        }
+                    }
+                    if(mode==2){
+                        float offset=Vector3.Dot(ring.geometry.position-ring.transform.position,axis);
+                        if(offset>0.001f){
+                            var rollAxis=new Vector3(dir.y,0,-dir.x);
+                            var expected=Quaternion.AngleAxis(540+180*offset/b.cellSize,rollAxis)*initialPose;
+                            Check(Quaternion.Angle(ring.Pose,expected)<.1f,"Stone rebound rotation did not follow forward/reverse travel");
+                            Check((ring.transform.position-axis*b.cellSize*3).sqrMagnitude<.0001f,"Stone rebound changed grid occupancy");
+                            if(offset<peak-.001f)reversed=true;peak=Mathf.Max(peak,offset);
+                        }
+                    }
+                }
+                if(mode==3){
+                    Check(sunk&&turned&&rose,"Ring space exit missed sinking, submerged turn or rising phase");checks++;
+                    Check(Mathf.Abs((float)typeof(GridPlayground).GetMethod("MagnetGeometryTop",flags).Invoke(b,new object[]{ring}))<.001f,"Floating ring deck did not finish at shore height");checks++;
+                }
+                if(mode==2){Check(peak>b.cellSize*.01f&&reversed,"Ring did not roll into contact and recoil from stone");checks++;}
+                Check((ring.transform.position-axis*b.cellSize*(mode>=2?3:1)).sqrMagnitude<.0001f&&!b.Busy,"Ring endpoint or input release changed");checks++;
+                Check(MagnetPiece.FlatU(ring.Pose)==(mode==1||mode==3)&&ring.walkable==(mode==1||mode==3),"Ring final orientation/walkability changed");checks++;
+                Check(b.UndoStep()&&Quaternion.Angle(ring.Pose,initialPose)<.1f&&ring.transform.position==initialPosition,"Ring undo did not restore grid pose");checks++;
+                var rocks=(System.Collections.IDictionary)typeof(GridPlayground).GetField("barRocks",flags).GetValue(b);
+                Check(rocks.Contains(ring),"Ring undo failed to start settling");checks++;
+                var rock=rocks[ring];var rockType=rock.GetType();
+                Check((bool)rockType.GetField("touchdown").GetValue(rock)==(mode==0)&&(bool)rockType.GetField("undoBounce").GetValue(rock)==(mode==0),"Ring undo chose wrong settling motion");checks++;
+                rockType.GetField("started").SetValue(rock,Time.time-.15f);
+                typeof(GridPlayground).GetMethod("RenderBarRocks",flags).Invoke(b,null);
+                Check(Quaternion.Angle(ring.Pose,initialPose)>.1f&&ring.transform.position==initialPosition,"Ring undo settling was invisible or moved its grid cell");checks++;
+                if(mode>0){
+                    Check(Mathf.Abs((ring.Pose*Vector3.up).y)>.001f,"Upright ring undo rolled sideways instead of tilting across its face");checks++;
+                }
+                typeof(GridPlayground).GetMethod("RestoreMagnetHover",flags).Invoke(b,new object[]{null});
+                Check(Quaternion.Angle(ring.Pose,initialPose)<.1f,"Ring undo visual motion polluted logical pose");checks++;
+                var actorPosition=b.player.position;var ringPosition=ring.transform.position;
+                b.player.rotation=Quaternion.LookRotation(Vector3.Cross(Vector3.up,axis));
+                var blocked=(System.Collections.IEnumerator)typeof(GridPlayground).GetMethod("BlockedRingShove",flags).Invoke(b,new object[]{ring,dir});
+                Check(blocked.MoveNext()&&Vector3.Dot(b.player.forward,axis)>.999f,"Blocked ring shove retained previous facing on its first frame");checks++;
+                var response=blocked.Current as System.Collections.IEnumerator;
+                Check(response!=null&&response.MoveNext()&&Quaternion.Angle(ring.Pose,initialPose)>.01f,"Blocked ring waited for player shove to finish before reacting");checks++;
+                Check((float)typeof(PlayerPushPose).GetField("flowEffort",flags).GetValue(b.player.GetComponent<PlayerPushPose>())>0,"Ring response started without player effort");checks++;
+                Drain(response);
+                Drain(blocked);
+                Check(Vector3.Dot(b.player.forward,axis)>.999f&&b.player.position==actorPosition&&ring.transform.position==ringPosition,"Blocked ring shove changed cell or lost push facing");checks++;
+            }finally{UnityEngine.Object.DestroyImmediate(root);}
+        }
+        return checks;
+    }
+    static int BlockedChainCases(UnityEngine.SceneManagement.Scene scene){
+        int checks=0;
+        foreach(var dir in new[]{Vector2Int.right,Vector2Int.left,Vector2Int.up,Vector2Int.down}){
+            var root=new GameObject("Blocked chain pulse");root.SetActive(false);UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(root,scene);
+            try{
+                var b=root.AddComponent<GridPlayground>();b.enabled=false;b.player=new GameObject("Actor").transform;b.player.SetParent(root.transform);
+                var axis=new Vector3(dir.x,0,dir.y);var tiles=new List<GridTile>();var magnets=new List<MagnetPiece>();
+                for(int n=0;n<5;n++){
+                    var go=new GameObject("Floor");go.transform.SetParent(root.transform);go.transform.position=axis*n*b.cellSize;var tile=go.AddComponent<GridTile>();tile.blocked=n==4;tiles.Add(tile);
+                    if(n>0&&n<4)magnets.Add(MagnetVisuals.Create(root.transform,axis*n*b.cellSize,MagnetShape.Bar,true,Quaternion.identity,b.cellSize,root.transform));
+                }
+                b.tiles=tiles.ToArray();b.magnets=magnets.ToArray();root.SetActive(true);
+                typeof(GridPlayground).GetField("recordingPush",System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Instance).SetValue(b,true);
+                var saved=new Vector3[3];for(int i=0;i<3;i++)saved[i]=magnets[i].geometry.position;
+                var routine=(System.Collections.IEnumerator)typeof(GridPlayground).GetMethod("BlockedChainPulse",System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Instance).Invoke(b,new object[]{magnets,dir});
+                int outward=0,back=0,guard=10000;var moved=new bool[3];var returned=new bool[3];
+                while(routine.MoveNext()){
+                    Check(--guard>0,"Blocked pulse stalled");
+                    for(int i=0;i<3;i++){
+                        float offset=Vector3.Dot(magnets[i].geometry.position-saved[i],axis);
+                        if(!moved[i]&&offset>.01f){Check(i==outward++,"Force propagated out of order");moved[i]=true;}
+                        if(moved[i]&&!returned[i]&&offset<.001f){Check(i==2-back++,"Return force propagated out of order");returned[i]=true;}
+                        Check((magnets[i].transform.position-axis*(i+1)*b.cellSize).sqrMagnitude<.0001f,"Failed push changed occupancy");
+                    }
+                }
+                Check(outward==3&&back==3&&!b.Busy,"Pulse did not finish the outward and return chain");checks++;
+                for(int i=0;i<3;i++){Check((magnets[i].geometry.position-saved[i]).sqrMagnitude<.0001f,"Pulse left a visual offset");checks++;}
+            }finally{UnityEngine.Object.DestroyImmediate(root);}
+        }
+        return checks;
+    }
+    static int IndependentCargoCases(UnityEngine.SceneManagement.Scene scene){
+        int checks=0;var flags=System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Instance;
+        foreach(var dir in new[]{Vector2Int.right,Vector2Int.left,Vector2Int.up,Vector2Int.down})foreach(bool blocked in new[]{false,true}){
+            var root=new GameObject("Independent cargo exit");root.SetActive(false);UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(root,scene);
+            try{
+                var b=root.AddComponent<GridPlayground>();b.enabled=false;b.player=new GameObject("Actor").transform;b.player.SetParent(root.transform);
+                var tiles=new List<GridTile>();
+                foreach(var cell in new[]{Vector2Int.zero,Vector2Int.left,Vector2Int.right,Vector2Int.up,Vector2Int.down}){
+                    var go=new GameObject("Floor");go.transform.SetParent(root.transform);go.transform.position=new Vector3(cell.x,0,cell.y)*b.cellSize;
+                    var tile=go.AddComponent<GridTile>();tile.blocked=blocked&&cell==dir;tiles.Add(tile);
+                }
+                b.tiles=tiles.ToArray();var portal=tiles[0].gameObject.AddComponent<BlackHolePortal>();portal.board=b;portal.tile=tiles[0];
+                var axis=new Vector3(dir.x,0,dir.y);var yaw=Quaternion.FromToRotation(Vector3.right,axis);
+                var cargo=MagnetVisuals.Create(root.transform,Vector3.zero,MagnetShape.Bar,true,yaw*Quaternion.Euler(0,0,90),b.cellSize,root.transform);
+                cargo.storedInPortal=portal;cargo.portalEntryPosition=-axis*b.cellSize;cargo.gameObject.SetActive(false);b.magnets=new[]{cargo};root.SetActive(true);
+                var actorDir=new Vector2Int(-dir.y,dir.x);var travel=root.AddComponent<BlackHoleTravel>();
+                var resolved=(Vector2Int)typeof(BlackHoleTravel).GetMethod("CargoExitDirection",System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Static).Invoke(null,new object[]{cargo,actorDir});
+                Check(resolved==dir,"Player direction overwrote cargo entry direction");checks++;
+                Drain((System.Collections.IEnumerator)typeof(BlackHoleTravel).GetMethod("EjectIndependentCargo",flags).Invoke(travel,new object[]{portal,resolved,cargo,Vector3.one}));
+                Check(blocked?portal.Cargo==cargo&&!cargo.gameObject.activeSelf:cargo.gameObject.activeSelf&&!cargo.storedInPortal&&(cargo.transform.position-axis*b.cellSize).sqrMagnitude<.0001f,"Independent cargo lost its exit or storage");checks++;
+                Check(MagnetPiece.VerticalBar(cargo.Pose),"Actor in another lane kicked upright cargo");checks++;
+                BlackHoleTravel.ExitPlan plan;Check(BlackHoleTravel.PlanJourneyExit(portal,actorDir,null,out plan)&&!plan.failedExit,"Independent player lane rejected");
+                b.player.localScale=Vector3.one;
+                Drain((System.Collections.IEnumerator)typeof(BlackHoleTravel).GetMethod("Eject",flags).Invoke(travel,new object[]{portal,actorDir,null,plan}));
+                Check(b.PlayerCell==actorDir&&!b.Busy,"Actor followed cargo lane");checks++;
+            }finally{UnityEngine.Object.DestroyImmediate(root);}
+        }
+        return checks;
+    }
     static int GroundBarInertiaCases(UnityEngine.SceneManagement.Scene scene){
         int checks=0;var flags=System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Instance;
         foreach(var dir in new[]{Vector2Int.right,Vector2Int.left,Vector2Int.up,Vector2Int.down})foreach(bool upright in new[]{false,true}){
@@ -151,6 +398,12 @@ public static class PortalRepulsionRegression {
                 typeof(GridPlayground).GetMethod("StartBarRock",flags).Invoke(b,new object[]{m,new Vector3(dir.y,0,-dir.x)});
                 float take=(float)typeof(GridPlayground).GetMethod("TakeBarRock",flags).Invoke(b,new object[]{m,new Vector3(dir.y,0,-dir.x)});
                 Check(((System.Collections.IDictionary)typeof(GridPlayground).GetField("barRocks",flags).GetValue(b)).Count==0,"Next push failed to take over settling motion");checks++;
+                m.transform.position=Vector3.zero;m.geometry.rotation=initial;MagnetVisuals.Ground(m);
+                b.player.position=-axis*b.cellSize;tiles[2].blocked=true;
+                typeof(GridPlayground).GetField("recordingPush",flags).SetValue(b,false);
+                Check(!b.TryStep(dir),"Blocked destination accepted push");
+                Check(b.player.GetComponent<PlayerPushPose>().HasBlockedFeedback,"Rejected magnet push omitted effort/shrug feedback");checks++;
+                Check(m.transform.position==Vector3.zero&&b.player.position==-axis*b.cellSize&&!b.Busy,"Blocked feedback changed occupancy or locked movement");checks++;
             }finally{UnityEngine.Object.DestroyImmediate(root);}
         }
         return checks;

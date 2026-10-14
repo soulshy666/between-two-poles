@@ -43,6 +43,10 @@ public sealed partial class MagnetDebugPanel:MonoBehaviour {
         if(existing&&existing.Occupies(board.PlayerCell,board.cellSize)){status="请先将主角移出这座桥，再修改它。原物品已保留。";return false;}
         var m=MagnetVisuals.Create(board.transform,new Vector3(selected.x*board.cellSize,tile?tile.surfaceHeight:0,selected.y*board.cellSize),shape==1?MagnetShape.Horseshoe:MagnetShape.Bar,pole==0,rotation,board.cellSize,island);
         if(shape>=2){m.bridgeDirection=bridgeDir;MagnetVisuals.Product(m,(MagnetProduct)(shape-1),board.cellSize,Quaternion.Euler(0,yaw*90,0),pole==0);}
+        if(shape==3){
+            m.geometry.rotation=Quaternion.Euler(0,yaw*90,0)*Quaternion.Euler(pose==1?90:pose==2?180:0,0,0);
+            m.walkable=MagnetPiece.FlatU(m.Pose);MagnetVisuals.Ground(m);
+        }
         if(existing)existing.gameObject.SetActive(false);
         board.magnets=board.magnets.Where(x=>x&&x.gameObject.activeInHierarchy).Concat(new[]{m}).ToArray();board.CaptureInitialState();status="已放置。关闭面板后推动；R 可回到当前布置。";return true;
     }

@@ -26,6 +26,20 @@ public sealed partial class GridPlayground {
     }
     public IEnumerator SettleMagnetArrival(MagnetPiece magnet,Vector3 previousPosition,bool unscaled=false){
         var cell=Cell(magnet.transform);var portal=BlackHolePortal.At(this,cell);
+        // Also covers rings kicked from portal exits into empty space.
+        if(!portal&&SpaceRing(magnet)&&!Deck(cell,magnet)){
+            if(!MagnetPiece.FlatU(magnet.Pose)){
+                var start=magnet.Pose;
+                var flat=Quaternion.FromToRotation(start*Vector3.up,Vector3.up)*start;
+                for(float t=0;t<.2f;t+=unscaled?BlackHoleTravel.AnimationDeltaTime:MovementDeltaTime){
+                    magnet.geometry.rotation=Quaternion.Slerp(start,flat,Mathf.SmoothStep(0,1,t/.2f));
+                    MagnetVisuals.Ground(magnet);yield return null;
+                }
+                magnet.geometry.rotation=flat;
+            }
+            MagnetVisuals.Ground(magnet);magnet.walkable=true;
+            magnet.geometry.position+=Vector3.up*(magnet.transform.position.y-MagnetGeometryTop(magnet));
+        }
         if(!portal)yield break; // Ground/deck heights and space hovering use the shared surface rules.
         if(portal.Cargo&&portal.Cargo!=magnet)throw new System.InvalidOperationException("Magnet destination became occupied during movement");
         var scale=magnet.geometry.localScale;

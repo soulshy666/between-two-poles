@@ -3,9 +3,34 @@ namespace BetweenPoles {
 public sealed partial class PlayerPushPose {
     const float StonePushSeconds=2.1f;
     bool pushingStone;
+    bool fixedMagnetShove;
     float stonePushTime;
     Vector2Int stonePushDirection;
     float stoneContactDistance;
+    public bool HasBlockedFeedback {get{return pushingStone||balancing;}}
+    public static void BeginBlockedMagnetPush(Transform player,MagnetPiece magnet,Vector2Int direction){
+        var pose=GetPose(player);
+        // Repeated input must not continually restart the effort before the shrug.
+        if(pose.pushingStone&&pose.stonePushDirection==direction)return;
+        pose.End();pose.pushingStone=true;pose.stonePushTime=0;pose.stonePushDirection=direction;
+        pose.fixedMagnetShove=true;
+        if(pose.board&&magnet.shape==MagnetShape.Horseshoe&&!magnet.combined){
+            var cell=new Vector2Int(Mathf.RoundToInt(magnet.transform.position.x/pose.board.cellSize),Mathf.RoundToInt(magnet.transform.position.z/pose.board.cellSize));
+            var target=pose.board.MagnetAt(cell+direction);
+            if(target&&target.shape==MagnetShape.Horseshoe&&!target.combined&&target.north!=magnet.north
+                &&!GridPlayground.RingOpeningsAligned(magnet.Pose,target.Pose,direction))
+                pose.board.BeginBlockedUNudge(magnet,direction);
+        }
+        player.rotation=Quaternion.LookRotation(new Vector3(direction.x,0,direction.y));
+        float nearest=float.PositiveInfinity;
+        foreach(var filter in magnet.geometry.GetComponentsInChildren<MeshFilter>())if(filter.sharedMesh)
+            foreach(var vertex in filter.sharedMesh.vertices){
+                float distance=Vector3.Dot(filter.transform.TransformPoint(vertex)-player.position,player.forward);
+                if(distance>0)nearest=Mathf.Min(nearest,distance);
+            }
+        pose.stoneContactDistance=float.IsInfinity(nearest)?pose.board.cellSize*.5f:nearest;
+        pose.SampleStonePush(0);
+    }
     public static void BeginStonePush(Transform player,GridTile stone,Vector2Int direction,bool restart=false){
         var pose=GetPose(player);
         // A fresh press restarts immediately; automatic held repeats let it finish.
@@ -40,19 +65,32 @@ public sealed partial class PlayerPushPose {
     }
     public void InterruptStonePush(Vector2Int direction){if(pushingStone&&direction!=stonePushDirection)End();}
     public void EndStonePush(){if(pushingStone)End();}
-    void ResetStonePush(){pushingStone=false;stonePushTime=0;}
+    void ResetStonePush(){if(board)board.ClearBlockedUNudge();pushingStone=false;stonePushTime=0;fixedMagnetShove=false;}
     void UpdateStonePush(){
         if(!pushingStone)return;
         if(!board||board.Busy){End();return;}
         stonePushTime+=Time.deltaTime;
-        if(stonePushTime>=StonePushSeconds){End();return;}
-        SampleStonePush(stonePushTime);
+        board.SampleBlockedUNudge(stonePushTime);
+        if(stonePushTime>=(fixedMagnetShove?1.15f:StonePushSeconds)){End();return;}
+        if(fixedMagnetShove){
+            // One brief effort against an immovable assembly, then release and shrug.
+            float sample=stonePushTime<.35f?Mathf.Lerp(0,1.15f,stonePushTime/.35f)
+                :Mathf.Lerp(1.15f,StonePushSeconds,(stonePushTime-.35f)/.8f);
+            SampleStonePush(sample,true);
+        }else SampleStonePush(stonePushTime);
     }
-    void SampleStonePush(float t){
+    public void SampleBlockedChain(float time,float returned){
+        // One shove, a braced pause while the force travels, then recoil and shrug.
+        float sample=time<.35f?Mathf.Lerp(0,.55f,time/.35f):time<returned?1.1f:Mathf.Lerp(1.15f,StonePushSeconds,Mathf.Clamp01((time-returned)/.55f));
+        stoneContactDistance=board?board.cellSize*.5f: .65f;
+        SampleStonePush(sample,true);
+        if(visual&&time>=returned){float p=Mathf.Clamp01((time-returned)/.24f);visual.position-=transform.forward*(.065f*Mathf.Sin(p*Mathf.PI));}
+    }
+    void SampleStonePush(float t,bool singleShove=false){
         if(!visual)return;
         float effort=IdlePhase(t,0,.25f)*(1-IdlePhase(t,1.15f,1.45f));
         float shrug=IdlePhase(t,1.45f,1.65f)*(1-IdlePhase(t,1.85f,StonePushSeconds));
-        float stride=Mathf.Sin((t-.25f)*Mathf.PI*2*2.2f)*IdlePhase(t,.25f,.4f)*effort;
+        float stride=singleShove?0:Mathf.Sin((t-.25f)*Mathf.PI*2*2.2f)*IdlePhase(t,.25f,.4f)*effort;
         var waist=new Vector3(0,.34f,0);
         var lean=Quaternion.Euler(38*effort-7*shrug,0,0);
         // Tilt the complete visual, including the separately modelled backpack.

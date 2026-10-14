@@ -2,7 +2,7 @@
 namespace BetweenPoles {
 // Small runtime meshes use the same bent-world material as the imported islands.
 public static class MagnetVisuals {
-    const string LinkName="磁流连接",BridgeSurfaceName="通路电屏障";
+    const string LinkName="磁流连接",BridgeSurfaceName="通路电屏障",RingSurfaceName="圆环电屏障";
     static Material red,blue,link,bridgeSurface,bridgeTrim;
     static Material Color(bool north) {
         var m=north?red:blue;if(m)return m;
@@ -82,9 +82,26 @@ public static class MagnetVisuals {
         var deck=Group(parent,"连续桥面");deck.gameObject.AddComponent<MeshFilter>().sharedMesh=mesh;
         deck.gameObject.AddComponent<MeshRenderer>().sharedMaterial=BridgeSurfaceMaterial();
     }
+    static void RingSurface(Transform parent){
+        var root=Group(parent,RingSurfaceName);
+        // Fill the full shell thickness (0..24 cm), so both faces stay flush
+        // after flipping. The pale rim is inset 2 mm on each face to avoid
+        // coplanar caps fighting with the blue centre.
+        RingPanel(root,"双面白蓝圆形踏边",.365f,.12f,.236f,BridgeTrimMaterial());
+        RingPanel(root,"双面蓝色圆形板",.34f,.12f,.24f,BridgeSurfaceMaterial());
+    }
+    static void RingPanel(Transform parent,string name,float radius,float height,float thickness,Material material){
+        var panel=GameObject.CreatePrimitive(PrimitiveType.Cylinder);panel.name=name;
+        panel.transform.SetParent(parent,false);
+        panel.transform.localPosition=Vector3.up*height;
+        // Unity's cylinder has radius .5 and height 2.
+        panel.transform.localScale=new Vector3(radius*2,thickness*.5f,radius*2);
+        if(Application.isPlaying)Object.Destroy(panel.GetComponent<Collider>());else Object.DestroyImmediate(panel.GetComponent<Collider>());
+        panel.GetComponent<Renderer>().sharedMaterial=material;
+    }
     public static bool IsMagneticEffect(Renderer renderer) {
         for(var current=renderer?renderer.transform:null;current;current=current.parent)
-            if(current.name==LinkName||current.name==BridgeSurfaceName)return true;
+            if(current.name==LinkName||current.name==BridgeSurfaceName||current.name==RingSurfaceName)return true;
         return false;
     }
     static void Arc(Transform parent,bool north,float begin,float end) {
@@ -98,7 +115,7 @@ public static class MagnetVisuals {
         if(product==MagnetProduct.None){if(shape==MagnetShape.Bar)Box(g,new Vector3(0,.12f,0),new Vector3(cell,.24f,.24f),north);else Arc(g,north,180,360);}
         if(product==MagnetProduct.WideBar){Box(g,new Vector3(0,.12f,-.12f),new Vector3(cell,.24f,.24f),north);Box(g,new Vector3(0,.12f,.12f),new Vector3(cell,.24f,.24f),!north);}
         // The receiver retains its U opening; the incoming U closes that opening.
-        if(product==MagnetProduct.Ring){Arc(g,north,180,360);Arc(g,!north,0,180);}
+        if(product==MagnetProduct.Ring){Arc(g,north,180,360);Arc(g,!north,0,180);RingSurface(g);}
         if(product==MagnetProduct.Cross){Box(g,new Vector3(0,.12f,0),new Vector3(cell,.24f,.24f),north);Box(g,new Vector3(0,.36f,0),new Vector3(.24f,.24f,cell),!north);}
         if(product==MagnetProduct.Lift){Arc(g,baseNorth,180,360);Box(g,new Vector3(0,cell*.5f,0),new Vector3(.24f,cell,.24f),!baseNorth);}
         if(product==MagnetProduct.Bridge||product==MagnetProduct.BridgeHalf){
