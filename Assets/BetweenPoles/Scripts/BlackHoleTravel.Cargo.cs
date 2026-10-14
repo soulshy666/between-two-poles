@@ -160,7 +160,9 @@ public sealed partial class BlackHoleTravel {
                 var owner=target.tile.GetComponentInParent<IslandSurfaceAnchor>();var binding=cargo.GetComponent<IslandSurfaceAnchor>();
                 if(binding&&owner){binding.center=owner.center;binding.Apply();}
                 cargo.gameObject.SetActive(true);
-                yield return ThrowCargo(cargo,portalPosition,plan.magnet,pose,scale,plan.bounce?.28f:1.05f,plan.bounce?.32f:1.5f,plan.displaced,plan.displacedPosition);
+                var landingGround=board.TileAt(target.Cell+direction);
+                bool slide=!plan.bounce&&landingGround&&!landingGround.blocked;
+                yield return ThrowCargo(cargo,portalPosition,plan.magnet,pose,scale,plan.bounce?.28f:.55f,plan.bounce?.24f:.38f,plan.displaced,plan.displacedPosition,slide);
                 // Stone contact reverses immediately; clear landings briefly settle first.
                 if(!plan.bounce)yield return AnimationWait(.12f);
                 if(plan.bounce){
@@ -504,8 +506,12 @@ public sealed partial class BlackHoleTravel {
             }
         }finally{if(player)player.position=centre;if(pose)pose.End();}
     }
-    IEnumerator ThrowCargo(MagnetPiece cargo,Vector3 start,Vector3 end,Quaternion pose,Vector3 scale,float seconds,float arc,MagnetPiece displaced=null,Vector3 displacedEnd=default(Vector3)){
+    IEnumerator ThrowCargo(MagnetPiece cargo,Vector3 start,Vector3 end,Quaternion pose,Vector3 scale,float seconds,float arc,MagnetPiece displaced=null,Vector3 displacedEnd=default(Vector3),bool slide=false){
         var displacedStart=displaced?displaced.transform.position:Vector3.zero;
+        var forward=end-start;forward.y=0;
+        float distance=forward.magnitude;forward=distance>.001f?forward/distance:Vector3.forward;
+        var tiltAxis=Vector3.Cross(Vector3.up,forward);
+        var touchdown=end-forward*(slide?distance*.18f:0);
         // The destination preview may have hidden these renderers while the
         // cargo still belonged to the entry island. The board stays disabled
         // throughout travel, so its normal visibility refresh cannot restore them.
@@ -520,18 +526,28 @@ public sealed partial class BlackHoleTravel {
         cargo.geometry.localScale=scale;
         for(float t=0;t<seconds;t+=AnimationDeltaTime){
             float a=Mathf.Clamp01(t/seconds);
-            // Emerge upward first, then travel out of the hole while gravity
-            // accelerates the descent. Keep the logical base on the support plane.
-            float horizontal=Mathf.SmoothStep(0,1,Mathf.InverseLerp(.12f,1,a));
-            cargo.transform.position=Vector3.Lerp(start,end,horizontal);
+            // Launch outward immediately. A thrown body keeps its horizontal
+            // momentum until touchdown instead of easing to a stop in mid-air.
+            float horizontal=a;
+            cargo.transform.position=Vector3.Lerp(start,touchdown,horizontal);
             if(displaced)displaced.transform.position=Vector3.Lerp(displacedStart,displacedEnd,Mathf.SmoothStep(0,1,Mathf.InverseLerp(.08f,.65f,a)));
-            cargo.geometry.rotation=pose;MagnetVisuals.Ground(cargo);
-            float peak=Mathf.Max(start.y,end.y)+arc;
-            float airborneY=a<.42f
-                ?Mathf.Lerp(start.y-.35f,peak,1-Mathf.Pow(1-a/.42f,2))
-                :Mathf.Lerp(peak,end.y,Mathf.Pow((a-.42f)/.58f,2));
+            float lean=12*Mathf.Sin(Mathf.PI*Mathf.Clamp01(a/.22f)*.5f)
+                *(1-Mathf.SmoothStep(0,1,Mathf.InverseLerp(.72f,1,a)));
+            cargo.geometry.rotation=Quaternion.AngleAxis(lean,tiltAxis)*pose;MagnetVisuals.Ground(cargo);
+            // One ballistic parabola gives a continuous upward impulse and
+            // constant downward acceleration, without a pause at the apex.
+            float airborneY=Mathf.Lerp(start.y-.2f,end.y,a)+4*arc*a*(1-a);
             float lift=airborneY-cargo.transform.position.y;
             cargo.geometry.position+=Vector3.up*lift;yield return null;
+        }
+        if(slide){
+            cargo.transform.position=touchdown;cargo.geometry.rotation=pose;MagnetVisuals.Ground(cargo);
+            // Ground friction removes the remaining forward momentum within this cell.
+            for(float t=0;t<.18f;t+=AnimationDeltaTime){
+                float a=Mathf.Clamp01(t/.18f),travel=1-(1-a)*(1-a);
+                cargo.transform.position=Vector3.Lerp(touchdown,end,travel);
+                MagnetVisuals.Ground(cargo);yield return null;
+            }
         }
         if(displaced)displaced.transform.position=displacedEnd;
         cargo.transform.position=end;cargo.geometry.rotation=pose;cargo.geometry.localScale=scale;MagnetVisuals.Ground(cargo);
@@ -618,7 +634,7 @@ public sealed partial class BlackHoleTravel {
         target.board.CompletePortalLanding(source.Cell);
         yield return WaitForExitView(source);
         cargo.transform.position=start;cargo.gameObject.SetActive(true);
-        yield return ThrowCargo(cargo,start,cargo.portalEntryPosition,pose,scale,1.05f,1.5f);
+        yield return ThrowCargo(cargo,start,cargo.portalEntryPosition,pose,scale,.65f,.45f);
         if(source.board!=target.board)source.board.CaptureInitialState();
     }
     static float TransitMeshHeight(MeshFilter[] meshes,System.Collections.Generic.List<Vector3> vertices,bool highest,float fallback){

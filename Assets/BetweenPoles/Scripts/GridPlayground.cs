@@ -250,6 +250,7 @@ public sealed partial class GridPlayground:MonoBehaviour {
             nextHeldStep=Mathf.Max(nextHeldStep,Time.unscaledTime+Mathf.Clamp(heldStepPauseSeconds,0,.1f));
     }
     void PumpMovementInput(Vector2Int direction,bool freshPress=false){
+        if(responsiveJump&&freshPress&&direction!=Vector2Int.zero)jumpTapBoost=true;
         if(exitingPush&&direction!=Vector2Int.zero){
             pushExitDirection=direction;
             bufferedSteps.Clear();

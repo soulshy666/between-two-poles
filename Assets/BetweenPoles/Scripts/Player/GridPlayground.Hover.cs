@@ -2,6 +2,42 @@ using System.Collections.Generic;
 using UnityEngine;
 namespace BetweenPoles {
 public sealed partial class GridPlayground {
+    const float BarRockSeconds=.95f;
+    sealed class BarRock {public Vector3 axis;public float started,velocity;}
+    readonly Dictionary<MagnetPiece,BarRock> barRocks=new Dictionary<MagnetPiece,BarRock>();
+    readonly Dictionary<Transform,Quaternion> rockRenderRotations=new Dictionary<Transform,Quaternion>();
+    static float BarRockAngle(float age,float velocity){
+        float a=Mathf.Clamp01(age/BarRockSeconds);
+        float frequency=3*Mathf.PI/BarRockSeconds;
+        // Continue the lift's angular velocity through vertical, then dissipate it.
+        return velocity/frequency*Mathf.Sin(age*frequency)*Mathf.Pow(1-a,2);
+    }
+    void StartBarRock(MagnetPiece m,Vector3 axis){barRocks[m]=new BarRock{axis=axis,started=Time.time,velocity=90*.44f*pushFlowSpeed};}
+    float TakeBarRock(MagnetPiece m,Vector3 axis){
+        if(!barRocks.TryGetValue(m,out var rock))return 0;
+        barRocks.Remove(m);return BarRockAngle(Time.time-rock.started,rock.velocity)*Vector3.Dot(axis,rock.axis);
+    }
+    void ApplyBarRock(MagnetPiece m,Vector3 axis,float angle){
+        // Rock about the contacting bottom edge, not the mesh centre. Switching
+        // edges at zero tilt keeps the base planted without sinking into the floor.
+        var bounds=AssemblyBounds(AssemblyBodies(m.geometry));
+        var direction=Vector3.Cross(axis,Vector3.up).normalized;
+        float radius=Mathf.Abs(direction.x)*bounds.extents.x+Mathf.Abs(direction.z)*bounds.extents.z;
+        var pivot=new Vector3(bounds.center.x,bounds.min.y,bounds.center.z)+direction*(Mathf.Sign(angle)*radius);
+        var turn=Quaternion.AngleAxis(angle,axis);
+        m.geometry.position=pivot+turn*(m.geometry.position-pivot);
+        m.geometry.rotation=turn*m.geometry.rotation;
+    }
+    void RenderBarRocks(){
+        foreach(var m in new List<MagnetPiece>(barRocks.Keys)){
+            var rock=barRocks[m];float age=Time.time-rock.started;
+            if(!m||!m.geometry||!m.gameObject.activeInHierarchy||m.storedInPortal||m.product!=MagnetProduct.None
+                ||!MagnetPiece.VerticalBar(m.Pose)||age>=BarRockSeconds){barRocks.Remove(m);continue;}
+            if(MagnetStillAnimating(m)||portalAnimatedMagnets.Contains(m))continue;
+            var geometry=m.geometry;hoverRenderPositions[geometry]=geometry.position;rockRenderRotations[geometry]=geometry.rotation;
+            ApplyBarRock(m,rock.axis,BarRockAngle(age,rock.velocity));
+        }
+    }
     const float MagnetHoverAmplitude=.09f,MagnetHoverPeriod=2.8f;
     readonly Dictionary<MagnetPiece,float> hoveringMagnets=new Dictionary<MagnetPiece,float>();
     readonly HashSet<MagnetPiece> pushHoverParticipants=new HashSet<MagnetPiece>();
@@ -135,6 +171,7 @@ public sealed partial class GridPlayground {
         if(portalMagnetPresentation&&!enabled&&portalHoverFrame!=Time.frameCount){
             portalHoverFrame=Time.frameCount;UpdateMagnetHover();
         }
+        RenderBarRocks();
         foreach(var entry in hoveringMagnets){
             var m=entry.Key;if(!m||!m.geometry||!m.gameObject.activeInHierarchy||portalAnimatedMagnets.Contains(m)||MagnetFlightOwnsHeight(m))continue;
             float t=entry.Value;
@@ -156,10 +193,13 @@ public sealed partial class GridPlayground {
     }
     // Render-only offsets never enter movement, assembly bounds or undo snapshots.
     void RestoreMagnetHover(Camera camera){
+        foreach(var entry in rockRenderRotations)if(entry.Key)entry.Key.rotation=entry.Value;
+        rockRenderRotations.Clear();
         foreach(var entry in hoverRenderPositions)if(entry.Key)entry.Key.position=entry.Value;
         hoverRenderPositions.Clear();
     }
     void ClearMagnetHover(){
+        barRocks.Clear();
         portalMagnetPresentation=false;
         portalAnimatedMagnets.Clear();
         Camera.onPreCull-=RenderMagnetHover;Camera.onPostRender-=RestoreMagnetHover;

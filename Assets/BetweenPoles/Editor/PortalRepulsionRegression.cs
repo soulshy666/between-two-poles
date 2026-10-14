@@ -52,6 +52,7 @@ public static class PortalRepulsionRegression {
             checks+=OrdinaryMovementCases(scene);
             checks+=EmptySpaceLedgeCases(scene);
             checks+=SkipSettlementCases(scene);
+            checks+=GroundBarInertiaCases(scene);
             Directory.CreateDirectory("output");File.WriteAllText("output/portal-repulsion.txt","PASS: "+checks+" checks; four directions; stone/high platform rebound; wide-bar support and visibility; kick onto ground/space/second portal; occupied portal rejection with animated return; cargo retention and mouth recovery.");
         }catch(Exception ex){Directory.CreateDirectory("output");File.WriteAllText("output/portal-repulsion.txt","FAIL: "+ex);throw;}
         finally{EditorSceneManager.ClosePreviewScene(scene);}
@@ -115,6 +116,41 @@ public static class PortalRepulsionRegression {
                         renderer.GetPropertyBlock(block);Check(renderer.enabled&&block.GetFloat("_BridgeEnabled")==1,"Supporting bridge lost presentation");
                     }
                 }
+            }finally{UnityEngine.Object.DestroyImmediate(root);}
+        }
+        return checks;
+    }
+    static int GroundBarInertiaCases(UnityEngine.SceneManagement.Scene scene){
+        int checks=0;var flags=System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Instance;
+        foreach(var dir in new[]{Vector2Int.right,Vector2Int.left,Vector2Int.up,Vector2Int.down})foreach(bool upright in new[]{false,true}){
+            var root=new GameObject("Ground bar inertia");root.SetActive(false);UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(root,scene);
+            try{
+                var b=root.AddComponent<GridPlayground>();b.enabled=false;
+                var axis=new Vector3(dir.x,0,dir.y);b.player=new GameObject("Actor").transform;b.player.SetParent(root.transform);b.player.position=-axis*b.cellSize;
+                var tiles=new List<GridTile>();
+                for(int n=-1;n<=1;n++){var go=new GameObject("Floor");go.transform.SetParent(root.transform);go.transform.position=axis*(n*b.cellSize);tiles.Add(go.AddComponent<GridTile>());}
+                b.tiles=tiles.ToArray();var yaw=Quaternion.FromToRotation(Vector3.right,axis);
+                var initial=yaw*(upright?Quaternion.Euler(0,0,90):Quaternion.identity);
+                var m=MagnetVisuals.Create(root.transform,Vector3.zero,MagnetShape.Bar,true,initial,b.cellSize,root.transform);b.magnets=new[]{m};root.SetActive(true);
+                typeof(GridPlayground).GetField("recordingPush",flags).SetValue(b,true);
+                float degrees;var final=MagnetPiece.Rolled(m.shape,initial,dir,out degrees);
+                var routine=(System.Collections.IEnumerator)typeof(GridPlayground).GetMethod("FlowingRoll",flags).Invoke(b,new object[]{m,new MagnetRollStep(dir,final,degrees),dir,Vector2Int.zero});
+                var stack=new Stack<System.Collections.IEnumerator>();stack.Push(routine);float previous=0,slideStart=-1;int guard=10000;
+                while(stack.Count>0){
+                    Check(--guard>0,"Ground roll stalled");var current=stack.Peek();if(!current.MoveNext()){stack.Pop();continue;}
+                    if(current.Current is System.Collections.IEnumerator child){stack.Push(child);continue;}
+                    float travel=Vector3.Dot(m.transform.position,axis)/b.cellSize;
+                    Check(travel>=previous-.0001f&&travel<=1.0001f,"Ground bar moved backward or beyond its destination");previous=travel;
+                    if(upright&&slideStart<0&&Quaternion.Angle(m.Pose,final)<.01f)slideStart=travel;
+                    float bottom=float.PositiveInfinity;
+                    foreach(var f in m.geometry.GetComponentsInChildren<MeshFilter>())foreach(var v in f.sharedMesh.vertices)bottom=Mathf.Min(bottom,f.transform.TransformPoint(v).y);
+                    Check(Mathf.Abs(bottom)<.001f,"Ground roll lost support contact");
+                }
+                Check((m.transform.position-axis*b.cellSize).sqrMagnitude<.0001f&&Quaternion.Angle(m.Pose,final)<.01f,"Ground inertia changed logical result");checks++;
+                if(upright){Check(slideStart>=.89f&&slideStart<.97f,"Falling bar has no forward slide after touchdown");checks++;}
+                typeof(GridPlayground).GetMethod("StartBarRock",flags).Invoke(b,new object[]{m,new Vector3(dir.y,0,-dir.x)});
+                float take=(float)typeof(GridPlayground).GetMethod("TakeBarRock",flags).Invoke(b,new object[]{m,new Vector3(dir.y,0,-dir.x)});
+                Check(((System.Collections.IDictionary)typeof(GridPlayground).GetField("barRocks",flags).GetValue(b)).Count==0,"Next push failed to take over settling motion");checks++;
             }finally{UnityEngine.Object.DestroyImmediate(root);}
         }
         return checks;
@@ -241,7 +277,7 @@ public static class PortalRepulsionRegression {
                     Check(--guard>0,"Flat exit stalled");var current=stack.Peek();
                     if(!current.MoveNext()){stack.Pop();continue;}
                     if(current.Current is System.Collections.IEnumerator child&&!(child is CustomYieldInstruction)){stack.Push(child);continue;}
-                    Check(Quaternion.Angle(cargo.Pose,storedPose)<.01f,"Flat cargo changed pose while exiting");
+                    Check(Quaternion.Angle(cargo.Pose,storedPose)<=12.1f,"Flat cargo tumbled beyond its forward flight lean");
                     if(!cargoFirst&&cargo.gameObject.activeSelf&&(cargo.transform.position-axis*b.cellSize).sqrMagnitude<.0001f&&b.player.localScale==Vector3.zero){cargoFirst=true;restY=cargo.geometry.position.y;}
                     if(cargoFirst&&space){
                         compressed|=cargo.geometry.position.y<restY-b.cellSize*.2f;
@@ -249,6 +285,7 @@ public static class PortalRepulsionRegression {
                     }
                 }
                 Check(cargoFirst,"Player emerged before the flat magnet settled");checks++;
+                Check(Quaternion.Angle(cargo.Pose,storedPose)<.01f,"Flight lean was not restored after landing");checks++;
                 Check(cargo.gameObject.activeSelf&&!cargo.storedInPortal&&(cargo.transform.position-axis*b.cellSize).sqrMagnitude<.0001f,"Flat magnet did not remain in the first exit cell");checks++;
                 Check(!b.Busy,"Flat exit left input locked");checks++;
                 if(space){Check(compressed&&rebounded&&b.player.position==Vector3.zero,"Floating flat magnet did not compress and spring player back to hole");checks++;}
