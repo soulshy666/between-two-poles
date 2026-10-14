@@ -29,6 +29,7 @@ public sealed partial class GridPlayground {
         var renderer=star.GetComponent<Renderer>();var original=new MaterialPropertyBlock();renderer.GetPropertyBlock(original);
         var properties=new MaterialPropertyBlock();renderer.GetPropertyBlock(properties);
         PlayerPushPose pose=null;var sparks=new List<GameObject>();bool complete=false;
+        PlayerStarAudio starAudio=null;
         var origin=player.position;var rays=new List<LineRenderer>();Material glow=null;
         Material haloMaterial=null;Texture2D haloTexture=null;GameObject burstHalo=null,bodyHalo=null;LineRenderer shockwave=null;
         Camera effectCamera=null;foreach(var view in FindObjectsOfType<IslandCamera>())if(view.board==this){effectCamera=view.GetComponent<Camera>();break;}
@@ -40,6 +41,7 @@ public sealed partial class GridPlayground {
             while(!destination.HasValue&&movementBusy)yield return null;
             if(!player||!star)yield break;
             pose=PlayerPushPose.BeginStar(player);
+            starAudio=PlayerStarAudio.Begin(player);
             glow=new Material(Shader.Find("Sprites/Default"));
             haloTexture=new Texture2D(64,64,TextureFormat.RGBA32,false){wrapMode=TextureWrapMode.Clamp};
             var pixels=new Color[64*64];for(int y=0;y<64;y++)for(int x=0;x<64;x++){
@@ -72,6 +74,7 @@ public sealed partial class GridPlayground {
             Vector3 release=Vector3.zero;
             float spin=0;
             for(float time=0;time<burstTime+2.3f;time+=Mathf.Min(Time.deltaTime,.05f)){
+                if(starAudio)starAudio.Sample(time-contactTime);
                 if(destination.HasValue)player.position=time<contactTime
                     ?Vector3.Lerp(origin,contact,Mathf.SmoothStep(0,1,time/contactTime))
                     :Vector3.Lerp(contact,destination.Value,Mathf.SmoothStep(0,1,Mathf.InverseLerp(contactTime,.95f,time)));
@@ -142,6 +145,7 @@ public sealed partial class GridPlayground {
             }
             complete=true;collectedStars.Add(star);star.gameObject.SetActive(false);
         }finally{
+            if(starAudio)starAudio.Stop();
             foreach(var spark in sparks)if(spark)Destroy(spark);
             foreach(var ray in rays)if(ray)Destroy(ray.gameObject);if(glow)Destroy(glow);
             if(burstHalo)Destroy(burstHalo);if(bodyHalo)Destroy(bodyHalo);if(shockwave)Destroy(shockwave.gameObject);if(haloMaterial)Destroy(haloMaterial);if(haloTexture)Destroy(haloTexture);
