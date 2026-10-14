@@ -68,7 +68,7 @@ public sealed partial class BlackHoleTravel {
         if(!origin)return false;
         return room==origin.Room||SessionExploration.GetInt(ChapterAtlas.Key(origin.gameObject.scene.path,room),0)>0;
     }
-    void BeginNavigation(GridPlayground board){
+    void BeginNavigation(GridPlayground board,bool mapPresentation=true){
         navigationRenderers.Clear();
         foreach(var camera in FindObjectsOfType<IslandCamera>())if(camera.enabled&&camera.board==board){navigationCamera=camera;break;}
         if(!navigationCamera)throw new System.InvalidOperationException("黑洞总览找不到当前关卡镜头");
@@ -79,19 +79,18 @@ public sealed partial class BlackHoleTravel {
         navigationCamera.enabled=false;
         if(navigationCurve){savedFocus=navigationCurve.editFocus;savedSize=navigationCurve.planningSize;curveFit=navigationCurve.fitIsland;navigationCurve.fitIsland=false;navigationCurve.navigationZoomSmoothTime=1.4f;navigationCurve.ResetZoomVelocity();}
         else savedSize=viewCamera.orthographicSize;
-        viewSize=inspectionBoard?viewCamera.orthographicSize*1.8f:Mathf.Max(12f,viewCamera.orthographicSize*1.15f);
+        viewSize=mapPresentation?(inspectionBoard?viewCamera.orthographicSize*1.8f:Mathf.Max(12f,viewCamera.orthographicSize*1.15f)):viewCamera.orthographicSize;
         navigationWindow=board.GetComponent<FiveIslandWindow>();
         if(navigationWindow){
             windowEnabled=navigationWindow.enabled;navigationWindow.enabled=false;
-            foreach(var room in navigationWindow.rooms)foreach(var renderer in room.surfaces)SetNavigationVisible(renderer,true);
+            if(mapPresentation)foreach(var room in navigationWindow.rooms)foreach(var renderer in room.surfaces)SetNavigationVisible(renderer,true);
         }
-        foreach(var m in board.magnets)if(m&&m.gameObject.activeInHierarchy){
+        if(mapPresentation)foreach(var m in board.magnets)if(m&&m.gameObject.activeInHierarchy){
             // Map appearance is restored when navigation closes.
             bool show=true;
             foreach(var renderer in m.GetComponentsInChildren<Renderer>())SetNavigationVisible(renderer,show);
         }
-        BeginUnknownIslands(board);
-        BeginMapLighting(board);
+        if(mapPresentation){BeginUnknownIslands(board);BeginMapLighting(board);}
         dragging=false;playerReturnPressed=false;PlayerReturnRequested=false;ApplyNavigation();
     }
     void SetNavigationVisible(Renderer renderer,bool show){
@@ -253,7 +252,8 @@ public sealed partial class BlackHoleTravel {
     }
     System.Collections.IEnumerator WaitForExitView(BlackHolePortal portal){
         // Keep the currently panned map pose until the destination framing is known.
-        if(!navigationCamera)BeginNavigation(portal.board);
+        // Automatic rebounds need camera framing only, never a new exit-selection map.
+        if(!navigationCamera)BeginNavigation(portal.board,false);
         var rig=navigationCamera;var camera=viewCamera;var curve=navigationCurve;
         Vector3 startFocus=viewFocus;float startSize=camera.orthographicSize;
         rig.SelectCurrentIsland();
