@@ -112,6 +112,42 @@ public sealed partial class PlayerPushPose:MonoBehaviour {
         }
         posed.vertices=workVertices;if(normals.Length==vertices.Length)posed.normals=workNormals;
     }
+    public void SampleRecoilPush(float reach,float impact){
+        if(!visual)return;
+        reach=Mathf.Clamp01(reach);impact=Mathf.Clamp01(impact);
+        ApplyFlowStance(new FlowStance{lean=Mathf.Lerp(18*reach,-24,impact),
+            armPitch=Mathf.Lerp(-78*reach,-92,impact),armInset=.035f,armYaw=18,
+            armZ=.09f*reach,legDrive=-62*impact,drop=-.08f*impact},1);
+    }
+    public void SampleRecoilFlight(float seconds){
+        if(!visual)return;
+        // Facing stays toward the magnet while the body travels backwards.
+        // Both feet reach forward, with a small trailing flutter rather than a run.
+        float flutter=Mathf.Sin(seconds*11);
+        SamplePortalLimbs(-92+3*flutter,-92-3*flutter,-62+5*flutter,-62-5*flutter,8);
+        visual.localRotation=restRotation*Quaternion.Euler(-24,0,0);
+        visual.localPosition=restPosition+Vector3.up*.08f;
+    }
+    public void SampleRecoilCrash(float progress,float cellSize=1.5f){
+        if(!visual)return;
+        float fall=Mathf.SmoothStep(0,1,Mathf.InverseLerp(.06f,.30f,progress));
+        float rise=Mathf.SmoothStep(0,1,Mathf.InverseLerp(.64f,1,progress));
+        float prone=fall*(1-rise);
+        if(progress>=.64f){
+            SamplePortalRecovery(rise);
+            visual.localPosition+=Vector3.back*(cellSize*.35f*(1-rise));
+            return;
+        }
+        float shove=Mathf.Sin(Mathf.PI*Mathf.Clamp01(progress/.13f));
+        ApplyFlowStance(new FlowStance{armPitch=(-65-35*shove)*(1-prone),armZ=.12f*shove,armInset=.035f,armYaw=24},1-rise);
+        // Share the portal impact's bent, spread limbs and sideways head pose.
+        BlendPortalSprawl(prone);
+        visual.localRotation=restRotation*Quaternion.Euler(88*prone,0,0);
+        // Keep the feet near the rear edge while prone so the torso stays
+        // inside this cell. Visual-only offset follows facing in all directions
+        // and returns to the centre with the get-up blend.
+        visual.localPosition=restPosition+new Vector3(0,.17f*prone,-cellSize*.35f*prone);
+    }
     public static PlayerPushPose BeginWalk(Transform player,float cellSize){
         var pose=GetPose(player);pose.EndEdgeBalance();if(pose.flowPushing)pose.End();if(pose.pushing)return pose;
         pose.walking=true;pose.nextWalkSoundDistance=0;pose.walkFoot=pose.nextWalkFoot;pose.walkDistance=0;pose.walkCellSize=Mathf.Max(.01f,cellSize);pose.SampleWalk(0);return pose;
