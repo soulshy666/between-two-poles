@@ -23,6 +23,15 @@ public sealed partial class GridPlayground {
         return TravelSurface(from,player.position.y,cell,magnet,out contact)
             &&SameHeight(contact,magnet.transform.position.y);
     }
+    bool StoneBackedRecoilPair(MagnetPiece near,MagnetPiece far,Vector2Int direction){
+        if(!near||!far||near.combined||far.combined
+            ||near.product!=MagnetProduct.None||far.product!=MagnetProduct.None
+            ||near.north!=far.north
+            ||Cell(far.transform)!=Cell(near.transform)+direction
+            ||!SameHeight(near.transform.position.y,far.transform.position.y))return false;
+        var stop=Tile(Cell(far.transform)+direction);
+        return stop&&stop.blocked;
+    }
     Vector2Int PushLanding(Vector2Int vacated,Vector2Int from){
         var moving=Piece(vacated);var deck=Deck(vacated,moving);float height;
         return (Floor(vacated)||deck)&&TravelSurface(from,player.position.y,vacated,moving,out height)?vacated:from;
@@ -113,8 +122,8 @@ public sealed partial class GridPlayground {
             var topPortal=BlackHolePortal.At(this,next);
             if(topPortal){Busy=true;StartMovement(JumpIntoPortal(topPortal,dir));LastRule="从物体顶面跳入黑洞";return true;}
             if(flatSingle&&!destinationTile){
-                Busy=true;StartMovement(JumpOntoUnstableMagnet(m,destinationTop));
-                LastRule="悬空单磁铁承重不稳，跳回原支撑并攀爬脱险";return true;
+                ShowUnsafeDrop(dir);
+                return Reject("悬空单磁铁不能承重，留在原支撑面并播放边缘失衡");
             }
             Busy=true;StartMovement(WalkOffObject(next,destinationTop));LastRule="在相邻顶面之间跳跃移动";return true;
         }
@@ -130,10 +139,11 @@ public sealed partial class GridPlayground {
         if(m&&!m.walkable) {
             if(!m.CanBePushed)return Reject("只有单个磁铁可以推动；合成后固定在原格");
             if(!CanReachMagnet(m))return Reject("需要站在同一层推动");
-            // A single already beyond the shore is out of the player's reach.
-            // It can still receive another material pushed from a supported cell.
-            if(!Supported(m))return Reject("边缘外的磁铁无法直接推动，请从岸上推来磁铁与它组合，或用同极磁铁将它排斥回陆地");
             var target=next+dir;var far=TransportObstacle(target,m);var land=Tile(target);float targetHeight;
+            // A stone-backed same-pole pair transmits recoil even over a gap.
+            // All other direct pushes still require support under the near piece.
+            bool stoneBackedRecoil=StoneBackedRecoilPair(m,far,dir);
+            if(!Supported(m)&&!stoneBackedRecoil)return Reject("边缘外的磁铁无法直接推动，请从岸上推来磁铁与它组合，或用同极磁铁将它排斥回陆地");
             var portal=BlackHolePortal.At(this,target);if(portal)return BeginPortalPush(m,portal,dir);
             if(far&&MagnetStillAnimating(far))return Reject("目标磁铁正在完成上一次推动");
             if(land&&land.blocked)return Reject("目标格被石头占据");
@@ -145,8 +155,11 @@ public sealed partial class GridPlayground {
                 // A bridge's second socket belongs to its U base, not the first rail.
                 if(far.product!=MagnetProduct.BridgeHalf&&far.product!=MagnetProduct.None)return Reject("合成体不能被单块磁铁继续合成或排斥；圆环需由主角直接推动");
                 if(far.product!=MagnetProduct.BridgeHalf&&far.north==m.north){
+                    if(stoneBackedRecoil){
+                        Busy=true;StartCoroutine(Recoil(m,dir,from));LastRule="远端受石头阻挡：磁铁弹回撞击主角，一起反冲";return true;
+                    }
                     // A hovering receiver may return to a free, level shore. It
-                    // still blocks pushes farther into open space or into a stone.
+                    // still blocks pushes farther into open space without a backstop.
                     var edgeChain=CanRepelBackToLand(far,dir)?null:EdgeRepelChain(m,far,dir);
                     if(edgeChain!=null){
                         Busy=true;StartMovement(EdgeRepelFeedback(edgeChain,dir));
@@ -209,72 +222,37 @@ public sealed partial class GridPlayground {
         if(entryPortal){Busy=true;StartMovement(JumpIntoPortal(entryPortal,dir));LastRule="跳入黑洞";return true;}
         Busy=true;StartMovement(MovePlayer(next));LastRule="行走";return true;
     }
-    IEnumerator JumpOntoUnstableMagnet(MagnetPiece magnet,Vector3 landing){
-        var start=player.position;var source=Cell(player);
-        var outward=landing-start;outward.y=0;outward.Normalize();
-        var geometry=magnet.geometry;var originalPosition=geometry.localPosition;var originalRotation=geometry.localRotation;
-        var lip=start+outward*(cellSize*.4f);
-        var hanging=lip+outward*.2f-Vector3.up*.82f;
-        PlayerPushPose pose=null;
-        try{
-            yield return TurnPlayer(outward);pose=PlayerPushPose.Begin(player);
-            for(float t=0;t<.9f;t+=MovementDeltaTime){
-                float p=Mathf.Clamp01(t/.9f),a=Mathf.InverseLerp(.18f,.83f,p);
-                player.position=Vector3.Lerp(start,landing,a)+Vector3.up*(.55f*Mathf.Sin(a*Mathf.PI));
-                pose.SamplePlatformJump(p);yield return null;
-            }
-            player.position=landing;
-            for(float t=0;t<1.2f;t+=MovementDeltaTime){
-                float a=t/1.2f,wave=Mathf.Sin(a*Mathf.PI*6)*Mathf.Sin(a*Mathf.PI);
-                geometry.localRotation=originalRotation*Quaternion.AngleAxis(12*wave,geometry.InverseTransformDirection(outward));
-                geometry.localPosition=originalPosition-Vector3.up*(.09f*Mathf.Sin(a*Mathf.PI));
-                player.position=landing-Vector3.up*(.09f*Mathf.Sin(a*Mathf.PI));
-                pose.SamplePortalLedge(0,a);yield return null;
-            }
-            geometry.localPosition=originalPosition;geometry.localRotation=originalRotation;
-            var facing=player.rotation;
-            for(float t=0;t<.85f;t+=MovementDeltaTime){
-                float a=Mathf.Clamp01(t/.85f);
-                player.rotation=Quaternion.Slerp(facing,Quaternion.LookRotation(-outward),Mathf.Clamp01(a*3));
-                player.position=Vector3.Lerp(landing,hanging,a)+Vector3.up*(Mathf.Max(.7f,start.y-landing.y+.35f)*Mathf.Sin(a*Mathf.PI));
-                pose.SamplePortalLedge(Mathf.SmoothStep(0,1,Mathf.InverseLerp(.4f,.85f,a)),0);yield return null;
-            }
-            player.position=hanging;player.rotation=Quaternion.LookRotation(-outward);
-            for(float t=0;t<.45f;t+=MovementDeltaTime){pose.SamplePortalLedge(1,0);yield return null;}
-            var lifted=lip+outward*.2f+Vector3.up*.12f;
-            for(float t=0;t<1f;t+=MovementDeltaTime){
-                float a=Mathf.SmoothStep(0,1,t);
-                player.position=a<.65f?Vector3.Lerp(hanging,lifted,a/.65f):Vector3.Lerp(lifted,start,(a-.65f)/.35f);
-                pose.SamplePortalLedge(1-Mathf.SmoothStep(0,1,Mathf.InverseLerp(.45f,1,a)),0);yield return null;
-            }
-            player.position=start;NotifyLanding(source);
-        }finally{
-            if(geometry){geometry.localPosition=originalPosition;geometry.localRotation=originalRotation;}
-            if(pose)pose.End();Busy=false;
-            ClearMovementInput();nextHeldStep=float.PositiveInfinity;
-        }
-    }
+    bool responsiveJump,jumpTapBoost;
     IEnumerator WalkOffObject(Vector2Int cell,Vector3 end){
         var start=player.position;var direction=new Vector3(cell.x*cellSize-start.x,0,cell.y*cellSize-start.z);
-        yield return TurnPlayer(direction);
-        var edge=end;edge.y=Mathf.Max(start.y,end.y);
-        var sourceTile=Tile(Cell(player));var destinationTile=Tile(cell);
-        if(!SameHeight(end.y,start.y)||(sourceTile&&sourceTile.blocked)||(destinationTile&&destinationTile.blocked)){
+        var facing=direction.sqrMagnitude>.0001f?Quaternion.LookRotation(direction):player.rotation;
+        // Height eligibility was checked by TryStepCore. Every accepted top-to-top
+        // transition uses the same jump, including equal-height adjacent supports.
+        // Neither object type nor the short interaction step time selects the pose.
+        {
             var jump=PlayerPushPose.Begin(player);
+            responsiveJump=true;jumpTapBoost=false;
             try{
-                for(float t=0;t<.95f;t+=MovementDeltaTime){
-                    float p=Mathf.Clamp01(t/.95f),a=Mathf.InverseLerp(.18f,.83f,p);
-                    var point=Vector3.Lerp(start,end,Mathf.SmoothStep(0,1,a));
-                    point.y=Mathf.Lerp(start.y,end.y,a)+Mathf.Sin(a*Mathf.PI)*.55f;
-                    player.position=point;jump.SamplePlatformJump(p);yield return null;
+                float horizontal=new Vector2(end.x-start.x,end.z-start.z).magnitude;
+                float duration=Mathf.Max(.28f,horizontal/(cellSize/.28f))+.06f*Mathf.Min(1,Mathf.Abs(end.y-start.y)/Mathf.Max(.01f,LayerHeight));
+                float arc=Mathf.Min(cellSize*.28f,.24f+Mathf.Abs(end.y-start.y)*.15f);
+                float progress=0,speed=1;
+                while(progress<1){
+                    float dt=MovementDeltaTime;
+                    speed=Mathf.MoveTowards(speed,jumpTapBoost?Mathf.Clamp(maxWalkSpeedMultiplier,1,1.5f):1,dt*8);
+                    progress=Mathf.Min(1,progress+dt*speed/duration);
+                    var point=Vector3.Lerp(start,end,progress);
+                    point.y+=Mathf.Sin(progress*Mathf.PI)*arc;
+                    player.rotation=Quaternion.RotateTowards(player.rotation,facing,180f/Mathf.Max(.085f,turnSeconds)*dt);
+                    // Crouch and recovery run during travel, without stationary
+                    // lead-in/out frames. Complete on this frame at touchdown.
+                    player.position=point;jump.SamplePlatformJump(progress);
+                    if(progress<1)yield return null;
                 }
-            }finally{jump.End();}
-            player.position=end;NotifyLanding(cell);Busy=false;yield break;
+            }finally{responsiveJump=false;jumpTapBoost=false;jump.End();}
+            player.position=end;NotifyLanding(cell);Busy=false;
+            continuePushOnComplete=!finishingMovement&&!recordingPush;
         }
-        var walkPose=PlayerPushPose.BeginWalk(player,cellSize);
-        try{yield return Slide(player,edge,stepSeconds);}finally{walkPose.End();}
-        if(!SameHeight(edge.y,end.y))yield return Slide(player,end,Mathf.Clamp(Mathf.Sqrt(Mathf.Abs(edge.y-end.y))*.16f,.12f,.5f));
-        player.position=end;NotifyLanding(cell);Busy=false;
     }
     public static string ProductName(MagnetProduct p){switch(p){case MagnetProduct.WideBar:return "一格宽条";case MagnetProduct.Ring:return "闭合圆环";case MagnetProduct.Cross:return "叠放十字";case MagnetProduct.Lift:return "单层磁流升降台";case MagnetProduct.BridgeHalf:return "两格桥半成品";case MagnetProduct.Bridge:return "两格桥";default:return "基础磁铁";}}
     bool ValidateRollPath(MagnetPiece m,List<MagnetRollStep> path,Vector2Int playerFrom,Vector2Int playerLanding,MagnetPiece vacated,Vector2Int? reserved,out Vector2Int end){
@@ -353,6 +331,19 @@ public sealed partial class GridPlayground {
         var start=m.transform.position;var end=Position(target,TransportHeight(m,target));
         var actorStart=player.position;var actorEnd=PushPlayerEnd(next,m);
         var rotation=m.Pose;var axis=new Vector3(step.direction.y,0,-step.direction.x);
+        bool groundBar=m.shape==MagnetShape.Bar&&m.product==MagnetProduct.None
+            &&Tile(Cell(m.transform))&&!Tile(Cell(m.transform)).blocked&&Tile(target)&&!Tile(target).blocked
+            &&!BlackHolePortal.At(this,target)&&SameHeight(start.y,end.y)
+            &&MagnetPiece.VerticalBar(rotation)!=MagnetPiece.VerticalBar(step.pose);
+        bool falling=MagnetPiece.VerticalBar(rotation);
+        var forward=new Vector3(step.direction.x,0,step.direction.y);
+        float halfWidth=0,halfHeight=0;
+        if(groundBar){
+            var bounds=AssemblyBounds(AssemblyBodies(m.geometry));
+            halfWidth=(Mathf.Abs(forward.x)*bounds.size.x+Mathf.Abs(forward.z)*bounds.size.z)*.5f;
+            halfHeight=bounds.size.y*.5f;
+        }
+        float inheritedRock=TakeBarRock(m,axis);
         player.rotation=Quaternion.LookRotation(new Vector3(step.direction.x,0,step.direction.y));
         var style=m.shape!=MagnetShape.Bar?PlayerPushPose.FlowPushStyle.Standard:
             MagnetPiece.VerticalBar(rotation)?PlayerPushPose.FlowPushStyle.ShoveBar:PlayerPushPose.FlowPushStyle.LiftBar;
@@ -374,14 +365,30 @@ public sealed partial class GridPlayground {
             pushFlowProgress=Mathf.Min(1,pushFlowProgress+pushFlowSpeed*dt);
             var previous=player.position;
             player.position=Vector3.Lerp(actorStart,actorEnd,pushFlowProgress);
-            m.transform.position=Vector3.Lerp(start,end,pushFlowProgress);
-            m.geometry.rotation=Quaternion.AngleAxis(step.degrees*pushFlowProgress,axis)*rotation;
+            float roll=pushFlowProgress;
+            if(groundBar){
+                // Gravity accelerates the fall; lifting accelerates under effort then brakes at vertical.
+                float phase=Mathf.Clamp01(pushFlowProgress/(falling?.78f:1));
+                // Retain angular momentum at vertical; the settling motion inherits it.
+                roll=falling?phase*phase:phase*phase*(2.56f-1.56f*phase);
+                float angle=roll*Mathf.PI*.5f;
+                float pivotTravel=halfWidth*(1-Mathf.Cos(angle))+halfHeight*Mathf.Sin(angle);
+                float slide=falling?cellSize*.1f:0;
+                float remaining=cellSize-slide-halfWidth-halfHeight;
+                float travel=pivotTravel+remaining*Mathf.SmoothStep(0,1,phase);
+                if(falling){float friction=Mathf.InverseLerp(.78f,1,pushFlowProgress);travel+=slide*(1-(1-friction)*(1-friction));}
+                m.transform.position=Vector3.Lerp(start,end,travel/cellSize);
+            }else m.transform.position=Vector3.Lerp(start,end,pushFlowProgress);
+            float followRock=inheritedRock*(1-Mathf.SmoothStep(0,1,Mathf.Clamp01(pushFlowProgress/.22f)));
+            m.geometry.rotation=Quaternion.AngleAxis(step.degrees*roll,axis)*rotation;
             MagnetVisuals.Ground(m);
-            pose.AdvanceFlowPush(Vector3.Distance(previous,player.position),dt,pushFlowProgress);
+            if(Mathf.Abs(followRock)>.001f)ApplyBarRock(m,axis,followRock);
+            pose.AdvanceFlowPush(Vector3.Distance(previous,player.position),dt,groundBar?roll:pushFlowProgress);
             if(pushFlowProgress>=1){pushFlowCarryTime=Mathf.Max(0,dt-remainingTime);break;}
             yield return null;
         }
         m.transform.position=end;m.geometry.rotation=step.pose;MagnetVisuals.Ground(m);
+        if(groundBar&&!falling&&!recordingPush&&!finishingMovement)StartBarRock(m,axis);
         yield return SettleMagnetArrival(m,start);
         player.position=actorEnd;NotifyLanding(next);
         // The movement driver may start the next validated push in this frame.
@@ -484,37 +491,45 @@ public sealed partial class GridPlayground {
         var magnetStart=incoming.transform.position;var playerStart=player.position;
         var forward=new Vector3(dir.x,0,dir.y);var axis=new Vector3(dir.y,0,-dir.x);
         var facing=Quaternion.LookRotation(forward);
-        var approach=magnetStart+forward*(cellSize*.28f);
-        var braced=playerStart+forward*(cellSize*.08f);
+        var approach=magnetStart+forward*(cellSize*.14f);
+        var braced=playerStart+forward*(cellSize*.28f);
         // Contact first, then launch both bodies. The far magnet stays pinned by the stone.
-        float playerFront=0,magnetRear=0;
-        var absolute=new Vector3(Mathf.Abs(forward.x),0,Mathf.Abs(forward.z));
-        foreach(var r in player.GetComponentsInChildren<Renderer>())if(r.enabled){
-            playerFront=Mathf.Max(playerFront,Vector3.Dot(r.bounds.center-playerStart,forward)+Vector3.Dot(r.bounds.extents,absolute));
+        float playerFront=cellSize*.23f,magnetRear=0;
+        float magnetBottom=float.PositiveInfinity,magnetTop=float.NegativeInfinity;
+        // Shader-expanded renderer bounds are not physical contact geometry.
+        foreach(var filter in incoming.geometry.GetComponentsInChildren<MeshFilter>()){
+            if(!filter.sharedMesh)continue;var bounds=filter.sharedMesh.bounds;
+            for(int i=0;i<8;i++){
+                var corner=bounds.center+Vector3.Scale(bounds.extents,new Vector3((i&1)==0?-1:1,(i&2)==0?-1:1,(i&4)==0?-1:1));
+                magnetRear=Mathf.Min(magnetRear,Vector3.Dot(filter.transform.TransformPoint(corner)-magnetStart,forward));
+                float height=filter.transform.TransformPoint(corner).y-magnetStart.y;
+                magnetBottom=Mathf.Min(magnetBottom,height);magnetTop=Mathf.Max(magnetTop,height);
+            }
         }
-        foreach(var r in incoming.geometry.GetComponentsInChildren<Renderer>())if(r.enabled){
-            magnetRear=Mathf.Min(magnetRear,Vector3.Dot(r.bounds.center-magnetStart,forward)-Vector3.Dot(r.bounds.extents,absolute));
-        }
-        var impact=braced+forward*Mathf.Clamp(playerFront-magnetRear,cellSize*.12f,cellSize*.9f);
+        // Bring the near end to the chest, rather than moving the body into it.
+        // Keep the rear face outside the torso; centre its height on the chest.
+        var impact=braced+forward*(playerFront-magnetRear);
+        if(!float.IsInfinity(magnetBottom))impact.y=playerStart.y+.55f-(magnetBottom+magnetTop)*.5f;
         var recoilPose=PlayerPushPose.Begin(player);
         try{
         float approachSeconds=Mathf.Max(.42f,stepSeconds*1.9f);
         for(float t=0;t<approachSeconds;t+=MovementDeltaTime){
             float a=Mathf.SmoothStep(0,1,t/approachSeconds);
-            incoming.transform.position=Vector3.Lerp(magnetStart,approach,a);
+            incoming.transform.position=Vector3.Lerp(magnetStart,approach,Mathf.SmoothStep(0,1,Mathf.InverseLerp(.32f,1,a)));
             player.position=Vector3.Lerp(playerStart,braced,a);
-            player.rotation=facing;recoilPose.SampleRecoilPush(Mathf.Clamp01(t/.12f),0);yield return null;
+            player.rotation=facing;recoilPose.SampleRecoilPush(a,0,incoming);
+            yield return null;
         }
         incoming.transform.position=approach;player.position=braced;
-        float returnSeconds=Mathf.Max(.20f,stepSeconds);
+        float returnSeconds=Mathf.Max(.36f,stepSeconds*1.5f);
         for(float t=0;t<returnSeconds;t+=MovementDeltaTime){
             float a=t/returnSeconds;
-            incoming.transform.position=Vector3.Lerp(approach,impact,a*a);
-            recoilPose.SampleRecoilPush(1,Mathf.SmoothStep(0,1,Mathf.InverseLerp(.65f,1,a)));
+            incoming.transform.position=Vector3.Lerp(approach,impact,Mathf.SmoothStep(0,1,a));
+            recoilPose.SampleRecoilPush(1,Mathf.SmoothStep(0,1,Mathf.InverseLerp(.35f,1,a)),incoming);
             yield return null;
         }
         incoming.transform.position=impact;
-        recoilPose.SampleRecoilFlight(0);
+        recoilPose.SampleRecoilFlight(0,incoming);
         yield return RecoilAcrossIslands(incoming,from,-dir,braced,impact,facing,axis);
         }finally{if(recoilPose&&!ChapterRecoilTravel.Active)recoilPose.End();}
     }

@@ -66,6 +66,37 @@ namespace BetweenPoles.EditorTools {
                 // Verify model-backed tops use the same rules as authored platforms.
                 source.surfaceHeight=0;target.surfaceHeight=.75f;
                 var bar=MagnetVisuals.Create(root.transform,Vector3.zero,MagnetShape.Bar,true,Quaternion.identity,1.5f,root.transform);b.magnets=new[]{bar};
+                // Equal-height adjacent supports must have airtime, even with
+                // the test scene's very short interaction step duration.
+                target.surfaceHeight=0;b.stepSeconds=.045f;
+                var adjacent=MagnetVisuals.Create(root.transform,z.transform.position,MagnetShape.Bar,false,Quaternion.identity,1.5f,root.transform);
+                b.magnets=new[]{bar,adjacent};b.player.position=Vector3.up*.24f;
+                int jumpHistory=b.UndoCount;
+                Check(b.TryStep(dir),"Equal-height magnet jump rejected: "+b.LastRule);
+                float peak=b.player.position.y;int frames=0;
+                while((bool)Call(b,"AdvanceMovement")){
+                    peak=Mathf.Max(peak,b.player.position.y);
+                    if(++frames>240)throw new Exception("Equal-height jump did not finish");
+                }
+                Check(peak>.5f&&frames>10,"Equal-height move slid or teleported instead of jumping");
+                Check(Vector3.Distance(b.player.position,z.transform.position+Vector3.up*.24f)<.001f,"Equal-height jump landing");
+                Check(b.PlayerSupport.valid&&b.PlayerSupport.owner==adjacent,"Equal-height jump support");
+                Check(b.UndoCount==jumpHistory+1&&b.UndoStep()&&Vector3.Distance(b.player.position,Vector3.up*.24f)<.001f,"Equal-height jump undo");
+                // Removing the ground below the same single magnet makes it an
+                // unsafe landing: feedback only, without a jump or undo entry.
+                b.tiles=new[]{source};b.InvalidateTileLookup();
+                var unsafeStart=b.player.position;int unsafeHistory=b.UndoCount;
+                var magnetStart=adjacent.transform.position;
+                Check(!b.TryStep(dir),"Unsupported single magnet accepted a jump");
+                var unsafePose=b.player.GetComponent<PlayerPushPose>();
+                Check(unsafePose&&(bool)typeof(PlayerPushPose).GetField("balancing",Private).GetValue(unsafePose),"Unsupported single magnet did not play edge balance");
+                Check(b.player.position==unsafeStart&&!b.Busy&&b.UndoCount==unsafeHistory&&adjacent.transform.position==magnetStart,"Unsafe landing changed world state");
+                Check(b.PlayerSupport.valid&&b.PlayerSupport.owner==bar,"Unsafe landing changed support");
+                typeof(PlayerPushPose).GetField("balanceTime",Private).SetValue(unsafePose,.4f);
+                Check(!b.TryStep(dir)&&(float)typeof(PlayerPushPose).GetField("balanceTime",Private).GetValue(unsafePose)==.4f,"Unsafe landing restarted edge feedback");
+                Check(float.IsPositiveInfinity((float)typeof(GridPlayground).GetField("nextHeldStep",Private).GetValue(b)),"Unsafe landing repeated held input");
+                b.tiles=new[]{source,target};b.InvalidateTileLookup();
+                UnityEngine.Object.DestroyImmediate(adjacent.gameObject);b.magnets=new[]{bar};target.surfaceHeight=.75f;
                 b.player.position=Vector3.up*.24f;
                 Check(b.TryStep(dir),"Actual flat magnet to platform: "+b.LastRule);Call(b,"FinishMovement");Check(Mathf.Abs(b.player.position.y-.75f)<.0001f,"Magnet jump landing");
                 b.player.position=Vector3.zero;target.surfaceHeight=0;bar.transform.position=z.transform.position;

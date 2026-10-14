@@ -71,6 +71,7 @@ public sealed partial class GridPlayground {
         pushPresentations.Remove(presentation);
     }
     void ClearPushPresentations(){
+        RestoreMagnetHover(null);barRocks.Clear();
         foreach(var presentation in pushPresentations.ToArray())RemovePushPresentation(presentation);
         foreach(var effect in contactSparks)if(effect){effect.gameObject.SetActive(false);Destroy(effect.gameObject);}
         contactSparks.Clear();

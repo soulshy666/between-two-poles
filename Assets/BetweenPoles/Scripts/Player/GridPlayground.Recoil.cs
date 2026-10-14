@@ -61,6 +61,11 @@ public sealed partial class GridPlayground {
     IEnumerator RecoilAcrossIslands(MagnetPiece magnet,Vector2Int from,Vector2Int travel,Vector3 playerStart,Vector3 magnetStart,Quaternion facing,Vector3 axis){
         Vector2Int stop,releaseCell;
         if(FindLocalRecoilStop(magnet,from,travel,out stop,out releaseCell)){
+            var struck=TransportObstacle(stop+travel,magnet);
+            if(struck&&struck.product==MagnetProduct.None&&!struck.combined){
+                yield return RecoilIntoMagnet(magnet,struck,from,travel,playerStart,magnetStart,facing);
+                yield break;
+            }
             yield return RecoilIntoObstacle(magnet,travel,stop,releaseCell,playerStart,magnetStart,facing);
             yield break;
         }
@@ -83,7 +88,7 @@ public sealed partial class GridPlayground {
             player.position=Vector3.Lerp(playerStart,playerEnd,a);magnet.transform.position=Vector3.Lerp(magnetStart,magnetEnd,a);
             FlightOffset(player,Vector3.Lerp(playerFlightOffset,endPlayerOffset,a));FlightOffset(magnet.transform,Vector3.Lerp(magnetFlightOffset,endMagnetOffset,a));
             player.rotation=facing;
-            if(flightPose)flightPose.SampleRecoilFlight(t);
+            if(flightPose)flightPose.SampleRecoilFlight(t,magnet);
             if(lands&&!contactHandled&&Vector3.Distance(player.position,playerEnd)<=cellSize){
                 contactHandled=true;LaunchLandingMagnets(magnet,shore,travel);
             }
@@ -124,6 +129,8 @@ public sealed partial class GridPlayground {
             if(tile&&tile.gameObject.activeInHierarchy&&Owner(tile)!=owner)return false;
             if(RecoilCellBlocksFlight(cell,height)){
                 stop=cell-travel;
+                var struck=TransportObstacle(cell,magnet);
+                if(struck&&struck.product==MagnetProduct.None&&!struck.combined)return true;
                 // Throw toward the chest. Prefer the adjacent cell; never overwrite
                 // another piece, enter a portal, or release into a rock.
                 release=stop-travel;var ground=Tile(release);
@@ -134,6 +141,69 @@ public sealed partial class GridPlayground {
             }
         }
         return false;
+    }
+    bool CanRecoilRoll(MagnetPiece target,Vector2Int travel,float height){
+        var cell=Cell(target.transform);var ground=Tile(cell);var next=cell+travel;float arrivalHeight;
+        return ground&&ground.gameObject.activeInHierarchy&&!ground.blocked&&SameHeight(ground.surfaceHeight,height)
+            &&!MagnetStillAnimating(target)&&!TransportObstacle(next,target)&&!IsWreckCell(next)
+            &&!BlackHolePortal.At(this,next)&&BridgePassage(cell,next,target)
+            &&TravelSurface(cell,target.transform.position.y,next,target,out arrivalHeight)
+            &&SameHeight(arrivalHeight,target.transform.position.y);
+    }
+    IEnumerator RecoilIntoMagnet(MagnetPiece carried,MagnetPiece target,Vector2Int origin,Vector2Int travel,Vector3 playerStart,Vector3 magnetStart,Quaternion facing){
+        var direction=new Vector3(travel.x,0,travel.y);var cell=Cell(target.transform);
+        bool rolls=CanRecoilRoll(target,travel,playerStart.y);
+        var contact=Position(cell-travel,playerStart.y)+direction*cellSize*.18f;
+        var offset=magnetStart-playerStart;
+        var pose=PlayerPushPose.Begin(player);
+        var targetVisualPosition=target.geometry.localPosition;
+        pushHoverParticipants.Add(carried);pushHoverParticipants.Add(target);
+        try{
+            float seconds=Mathf.Max(.12f,Vector3.Distance(playerStart,contact)/(cellSize*5));
+            for(float t=0;t<seconds;t+=MovementDeltaTime){
+                player.SetPositionAndRotation(Vector3.Lerp(playerStart,contact,Mathf.Clamp01(t/seconds)),facing);
+                carried.transform.position=player.position+offset;pose.SampleRecoilFlight(t,carried);yield return null;
+            }
+            player.position=contact;carried.transform.position=contact+offset;
+            if(rolls){
+                var actorStart=player.position;var cargoStart=carried.transform.position;
+                var actorEnd=Position(cell,playerStart.y);var cargoEnd=Position(cell-travel,playerStart.y);
+                float degrees;var rotation=MagnetPiece.Rolled(target.shape,target.Pose,travel,out degrees);
+                var motion=RollPiece(target,new MagnetRollStep(travel,rotation,degrees),cell+travel,a=>{
+                    player.position=Vector3.Lerp(actorStart,actorEnd,a);
+                    carried.transform.position=Vector3.Lerp(cargoStart,cargoEnd,a);
+                    pose.SampleRecoilFlight(seconds+a*.24f,carried);
+                },.24f);
+                // Recoil runs as a Unity coroutine, so explicitly advance this
+                // existing single-step roll and retain its exact shape result.
+                while(motion.MoveNext())yield return motion.Current;
+                player.position=actorEnd;carried.transform.position=cargoEnd;
+                NotifyLanding(cell);LastRule="反冲撞翻磁铁一格：主角落在腾出的格子，携带磁铁留在身后";
+            }else{
+                for(float t=0;t<.2f;t+=MovementDeltaTime){
+                    float squeeze=Mathf.Sin(Mathf.Clamp01(t/.2f)*Mathf.PI*.5f);
+                    player.position=contact+direction*(cellSize*.1f*squeeze);
+                    carried.transform.position=player.position+offset;
+                    target.geometry.localPosition=targetVisualPosition+target.transform.InverseTransformVector(direction*cellSize*.06f*squeeze);
+                    pose.SampleRecoilPush(1,squeeze,carried);yield return null;
+                }
+                var actorStart=player.position;var cargoStart=carried.transform.position;
+                var actorEnd=Position(origin,playerStart.y);var cargoEnd=Position(origin-travel,playerStart.y);
+                seconds=Mathf.Max(.15f,Vector3.Distance(actorStart,actorEnd)/(cellSize*5));
+                for(float t=0;t<seconds;t+=MovementDeltaTime){
+                    float a=Mathf.Clamp01(t/seconds);
+                    player.position=Vector3.Lerp(actorStart,actorEnd,a);carried.transform.position=Vector3.Lerp(cargoStart,cargoEnd,a);
+                    target.geometry.localPosition=Vector3.Lerp(targetVisualPosition+target.transform.InverseTransformVector(direction*cellSize*.06f),targetVisualPosition,Mathf.Clamp01(t/.1f));
+                    pose.SampleRecoilFlight(t,carried);yield return null;
+                }
+                player.position=actorEnd;carried.transform.position=cargoEnd;
+                NotifyLanding(origin);LastRule="目标磁铁被挡住：挤压后带着磁铁沿原路弹回";
+            }
+        }finally{
+            if(target&&target.geometry&&!rolls)target.geometry.localPosition=targetVisualPosition;
+            pushHoverParticipants.Remove(carried);pushHoverParticipants.Remove(target);if(pose)pose.End();
+        }
+        Busy=false;
     }
     bool RecoilCellBlocksFlight(Vector2Int cell,float flightHeight){
         const float tolerance=.0001f;
@@ -179,7 +249,7 @@ public sealed partial class GridPlayground {
                 float p=Mathf.Clamp01(t/seconds);
                 player.SetPositionAndRotation(Vector3.Lerp(playerStart,contact,p),facing);
                 magnet.transform.position=player.position+heldOffset;
-                pose.SampleRecoilFlight(t);yield return null;
+                pose.SampleRecoilFlight(t,magnet);yield return null;
             }
             player.position=contact;magnet.transform.position=contact+heldOffset;
             var releasePose=pose.CapturePushRelease();

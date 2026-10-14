@@ -8,11 +8,13 @@ public sealed partial class GridPlayground {
     }
     IEnumerator JumpIntoPortalAnimation(BlackHolePortal portal,Vector2Int direction){
         var start=player.position;var end=Position(portal.Cell,portal.tile.surfaceHeight);
-        yield return TurnPlayer(new Vector3(direction.x,0,direction.y));
+        var facing=Quaternion.LookRotation(new Vector3(direction.x,0,direction.y));
         var pose=PlayerPushPose.Begin(player);
-        for(float t=0;t<.95f;t+=MovementDeltaTime*BlackHoleTravel.AnimationSpeed){
-            float a=Mathf.Clamp01(t/.95f);var position=Vector3.Lerp(start,end,Mathf.SmoothStep(0,1,a));
-            position.y+=Mathf.Sin(a*Mathf.PI)*.85f;player.position=position;pose.SamplePortalEntry(a);yield return null;
+        for(float t=0;t<.36f;){
+            t+=MovementDeltaTime*BlackHoleTravel.AnimationSpeed;
+            float a=Mathf.Clamp01(t/.36f);var position=Vector3.Lerp(start,end,a);
+            player.rotation=Quaternion.RotateTowards(player.rotation,facing,180f/Mathf.Max(.085f,turnSeconds)*MovementDeltaTime);
+            position.y+=Mathf.Sin(a*Mathf.PI)*.4f;player.position=position;pose.SamplePortalEntry(a);yield return null;
         }
         player.position=end;pose.SamplePortalEntry(1);NotifyLanding(portal.Cell);Busy=false;
 
