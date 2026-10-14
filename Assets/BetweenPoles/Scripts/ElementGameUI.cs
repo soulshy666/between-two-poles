@@ -52,7 +52,8 @@ public sealed class ElementGameUI:MonoBehaviour {
     void Awake(){Initialize();}
     void OnEnable(){Initialize();}
     void Initialize(){board=GetComponent<GridPlayground>();map=GetComponent<ChapterMapReturn>();if(!Application.isPlaying||audioSource)return;audioSource=gameObject.AddComponent<AudioSource>();audioSource.playOnAwake=false;audioSource.ignoreListenerPause=true;}
-    bool Available {get{return gameObject.scene==SceneManager.GetActiveScene()&&board&&board.enabled&&!board.OpeningCinematic&&!board.Busy&&!ChapterRecoilTravel.Active&&!BlackHoleTravel.Selecting&&!BlackHoleTravel.InTransit;}}
+    bool HUDReady {get{return gameObject.scene==SceneManager.GetActiveScene()&&board&&board.enabled&&!board.OpeningCinematic&&!ChapterRecoilTravel.Active&&!BlackHoleTravel.Selecting&&!BlackHoleTravel.InTransit;}}
+    bool Available {get{return HUDReady&&!board.Busy;}}
     void SetPaused(bool value){if(value==Paused)return;if(value){previousTimeScale=Time.timeScale;Time.timeScale=0;}else Time.timeScale=previousTimeScale;ownsPause=value;Paused=value;}
     void OnDisable(){if(ownsPause)SetPaused(false);}
     void OnDestroy(){foreach(var clip in clips.Values)if(clip)Destroy(clip);}
@@ -69,7 +70,11 @@ public sealed class ElementGameUI:MonoBehaviour {
         if(Input.GetKeyDown(KeyCode.Z))Notify("undo");
         if(Input.GetKeyDown(KeyCode.R))Notify("reset");
     }
-    void Notify(string action){toast=action;toastUntil=Time.unscaledTime+1.6f;Blip(action);}
+    void Notify(string action){
+        Blip(action);
+        if(action=="undo"||action=="reset"){toastUntil=0;return;}
+        toast=action;toastUntil=Time.unscaledTime+1.6f;
+    }
     void Activate(string action){
         if(!Application.isPlaying)return;
         if(action=="map"){if(Paused)SetPaused(false);map.OpenLocalOverview();Blip("map");return;}
@@ -90,15 +95,17 @@ public sealed class ElementGameUI:MonoBehaviour {
         }
         audioSource.PlayOneShot(clip);
     }
-    void Icon(string action,float x,float y,bool enabled=true){
+    void Icon(string action,float x,float y,bool enabled=true,bool? appearanceEnabled=null){
         float k=K;var rect=new Rect(x,y,19*k,21*k);bool hot=rect.Contains(Event.current.mousePosition);
         string icon=action=="sound"&&AudioListener.volume<=0?"mute":action;
-        string state=!enabled?"off":hot&&Input.GetMouseButton(0)?"press":hot?"hover":"normal";
+        // A single walking step temporarily blocks actions, but must not flash the HUD.
+        bool visuallyEnabled=appearanceEnabled??enabled;
+        string state=!visuallyEnabled?"off":hot&&Input.GetMouseButton(0)?"press":hot?"hover":"normal";
         Draw(rect,icon+"-"+state);
         if(action=="undo"){int frame=(int)(Time.unscaledTime/.18f)%2;Draw(new Rect(x-k,y-3*k,5*k,6*k),"deco-"+frame);}
         bool old=GUI.enabled;GUI.enabled=enabled;
         if(GUI.Button(rect,GUIContent.none,GUIStyle.none))Activate(action);GUI.enabled=old;
-        if(hot&&enabled){
+        if(hot&&visuallyEnabled){
             if(hovered!=action&&Event.current.type==EventType.Repaint){hovered=action;Blip("hover");}
             var tip=Asset("tip-"+icon+"-k"+BaseK);float t=TextScale;if(tip){float left=action=="map"?x:action=="pause"?rect.xMax-tip.width*t:rect.center.x-tip.width*t/2f;GUI.DrawTexture(new Rect(left,rect.yMax+k,tip.width*t,tip.height*t),tip);}
         }
@@ -116,9 +123,9 @@ public sealed class ElementGameUI:MonoBehaviour {
             var panel=Asset("pause-panel");if(panel)GUI.DrawTexture(new Rect((Screen.width-panel.width*k)/2f,(Screen.height-panel.height*k)/2f,panel.width*k,panel.height*k),panel);
             if(Event.current.type==EventType.MouseUp&&Event.current.button==0){SetPaused(false);Event.current.Use();}
         }
-        Icon("map",6*k,6*k,Available||Paused);
+        Icon("map",6*k,6*k,Available||Paused,HUDReady||Paused);
         float x=Screen.width-6*k-85*k;
-        Icon("undo",x,6*k,Available&&!Paused);Icon("reset",x+21*k,6*k,Available&&!Paused);
+        Icon("undo",x,6*k,Available&&!Paused,HUDReady&&!Paused);Icon("reset",x+21*k,6*k,Available&&!Paused,HUDReady&&!Paused);
         Draw(new Rect(x+39*k,12*k,7*k,6*k),"bridge");
         Icon("sound",x+45*k,6*k);Icon("pause",x+66*k,6*k);
         if(Time.unscaledTime<toastUntil){var t=Asset("toast-"+toast);float tk=TextScale;if(t)GUI.DrawTexture(new Rect(Screen.width-6*k-t.width*tk,50*k,t.width*tk,t.height*tk),t);}
