@@ -79,8 +79,14 @@ public sealed partial class GridPlayground:MonoBehaviour {
         return false;
     }
     IEnumerator PlayMovement(){
-        while(AdvanceMovement())yield return null;
-        movementPlayback=null;
+        while(AdvanceMovement()){
+            if(pendingRingRelease!=null){
+                var route=pendingRingRelease;pendingRingRelease=null;
+                FinishPushWithPresentation(float.MaxValue,route);yield break;
+            }
+            yield return null;
+        }
+        pendingRingRelease=null;movementPlayback=null;
         // Finish the transaction before starting the next one, but do not spend
         // a rendered frame idle between two ordinary pushes.
         if(continuePushOnComplete){

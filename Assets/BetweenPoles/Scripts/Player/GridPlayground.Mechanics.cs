@@ -44,6 +44,14 @@ public sealed partial class GridPlayground {
         var axis=new Vector3(push.y,0,-push.x);
         return Quaternion.AngleAxis(90,axis)*receiver.Pose;
     }
+    public static bool RingOpeningsAligned(Quaternion incoming,Quaternion receiver,Vector2Int push){
+        if(Mathf.Abs(push.x)+Mathf.Abs(push.y)!=1||!MagnetPiece.FlatU(incoming)||!MagnetPiece.FlatU(receiver))return false;
+        var direction=new Vector3(push.x,0,push.y);
+        // Use the pre-push openings: docking slides the facing ends together,
+        // rather than flipping an incorrectly oriented U into a valid recipe.
+        return Vector3.Dot(incoming*Vector3.forward,direction)>.9999f
+            &&Vector3.Dot(receiver*Vector3.forward,-direction)>.9999f;
+    }
     public static MagnetProduct Recipe(MagnetPiece incoming,Quaternion arrival,MagnetPiece target,bool receiverSupported,Vector2Int push) {
         // Docking to a U socket preserves the material's pre-push posture.
         // The remaining bridge socket accepts either pole; a thrown flat bar
@@ -51,7 +59,8 @@ public sealed partial class GridPlayground {
         if(target.product==MagnetProduct.BridgeHalf)return incoming.shape==MagnetShape.Bar&&Mathf.Abs((incoming.Pose*Vector3.right).y)<.05f?MagnetProduct.Bridge:MagnetProduct.None;
         if(target.combined||incoming.north==target.north)return MagnetProduct.None;
         if(incoming.shape==target.shape){
-            if(incoming.shape==MagnetShape.Horseshoe)return MagnetPiece.FlatU(incoming.Pose)&&MagnetPiece.FlatU(target.Pose)?MagnetProduct.Ring:MagnetProduct.None;
+            if(incoming.shape==MagnetShape.Horseshoe)return MagnetPiece.FlatU(incoming.Pose)&&MagnetPiece.FlatU(target.Pose)
+                &&RingOpeningsAligned(incoming.Pose,target.Pose,push)?MagnetProduct.Ring:MagnetProduct.None;
             // Decide from both pre-push postures, before any animation rotates them.
             bool receiverStanding=MagnetPiece.VerticalBar(target.Pose);
             bool incomingStanding=MagnetPiece.VerticalBar(incoming.Pose);
@@ -85,14 +94,56 @@ public sealed partial class GridPlayground {
         if(CanInterruptPush(dir))return InterruptPush(dir);
         if(TryReverseWalk(dir))return true;
         if(Busy||Mathf.Abs(dir.x)+Mathf.Abs(dir.y)!=1)return false;
+        if(RingRouteReserved(Cell(player)+dir))return Reject("圆环正在经过这里，请避开滚动路线");
         var edgePose=player.GetComponent<PlayerPushPose>();if(edgePose){edgePose.InterruptEdgeBalance(dir);edgePose.InterruptStonePush(dir);}
         var before=SaveWorld();
         bool accepted=TryStepCore(dir);
         if(accepted){RecordHistory(before);if(interruptiblePush)pushUndo=before;}
+        else if(!Busy){
+            // Cover all rejected magnet rules (including nested chain/ring validation)
+            // without replacing an existing recoil or unsafe-edge response.
+            var blocked=Piece(Cell(player)+dir);var feedback=player.GetComponent<PlayerPushPose>();
+            if(blocked&&blocked.geometry&&(!feedback||!feedback.HasBlockedFeedback)){
+                if(!BeginBlockedChain(blocked,dir))PlayerPushPose.BeginBlockedMagnetPush(player,blocked,dir);
+            }
+        }
         return accepted;
+    }
+    bool BeginBlockedChain(MagnetPiece first,Vector2Int dir){
+        var chain=new List<MagnetPiece>();var cell=Cell(first.transform);var piece=first;
+        while(piece&&piece.product==MagnetProduct.None&&!piece.combined&&piece.north==first.north
+            &&SameHeight(piece.transform.position.y,first.transform.position.y)&&Supported(piece)&&!MagnetStillAnimating(piece)){
+            chain.Add(piece);cell+=dir;piece=Piece(cell);
+        }
+        var stop=Tile(cell);
+        if(chain.Count<2||!stop||(!stop.blocked&&SameHeight(stop.surfaceHeight,first.transform.position.y)))return false;
+        Busy=true;StartMovement(BlockedChainPulse(chain,dir));return true;
+    }
+    IEnumerator BlockedChainPulse(List<MagnetPiece> chain,Vector2Int dir){
+        BeginPushInterrupt(dir,true);
+        var forward=new Vector3(dir.x,0,dir.y);player.rotation=Quaternion.LookRotation(forward);
+        var positions=new Vector3[chain.Count];
+        for(int i=0;i<chain.Count;i++){positions[i]=chain[i].geometry.position;barRocks.Remove(chain[i]);}
+        var pose=PlayerPushPose.Begin(player);
+        const float interval=.2f,travel=.18f;
+        float returnStart=.24f+chain.Count*interval,returnEnd=returnStart+(chain.Count-1)*interval+travel;
+        try{
+            for(float t=0;t<returnEnd+.55f;t+=MovementDeltaTime){
+                for(int i=0;i<chain.Count;i++){
+                    float outward=Mathf.SmoothStep(0,1,Mathf.InverseLerp(.24f+i*interval,.24f+i*interval+travel,t));
+                    float back=Mathf.SmoothStep(0,1,Mathf.InverseLerp(returnStart+(chain.Count-1-i)*interval,returnStart+(chain.Count-1-i)*interval+travel,t));
+                    if(chain[i]&&chain[i].geometry)chain[i].geometry.position=positions[i]+forward*(cellSize*.09f*(outward-back));
+                }
+                pose.SampleBlockedChain(t,returnEnd);yield return null;
+            }
+        }finally{
+            for(int i=0;i<chain.Count;i++)if(chain[i]&&chain[i].geometry)chain[i].geometry.position=positions[i];
+            pose.End();EndPushInterrupt();Busy=false;
+        }
     }
     bool TryStepCore(Vector2Int dir) {
         if(Busy||Mathf.Abs(dir.x)+Mathf.Abs(dir.y)!=1)return false;
+        if(RingRouteReserved(Cell(player)+dir))return Reject("圆环正在经过这里，请避开滚动路线");
         var from=Cell(player);var support=Deck(from);
         var next=from+dir;var tile=Tile(next);var m=Piece(next);
         var destinationDeck=Deck(next);
@@ -128,7 +179,7 @@ public sealed partial class GridPlayground {
             Busy=true;StartMovement(WalkOffObject(next,destinationTop));LastRule="在相邻顶面之间跳跃移动";return true;
         }
         if(tile&&tile.blocked){PlayerPushPose.BeginStonePush(player,tile,dir,DirectionPressed(dir));return Reject("石头推不动，用力推动后摊手");}
-        if(m&&m.product==MagnetProduct.Ring&&CanReachMagnet(m))
+        if(m&&m.product==MagnetProduct.Ring&&!SpaceRing(m)&&CanReachMagnet(m))
             return BeginPushRing(m,dir,next);
         if(m&&m.product==MagnetProduct.Cross){
             if(RotorActive(m))return BeginLift(m,2,dir);
@@ -182,6 +233,9 @@ public sealed partial class GridPlayground {
                 }
                 bool receiverSupported=Supported(far);
                 var result=Recipe(m,arrival,far,receiverSupported,dir);
+                if(result==MagnetProduct.None&&m.shape==MagnetShape.Horseshoe
+                    &&far.shape==MagnetShape.Horseshoe&&!far.combined&&far.product==MagnetProduct.None&&m.north!=far.north)
+                    return Reject("圆环合成需要两个异极 U 型磁铁平躺、开口相对，并沿端点对齐的方向推动");
                 if(result==MagnetProduct.None)return Reject("磁铁姿态不符合配方，保留原状态");
                 var bridgeDir=far.bridgeDirection;
                 if(result==MagnetProduct.BridgeHalf){
@@ -330,6 +384,24 @@ public sealed partial class GridPlayground {
         EndPushInterrupt();Busy=false;
         continuePushOnComplete=flowed&&!recordingPush&&!finishingMovement;
     }
+    float AdvancePushFlow(float normalSpeed,out float remainingTime){
+            float dt=pushFlowCarryTime>=0&&!recordingPush&&!finishingMovement?pushFlowCarryTime:MovementDeltaTime;
+            pushFlowCarryTime=-1;
+            bool continuing=(bufferedSteps.Count>0&&bufferedSteps.Peek().direction==pushDirection
+                    &&Time.unscaledTime-bufferedSteps.Peek().time<=InputBufferSeconds)
+                ||(heldDirection==pushDirection&&DirectionHeld(heldDirection));
+            if(Time.unscaledTime-pushFlowTapTime>.24f)pushFlowBoost=0;
+            float speedLimit=normalSpeed*Mathf.Clamp(maxPushSpeedMultiplier,1f,1.5f);
+            float desired=Mathf.Clamp(Mathf.Max(normalSpeed,pushFlowBoost),normalSpeed,speedLimit);
+            if(recordingPush)desired=normalSpeed;
+            // Only the last step settles. Intermediate cell centres are not brakes.
+            if(!continuing&&!recordingPush)desired*=Mathf.Sqrt(Mathf.Clamp((1-pushFlowProgress)/.2f,.04f,1));
+            pushFlowSpeed=Mathf.Min(speedLimit,Mathf.MoveTowards(pushFlowSpeed,desired,normalSpeed*3*dt/.07f));
+            remainingTime=(1-pushFlowProgress)/Mathf.Max(.001f,pushFlowSpeed);
+            pushFlowProgress=Mathf.Min(1,pushFlowProgress+pushFlowSpeed*dt);
+            return dt;
+    }
+    static float ShoveBarPoseProgress(float progress){float phase=Mathf.Clamp01(progress/.78f);return phase*phase;}
     IEnumerator FlowingRoll(MagnetPiece m,MagnetRollStep step,Vector2Int target,Vector2Int next){
         flowingPush=true;pushFlowProgress=0;
         float normalSpeed=1/Mathf.Max(.01f,m.shape==MagnetShape.Bar?barPushSeconds:uRollSeconds);
@@ -356,21 +428,8 @@ public sealed partial class GridPlayground {
             MagnetPiece.VerticalBar(rotation)?PlayerPushPose.FlowPushStyle.ShoveBar:PlayerPushPose.FlowPushStyle.LiftBar;
         var pose=PlayerPushPose.BeginFlowPush(player,cellSize,style);
         while(pushFlowProgress<1){
-            float dt=pushFlowCarryTime>=0&&!recordingPush&&!finishingMovement?pushFlowCarryTime:MovementDeltaTime;
-            pushFlowCarryTime=-1;
-            bool continuing=(bufferedSteps.Count>0&&bufferedSteps.Peek().direction==pushDirection
-                    &&Time.unscaledTime-bufferedSteps.Peek().time<=InputBufferSeconds)
-                ||(heldDirection==pushDirection&&DirectionHeld(heldDirection));
-            if(Time.unscaledTime-pushFlowTapTime>.24f)pushFlowBoost=0;
-            float speedLimit=normalSpeed*Mathf.Clamp(maxPushSpeedMultiplier,1f,1.5f);
-            float desired=Mathf.Clamp(Mathf.Max(normalSpeed,pushFlowBoost),normalSpeed,speedLimit);
-            if(recordingPush)desired=normalSpeed;
-            // Only the last step settles. Intermediate cell centres are not brakes.
-            if(!continuing&&!recordingPush)desired*=Mathf.Sqrt(Mathf.Clamp((1-pushFlowProgress)/.2f,.04f,1));
-            pushFlowSpeed=Mathf.Min(speedLimit,Mathf.MoveTowards(pushFlowSpeed,desired,normalSpeed*3*dt/.07f));
-            float remainingTime=(1-pushFlowProgress)/Mathf.Max(.001f,pushFlowSpeed);
             float previousProgress=pushFlowProgress;
-            pushFlowProgress=Mathf.Min(1,pushFlowProgress+pushFlowSpeed*dt);
+            float dt=AdvancePushFlow(normalSpeed,out float remainingTime);
             if(groundBar&&falling&&pushFlowProgress>=.78f){
                 float used=Mathf.Min(dt,remainingTime);
                 touchdownAge=touchdownAge<0?Mathf.Max(0,used-(.78f-previousProgress)/Mathf.Max(.001f,pushFlowSpeed)):touchdownAge+used;
@@ -382,7 +441,7 @@ public sealed partial class GridPlayground {
                 // Gravity accelerates the fall; lifting accelerates under effort then brakes at vertical.
                 float phase=Mathf.Clamp01(pushFlowProgress/(falling?.78f:1));
                 // Retain angular momentum at vertical; the settling motion inherits it.
-                roll=falling?phase*phase:phase*phase*(2.47f-1.47f*phase);
+                roll=falling?ShoveBarPoseProgress(pushFlowProgress):phase*phase*(2.47f-1.47f*phase);
                 float angle=roll*Mathf.PI*.5f;
                 float pivotTravel=halfWidth*(1-Mathf.Cos(angle))+halfHeight*Mathf.Sin(angle);
                 float slide=falling?cellSize*.1f:0;
@@ -614,26 +673,11 @@ public sealed partial class GridPlayground {
         yield return AssembleCore(incoming,receiver,direction,incoming.Pose,product,Cell(player),bridge,true);
     }
     Vector3 Support(Vector2Int cell,Vector3 from){
-        var m=Deck(cell);var p=Position(cell,Height(cell));
-        if(m&&m.product==MagnetProduct.Ring){
-            var side=m.transform.forward;float sign=Vector3.Dot(from-m.transform.position,side)>=0?1:-1;p+=side*(m.product==MagnetProduct.Ring?.48f:.48f)*sign;
-        }
-        return p;
+        // Rings now have a solid centre panel, just like an ordinary floor cell.
+        return Position(cell,Height(cell));
     }
     IEnumerator WalkSupported(Vector2Int cell){
-        var target=Support(cell,player.position);var source=Piece(Cell(player));var destination=Piece(cell);
-        yield return TurnPlayer(target-player.position);
-        // Ring traversal follows its solid rim, never the hollow centre.
-        if(destination&&destination.product==MagnetProduct.Ring){
-            var center=destination.transform.position+Vector3.up*.24f;Vector3 radial=player.position-center;radial.y=0;if(radial.sqrMagnitude<.01f)radial=Vector3.back;
-            var entry=center+radial.normalized*.48f;yield return Slide(player,entry,walkSeconds);
-            float a0=Mathf.Atan2(radial.z,radial.x),a1=Mathf.Atan2((target-center).z,(target-center).x);float delta=Mathf.DeltaAngle(a0*Mathf.Rad2Deg,a1*Mathf.Rad2Deg)*Mathf.Deg2Rad;
-            for(int i=1;i<=8;i++){float a=a0+delta*i/8;yield return Slide(player,center+new Vector3(Mathf.Cos(a),0,Mathf.Sin(a))*.48f,walkSeconds/8);}
-        }else if(source&&source.product==MagnetProduct.Ring){
-            var center=source.transform.position+Vector3.up*.24f;var to=target-center;to.y=0;var radial=player.position-center;
-            float a0=Mathf.Atan2(radial.z,radial.x),a1=Mathf.Atan2(to.z,to.x);float delta=Mathf.DeltaAngle(a0*Mathf.Rad2Deg,a1*Mathf.Rad2Deg)*Mathf.Deg2Rad;
-            for(int i=1;i<=8;i++){float a=a0+delta*i/8;yield return Slide(player,center+new Vector3(Mathf.Cos(a),0,Mathf.Sin(a))*.48f,walkSeconds/8);}
-        }
+        var target=Support(cell,player.position);
         yield return TurnPlayer(target-player.position);
         yield return Slide(player,target,walkSeconds);NotifyLanding(cell);
     }

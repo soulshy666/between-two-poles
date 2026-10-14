@@ -16,7 +16,7 @@ public sealed class BlackHolePortal : MonoBehaviour {
     public bool CanArrive {get{if(!tile||tile.blocked)return false;foreach(var m in board.magnets)if(m&&m.enabled&&m.gameObject.activeSelf&&m.Occupies(Cell,board.cellSize))return false;return true;}}
     public bool TryExit(Vector2Int direction,out GridTile exit){Vector3 landing;return TryExitLanding(direction,out exit,out landing);}
     public bool TryExitLanding(Vector2Int direction,out GridTile exit,out Vector3 landing){
-        exit=null;landing=Vector3.zero;if(Mathf.Abs(direction.x)+Mathf.Abs(direction.y)!=1||!CanArrive||Cargo)return false;
+        exit=null;landing=Vector3.zero;if(Mathf.Abs(direction.x)+Mathf.Abs(direction.y)!=1||!CanArrive)return false;
         return TrySurface(board,Cell+direction,out exit,out landing);
     }
     public static bool TrySurface(GridPlayground board,Vector2Int cell,out GridTile exit,out Vector3 landing){
