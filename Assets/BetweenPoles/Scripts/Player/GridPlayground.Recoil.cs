@@ -59,6 +59,9 @@ public sealed partial class GridPlayground {
         recoilRenderers=null;
     }
     IEnumerator RecoilAcrossIslands(MagnetPiece magnet,Vector2Int from,Vector2Int travel,Vector3 playerStart,Vector3 magnetStart,Quaternion facing,Vector3 axis){
+        if(Application.isPlaying&&!recordingPush&&!finishingMovement){
+            var audio=PlayerFootstepAudio.For(player);if(audio)audio.PlayRecoil();
+        }
         Vector2Int stop,releaseCell;
         if(FindLocalRecoilStop(magnet,from,travel,out stop,out releaseCell)){
             var struck=TransportObstacle(stop+travel,magnet);
@@ -77,6 +80,7 @@ public sealed partial class GridPlayground {
         if(!lands){playerEnd=Position(from+travel*(exitDistance+5),playerStart.y);magnetEnd=playerEnd-direction*cellSize;}
         var focus=Shader.GetGlobalVector("_IceFocus");
         BeginRecoilFlight(magnet,new Vector3(focus.x,focus.y,focus.z),lands?Owner(Tile(shore)):null);
+        // Play once at takeoff, not again when crossing into the destination scene.
         if(nextChapter){ChapterRecoilTravel.Begin(chapterExit,magnet);yield break;}
         // Position and rendered offset interpolate together, producing one straight trajectory.
         float duration=Mathf.Max(.8f,Vector3.Distance(playerStart,playerEnd)/(cellSize*5));

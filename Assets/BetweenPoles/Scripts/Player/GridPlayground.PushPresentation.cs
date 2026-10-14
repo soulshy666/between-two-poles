@@ -32,7 +32,7 @@ public sealed partial class GridPlayground {
     }
     void PlayContact(ContactEvent contact){
         if(Application.isPlaying&&!finishingMovement){
-            var audio=PlayerFootstepAudio.For(player);if(audio)audio.PlayMerge();
+            if(!BlackHoleTravel.SkipTransitionActive){var audio=PlayerFootstepAudio.For(player);if(audio)audio.PlayMerge();}
             foreach(var camera in FindObjectsOfType<IslandCamera>())
                 if(camera.board==this)camera.PlayMergeShake(contact.direction,cellSize);
         }

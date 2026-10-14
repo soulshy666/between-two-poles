@@ -6,6 +6,8 @@ public sealed partial class PlayerPushPose {
     float stonePushTime;
     Vector2Int stonePushDirection;
     float stoneContactDistance;
+    int stoneSoundsPlayed;
+    PlayerFootstepAudio stoneAudio;
     public static void BeginStonePush(Transform player,GridTile stone,Vector2Int direction,bool restart=false){
         var pose=GetPose(player);
         // A fresh press restarts immediately; automatic held repeats let it finish.
@@ -40,12 +42,17 @@ public sealed partial class PlayerPushPose {
     }
     public void InterruptStonePush(Vector2Int direction){if(pushingStone&&direction!=stonePushDirection)End();}
     public void EndStonePush(){if(pushingStone)End();}
-    void ResetStonePush(){pushingStone=false;stonePushTime=0;}
+    void ResetStonePush(){pushingStone=false;stonePushTime=0;stoneSoundsPlayed=0;if(stoneAudio)stoneAudio.StopStoneBlocked();}
     void UpdateStonePush(){
         if(!pushingStone)return;
         if(!board||board.Busy){End();return;}
         stonePushTime+=Time.deltaTime;
         if(stonePushTime>=StonePushSeconds){End();return;}
+        // Three efforts during hand contact, before the recovery/shrug animation.
+        if(stoneSoundsPlayed<3&&stonePushTime>=.25f+.4f*stoneSoundsPlayed){
+            stoneSoundsPlayed++;stoneAudio=PlayerFootstepAudio.For(transform);
+            if(stoneAudio)stoneAudio.PlayStoneBlocked();
+        }
         SampleStonePush(stonePushTime);
     }
     void SampleStonePush(float t){
