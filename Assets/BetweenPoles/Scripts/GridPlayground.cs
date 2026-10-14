@@ -185,6 +185,7 @@ public sealed partial class GridPlayground:MonoBehaviour {
         LastRule="测试跳转：房间编号 "+targetNumber+"（"+(next+1)+" / "+centers.Count+"）";return true;
     }
     void Update(){
+        if(ChapterRecoilTravel.Active||ChapterRecoilTravel.UndoInputFrame==Time.frameCount){ClearMovementInput();return;}
         if(BlackHoleTravel.SkipTransitionActive){ClearMovementInput();return;}
         if(player&&(Input.anyKey||Input.mouseScrollDelta.sqrMagnitude>0
             ||Mathf.Abs(Input.GetAxisRaw("Mouse X"))+Mathf.Abs(Input.GetAxisRaw("Mouse Y"))>.001f)){

@@ -14,6 +14,7 @@ public sealed class ChapterMapReturn : MonoBehaviour {
     }
     void OnEnable(){
         board=GetComponent<GridPlayground>();window=GetComponent<FiveIslandWindow>();
+        if(!GetComponent<ElementGameUI>())gameObject.AddComponent<ElementGameUI>();
         if(board){board.Landed-=Visit;board.Landed+=Visit;}
     }
     void OnDisable(){if(board)board.Landed-=Visit;}
@@ -44,6 +45,7 @@ public sealed class ChapterMapReturn : MonoBehaviour {
     bool localOverview;
     bool mapAnimating,mapSession;
     PlayerPushPose mapPose;
+    public bool MapSessionActive {get{return mapSession||localOverview||loading||mapAnimating;}}
     public bool IsLocalOverview {get{return localOverview;}}
     public void OpenLocalOverview(){
         if(localOverview||loading||mapAnimating||!board||board.Busy||board.OpeningCinematic||BlackHoleTravel.Selecting||BlackHoleTravel.InTransit||ChapterRecoilTravel.Active)return;
@@ -75,7 +77,8 @@ public sealed class ChapterMapReturn : MonoBehaviour {
         localOverview=false;if(suspended==this)suspended=null;
     }
     void Update(){
-        if(Input.GetKeyDown(KeyCode.M)){ToggleMap();return;}
+        if(ElementGameUI.Paused)return;
+        if(Input.GetKeyDown(KeyCode.Tab)){ToggleMap();return;}
         if(Input.GetKeyDown(KeyCode.Escape)&&(localOverview||mapAnimating||loading)){ReturnDirectlyToGame();return;}
         if(localOverview&&!loading&&!mapAnimating){localNavigation.TickInspection();if(localNavigation.PlayerReturnRequested)ReturnDirectlyToGame();}
     }
@@ -120,18 +123,12 @@ public sealed class ChapterMapReturn : MonoBehaviour {
     void OnGUI(){
         if(BlackHoleTravel.Selecting||ChapterRecoilTravel.Active||BlackHoleTravel.InTransit)return;
         if(loading&&ChapterAtlas.ChartArrivalFrame)GUI.DrawTexture(new Rect(0,0,Screen.width,Screen.height),ChapterAtlas.ChartArrivalFrame);
-        var old=GUI.matrix;float scale=Mathf.Max(.7f,Screen.height/900f);GUI.matrix=Matrix4x4.Scale(new Vector3(scale,scale,1));
         if(localOverview||loading){
             GUI.enabled=!loading&&!mapAnimating;
-            if(PixelGameUI.Button(new Rect(22,22,210,48),loading?"打开航图中…":"星际航图"))ReturnToMap();
+            ElementGameUI.NavigationButton(loading?"loading":"chart",false,ReturnToMap);
             GUI.enabled=true;
-            if(PixelGameUI.Button(new Rect(Screen.width/scale-240,22,218,48),"返回游戏（Esc）"))ReturnDirectlyToGame();
-            GUI.Label(new Rect(248,25,600,48),"拖拽查看小岛，滚轮缩放",PixelGameUI.Text(17));
-        }else{
-            GUI.enabled=mapSession||(!loading&&!mapAnimating&&(!board||!board.Busy));
-            if(PixelGameUI.Button(new Rect(22,22,210,48),mapSession?"返回游戏（M）":"查看小岛地图（M）"))ToggleMap();
+            ElementGameUI.NavigationButton("return",true,ReturnDirectlyToGame);
         }
-        GUI.enabled=true;GUI.matrix=old;
     }
 }
 }

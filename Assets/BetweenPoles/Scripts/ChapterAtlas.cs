@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -45,7 +45,7 @@ public sealed partial class ChapterAtlas : MonoBehaviour {
         BuildUI();CacheChartPlanets();if(ChartArrivalFrame)StartCoroutine(ArriveAtChart());
     }
     void Update(){
-        if(Input.GetKeyDown(KeyCode.M)){ReturnToGame();return;}
+        if(Input.GetKeyDown(KeyCode.Tab)){ReturnToGame();return;}
         if(chartTransitioning){if(Input.GetKeyDown(KeyCode.Escape))ReturnToGame();return;}
         if(IsInspecting){if(!inspectionLoading){if(inspectionNavigation){inspectionNavigation.TickInspection();if(inspectionNavigation.PlayerReturnRequested){ReturnToGame();return;}}if(Input.GetKeyDown(KeyCode.Escape))CloseInspection();}return;}
         if(Input.GetKeyDown(KeyCode.Escape)){ReturnToGame();return;}
@@ -65,21 +65,23 @@ public sealed partial class ChapterAtlas : MonoBehaviour {
         if(Application.CanStreamedLevelBeLoaded(scene))SceneManager.LoadSceneAsync(scene);else returning=false;
     }
     RectTransform Box(string name,Transform parent,Vector2 position,Vector2 size){var g=new GameObject(name,typeof(RectTransform));g.transform.SetParent(parent,false);var r=(RectTransform)g.transform;r.anchorMin=r.anchorMax=new Vector2(.5f,.5f);r.anchoredPosition=position;r.sizeDelta=size;return r;}
-    Text Label(string value,Transform parent,Vector2 position,Vector2 size,int fontSize){var r=Box(value,parent,position,size);var t=r.gameObject.AddComponent<Text>();t.font=font;t.text=value;t.fontSize=fontSize;t.alignment=TextAnchor.MiddleCenter;t.color=new Color(.92f,.96f,.95f);t.raycastTarget=false;return t;}
+    Text Label(string value,Transform parent,Vector2 position,Vector2 size,int fontSize){var r=Box(value,parent,position,size);var t=r.gameObject.AddComponent<Text>();t.font=font;t.text=value;t.fontSize=fontSize;t.alignment=TextAnchor.MiddleCenter;t.color=new Color(.92f,.96f,.95f);t.raycastTarget=false;var pixels=ElementGameUI.TextTexture(value,!parent.GetComponent<Button>());if(pixels){
+            // UGUI permits only one Graphic per GameObject. Keep the original label
+            // and its layout; render the pixel lettering on a non-interactive child.
+            t.enabled=false;
+            float k=Mathf.Max(1,Mathf.Floor(Mathf.Min(size.x/pixels.width,size.y/pixels.height)));
+            var lettering=Box("像素文字",r,Vector2.zero,new Vector2(pixels.width*k,pixels.height*k));
+            var raw=lettering.gameObject.AddComponent<RawImage>();raw.texture=pixels;raw.raycastTarget=false;
+        }return t;}
     void BuildUI(){
         {var e=new GameObject("星际航图输入",typeof(EventSystem),typeof(StandaloneInputModule));SceneManager.MoveGameObjectToScene(e,gameObject.scene);}
         var go=new GameObject("星际航图界面",typeof(Canvas),typeof(CanvasScaler),typeof(GraphicRaycaster));SceneManager.MoveGameObjectToScene(go,gameObject.scene);
         canvas=go.GetComponent<Canvas>();canvas.renderMode=RenderMode.ScreenSpaceOverlay;canvas.sortingOrder=200;root=(RectTransform)go.transform;
         var scaler=go.GetComponent<CanvasScaler>();scaler.uiScaleMode=CanvasScaler.ScaleMode.ScaleWithScreenSize;scaler.referenceResolution=new Vector2(1600,900);scaler.matchWidthOrHeight=.5f;
         Label("两极之间  /  星际航图",root,new Vector2(-480,390),new Vector2(520,55),28);
-        for(int i=0;i<chapters.Length;i++){
-            int chapter=i;var tab=Box("检视"+chapters[i].title,root,new Vector2(-510+i*340,-345),new Vector2(305,48));
-            tab.gameObject.AddComponent<Image>().color=new Color(.07f,.13f,.18f,.95f);var chapterButton=tab.gameObject.AddComponent<Button>();chapterButton.onClick.AddListener(()=>OpenInspection(chapter));PixelGameUI.StyleButton(chapterButton);
-            Label("0"+(i+1)+"  "+chapters[i].title,tab,Vector2.zero,new Vector2(305,48),22);
-        }
-        Label("点击星球，检视已经探索的小岛",root,new Vector2(0,-402),new Vector2(900,40),20);
-        string text=ChapterMapReturn.HasSuspendedGame?"返回岛屿（M / Esc）":"进入游戏";
+        string text=ChapterMapReturn.HasSuspendedGame?"返回游戏（Esc）":"进入游戏";
         var button=Box(text,root,new Vector2(645,385),new Vector2(220,52));button.gameObject.AddComponent<Image>().color=new Color(.07f,.13f,.18f,.95f);
+        button.localScale=Vector3.one*ElementGameUI.UIScale;button.anchoredPosition=new Vector2(755-110*ElementGameUI.UIScale,411-26*ElementGameUI.UIScale);
         var returnButton=button.gameObject.AddComponent<Button>();returnButton.onClick.AddListener(ReturnToGame);PixelGameUI.StyleButton(returnButton);Label(text,button,Vector2.zero,new Vector2(220,52),21);
         locator=Box("主角当前位置",root,Vector2.zero,new Vector2(240,150));
         portrait=CreatePlayerPortrait();var icon=Box("主角形象",locator,new Vector2(0,30),new Vector2(64,80)).gameObject.AddComponent<RawImage>();icon.texture=portrait;icon.raycastTarget=false;
