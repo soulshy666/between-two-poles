@@ -10,6 +10,7 @@ public sealed partial class GridPlayground {
         var start=player.position;var end=Position(portal.Cell,portal.tile.surfaceHeight);
         var facing=Quaternion.LookRotation(new Vector3(direction.x,0,direction.y));
         var pose=PlayerPushPose.Begin(player);
+        if(Application.isPlaying&&!recordingPush&&!finishingMovement){var audio=PortalAudio.For(player);if(audio)audio.Enter(false,.36f);}
         for(float t=0;t<.36f;){
             t+=MovementDeltaTime*BlackHoleTravel.AnimationSpeed;
             float a=Mathf.Clamp01(t/.36f);var position=Vector3.Lerp(start,end,a);
@@ -43,6 +44,7 @@ public sealed partial class GridPlayground {
         if(!portal)yield break; // Ground/deck heights and space hovering use the shared surface rules.
         if(portal.Cargo&&portal.Cargo!=magnet)throw new System.InvalidOperationException("Magnet destination became occupied during movement");
         var scale=magnet.geometry.localScale;
+        if(Application.isPlaying&&!recordingPush&&!finishingMovement){var audio=PortalAudio.For(player);if(audio)audio.Enter(true,.28f,unscaled);}
         for(float t=0;t<.28f;t+=unscaled?BlackHoleTravel.AnimationDeltaTime:MovementDeltaTime){
             float a=Mathf.SmoothStep(0,1,t/.28f);
             magnet.geometry.localScale=scale*(1-a);MagnetVisuals.Ground(magnet);
@@ -73,6 +75,7 @@ public sealed partial class GridPlayground {
             arrival=Quaternion.AngleAxis(degrees,axis)*pose;
         }
         player.rotation=Quaternion.LookRotation(new Vector3(dir.x,0,dir.y));var push=PlayerPushPose.Begin(player);
+        if(Application.isPlaying&&!recordingPush&&!finishingMovement){var audio=PortalAudio.For(player);if(audio)audio.Enter(true,.65f);}
         for(float t=0;t<.65f;t+=MovementDeltaTime*BlackHoleTravel.AnimationSpeed){
             float a=Mathf.SmoothStep(0,1,t/.65f);magnet.transform.position=Vector3.Lerp(start,end,a);
             magnet.geometry.rotation=Quaternion.AngleAxis(degrees*Mathf.Clamp01(a/.75f),axis)*pose;magnet.geometry.localScale=scale*Mathf.Lerp(1,.05f,Mathf.SmoothStep(0,1,Mathf.Clamp01((a-.75f)/.25f)));

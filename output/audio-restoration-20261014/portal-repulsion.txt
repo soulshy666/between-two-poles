@@ -1,0 +1,1 @@
+PASS: 392 checks; four directions; stone/high platform rebound; wide-bar support and visibility; kick onto ground/space/second portal; occupied portal rejection with animated return; cargo retention and mouth recovery.

@@ -26,6 +26,7 @@ public sealed class IceCrashIntro:MonoBehaviour {
     readonly List<Transform> flames=new List<Transform>(),smoke=new List<Transform>(),chips=new List<Transform>();
     Material smokeMaterial,iceMaterial;Vector3 originalPosition;Quaternion originalRotation;
     bool ready,impacted,finished;float smokeClock;
+    IceCrashAudio crashAudio;
     void Awake(){
         if(ChapterAtlas.IsInspectionScene(gameObject.scene)){enabled=false;return;}
         board=GetComponent<GridPlayground>();
@@ -38,7 +39,9 @@ public sealed class IceCrashIntro:MonoBehaviour {
         // Let the imported room window and camera select their initial island first.
         yield return null;yield return null;
         if(!Setup()){Playing=false;board.SetOpeningCinematic(false);yield break;}
-        ready=true;Sample(0);
+        crashAudio=GetComponent<IceCrashAudio>();
+        if(!crashAudio)crashAudio=gameObject.AddComponent<IceCrashAudio>();
+        crashAudio.Begin();ready=true;Sample(0);
     }
     bool Setup(){
         originalPosition=board.player.position;originalRotation=board.player.rotation;
@@ -101,6 +104,7 @@ public sealed class IceCrashIntro:MonoBehaviour {
             float step=Mathf.Min(Time.deltaTime,.05f);
             bool hold=FreezeOpeningFrame;
             if(revealAge>=0)revealAge+=step;
+            if(crashAudio)crashAudio.SampleReveal(revealAge,colorRevealSeconds);
             if(!hold){
                 float next=PlaybackTime+step;
                 if(PlaybackTime<ImpactTime&&next>=ImpactTime)next=ImpactTime;
@@ -113,6 +117,7 @@ public sealed class IceCrashIntro:MonoBehaviour {
     static float Ease(float x){return Mathf.SmoothStep(0,1,Mathf.Clamp01(x));}
     public void Sample(float time){
         if(!ready)return;
+        if(crashAudio)crashAudio.Sample(time);
         if(time<ImpactTime)revealAge=-1;else if(revealAge<0)revealAge=0;
         float unit=board.cellSize;
         Vector3 impactPosition;Quaternion impactRotation;FallPose(ImpactTime-DiveTime,out impactPosition,out impactRotation);
@@ -244,11 +249,13 @@ public sealed class IceCrashIntro:MonoBehaviour {
     }
     void SetActorVisible(bool visible){if(actorRenderers==null)return;for(int i=0;i<actorRenderers.Length;i++)if(actorRenderers[i])actorRenderers[i].enabled=visible&&actorVisible[i];}
     void Finish(){
+        if(crashAudio)crashAudio.Stop();
         DetachPilot();Playing=false;finished=true;pose.End();SetActorVisible(true);SetSpaceFrame(actorRenderers,0,false);
         board.player.position=LandingPoint;board.player.rotation=Quaternion.LookRotation(Vector3.right);
         board.FinishOpeningLanding();
     }
     void OnDisable(){
+        if(crashAudio)crashAudio.Stop();
         DetachPilot();
         SetSpaceFrame(actorRenderers,0,false);
         if(Playing&&board){Playing=false;SetActorVisible(true);if(pose)pose.End();if(ready)board.player.SetPositionAndRotation(originalPosition,originalRotation);board.SetOpeningCinematic(false);}

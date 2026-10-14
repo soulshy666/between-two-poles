@@ -46,6 +46,7 @@ public sealed partial class BlackHoleTravel {
             EndNavigation();testPortals=null;testDestination=null;previewPortal=null;Selecting=false;busy=false;
             if(board&&board.player)board.player.localScale=playerScale;
             if(board){board.SetPortalBusy(false);board.enabled=wasEnabled;board.EndPortalMagnetPresentation();}
+            if(board&&board.player){var audio=board.player.GetComponent<PortalAudio>();if(audio)audio.StopAll();}
             if(undoRequested&&board)board.UndoStep();
         }
     }

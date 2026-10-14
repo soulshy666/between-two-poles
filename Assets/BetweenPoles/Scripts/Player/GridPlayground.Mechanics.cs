@@ -286,6 +286,9 @@ public sealed partial class GridPlayground {
         {
             var jump=PlayerPushPose.Begin(player);
             responsiveJump=true;jumpTapBoost=false;
+            var jumpAudio=Application.isPlaying&&!recordingPush&&!finishingMovement&&end.y<start.y-.01f?PlayerFootstepAudio.For(player):null;
+            bool completed=false;
+            if(jumpAudio)jumpAudio.PlayJumpDownAir();
             try{
                 float horizontal=new Vector2(end.x-start.x,end.z-start.z).magnitude;
                 float duration=Mathf.Max(.28f,horizontal/(cellSize/.28f))+.06f*Mathf.Min(1,Mathf.Abs(end.y-start.y)/Mathf.Max(.01f,LayerHeight));
@@ -303,7 +306,10 @@ public sealed partial class GridPlayground {
                     player.position=point;jump.SamplePlatformJump(progress);
                     if(progress<1)yield return null;
                 }
-            }finally{responsiveJump=false;jumpTapBoost=false;jump.End();}
+                // The new responsive jump lands at progress 1, with no recovery delay.
+                if(jumpAudio&&!recordingPush&&!finishingMovement)jumpAudio.PlayJumpDownLand();
+                completed=true;
+            }finally{if(jumpAudio&&(!completed||recordingPush||finishingMovement))jumpAudio.StopJumpDown();responsiveJump=false;jumpTapBoost=false;jump.End();}
             player.position=end;NotifyLanding(cell);Busy=false;
             continuePushOnComplete=!finishingMovement&&!recordingPush;
         }
@@ -581,7 +587,16 @@ public sealed partial class GridPlayground {
         var recoilPose=PlayerPushPose.Begin(player);
         try{
         float approachSeconds=Mathf.Max(.42f,stepSeconds*1.9f);
+        float returnSeconds=Mathf.Max(.36f,stepSeconds*1.5f);
+        bool chargePlayed=false;
         for(float t=0;t<approachSeconds;t+=MovementDeltaTime){
+            if(!chargePlayed&&t>=approachSeconds-.18f){
+                chargePlayed=true;
+                if(Application.isPlaying&&!recordingPush&&!finishingMovement){
+                    var audio=PlayerFootstepAudio.For(player);
+                    if(audio)audio.PlayRecoilCharge(approachSeconds-t+returnSeconds);
+                }
+            }
             float a=Mathf.SmoothStep(0,1,t/approachSeconds);
             incoming.transform.position=Vector3.Lerp(magnetStart,approach,Mathf.SmoothStep(0,1,Mathf.InverseLerp(.32f,1,a)));
             player.position=Vector3.Lerp(playerStart,braced,a);
@@ -589,7 +604,6 @@ public sealed partial class GridPlayground {
             yield return null;
         }
         incoming.transform.position=approach;player.position=braced;
-        float returnSeconds=Mathf.Max(.36f,stepSeconds*1.5f);
         for(float t=0;t<returnSeconds;t+=MovementDeltaTime){
             float a=t/returnSeconds;
             incoming.transform.position=Vector3.Lerp(approach,impact,Mathf.SmoothStep(0,1,a));
@@ -605,7 +619,7 @@ public sealed partial class GridPlayground {
         return AssembleCore(incoming,target,dir,arrival,product,next,bridgeDir,false);
     }
     IEnumerator AssembleCore(MagnetPiece incoming,MagnetPiece target,Vector2Int dir,Quaternion arrival,MagnetProduct product,Vector2Int next,Vector2Int bridgeDir,bool portal){
-        if(!portal)BeginPushInterrupt(dir);
+        if(!portal)BeginPushInterrupt(dir,playPushSound:false);
         pushHoverParticipants.Add(incoming);pushHoverParticipants.Add(target);
         Vector3 start=incoming.transform.position;Quaternion old=incoming.Pose;float degrees;MagnetPiece.Rolled(incoming.shape,old,dir,out degrees);
         bool uNorth=target.product==MagnetProduct.BridgeHalf?target.baseNorth:incoming.shape==MagnetShape.Horseshoe?incoming.north:target.north;

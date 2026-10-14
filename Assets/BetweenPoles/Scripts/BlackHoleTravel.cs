@@ -29,6 +29,7 @@ public sealed partial class BlackHoleTravel : MonoBehaviour {
             while(stack.Count>0){
                 if(!skipped&&canSkip&&Application.isPlaying&&Time.frameCount>firstFrame&&SkipPressed()){
                     skipped=true;settlingAnimation=true;skipInputFrame=Time.frameCount;
+                    foreach(var audio in FindObjectsOfType<PortalAudio>())audio.StopAll();
                 }
                 if(skipped&&--guard<=0)throw new System.InvalidOperationException("Portal skip did not settle");
                 var current=stack.Peek();

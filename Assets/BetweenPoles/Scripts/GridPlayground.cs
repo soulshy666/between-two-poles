@@ -367,7 +367,7 @@ public sealed partial class GridPlayground:MonoBehaviour {
         completingWalkForTurn=false;return true;
     }
     void ClearWalkInterrupt(){reversibleWalk=false;completingWalkForTurn=false;curvedWalkRequested=false;walkTapSpeed=0;}
-    void BeginPushInterrupt(Vector2Int direction,bool feedbackOnly=false){pushHoverParticipants.Clear();if(!feedbackOnly)PlayMagnetPushSound();interruptiblePush=true;pushFeedbackOnly=feedbackOnly;pushDirection=direction;pushUndo=null;}
+    void BeginPushInterrupt(Vector2Int direction,bool feedbackOnly=false,bool playPushSound=true){pushHoverParticipants.Clear();if(!feedbackOnly&&playPushSound)PlayMagnetPushSound();interruptiblePush=true;pushFeedbackOnly=feedbackOnly;pushDirection=direction;pushUndo=null;}
     void EndPushInterrupt(){pushHoverParticipants.Clear();interruptiblePush=false;pushFeedbackOnly=false;pushUndo=null;flowingPush=false;}
     bool CanInterruptPush(Vector2Int direction,bool freshPress=false){
         return Busy&&interruptiblePush&&(pushUndo!=null||pushFeedbackOnly)
