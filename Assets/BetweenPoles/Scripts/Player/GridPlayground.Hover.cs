@@ -3,7 +3,7 @@ using UnityEngine;
 namespace BetweenPoles {
 public sealed partial class GridPlayground {
     const float BarRockSeconds=.95f;
-    sealed class BarRock {public Vector3 axis;public float started,velocity;}
+    sealed class BarRock {public Vector3 axis;public float started,velocity;public bool touchdown,undoBounce;}
     readonly Dictionary<MagnetPiece,BarRock> barRocks=new Dictionary<MagnetPiece,BarRock>();
     readonly Dictionary<Transform,Quaternion> rockRenderRotations=new Dictionary<Transform,Quaternion>();
     static float BarRockAngle(float age,float velocity){
@@ -12,10 +12,40 @@ public sealed partial class GridPlayground {
         // Continue the lift's angular velocity through vertical, then dissipate it.
         return velocity/frequency*Mathf.Sin(age*frequency)*Mathf.Pow(1-a,2);
     }
-    void StartBarRock(MagnetPiece m,Vector3 axis){barRocks[m]=new BarRock{axis=axis,started=Time.time,velocity=90*.44f*pushFlowSpeed};}
+    void StartBarRock(MagnetPiece m,Vector3 axis){barRocks[m]=new BarRock{axis=axis,started=Time.time,velocity=90*.53f*pushFlowSpeed};}
+    static float BarTouchdownAngle(float age){
+        if(age<0||age>=.52f)return 0;
+        bool second=age>=.32f;
+        float p=second?(age-.32f)/.2f:age/.32f;
+        return -(second?2.5f:7f)*4*p*(1-p);
+    }
+    void StartBarTouchdown(MagnetPiece m,Vector3 axis,float age){
+        barRocks[m]=new BarRock{axis=axis,started=Time.time-age,touchdown=true};
+    }
+    static float SettlingAngle(BarRock rock,float age){
+        if(rock.undoBounce){
+            if(age<0||age>=.7f)return 0;
+            bool second=age>=.4f;
+            float p=second?(age-.4f)/.3f:age/.4f;
+            return -(second?4f:8f)*4*p*(1-p);
+        }
+        return rock.touchdown?BarTouchdownAngle(age):BarRockAngle(age,rock.velocity);
+    }
+    void StartUndoBarSettle(MagnetPiece m,Vector3 previous){
+        if(!m||!m.geometry||!m.gameObject.activeInHierarchy||m.storedInPortal||m.combined
+            ||m.shape!=MagnetShape.Bar||m.product!=MagnetProduct.None)return;
+        var tile=Tile(Cell(m.transform));if(!tile||tile.blocked||!SameHeight(tile.surfaceHeight,m.transform.position.y))return;
+        bool standing=MagnetPiece.VerticalBar(m.Pose);
+        var direction=standing?previous-m.transform.position:m.Pose*Vector3.right;direction.y=0;
+        if(direction.sqrMagnitude<.001f){direction=m.Pose*Vector3.up;direction.y=0;}
+        if(direction.sqrMagnitude<.001f)direction=Vector3.right;
+        direction.Normalize();
+        barRocks[m]=new BarRock{axis=Vector3.Cross(Vector3.up,direction),started=Time.time,
+            velocity=90*.53f/Mathf.Max(.01f,barPushSeconds),touchdown=!standing,undoBounce=!standing};
+    }
     float TakeBarRock(MagnetPiece m,Vector3 axis){
         if(!barRocks.TryGetValue(m,out var rock))return 0;
-        barRocks.Remove(m);return BarRockAngle(Time.time-rock.started,rock.velocity)*Vector3.Dot(axis,rock.axis);
+        barRocks.Remove(m);return SettlingAngle(rock,Time.time-rock.started)*Vector3.Dot(axis,rock.axis);
     }
     void ApplyBarRock(MagnetPiece m,Vector3 axis,float angle){
         // Rock about the contacting bottom edge, not the mesh centre. Switching
@@ -32,10 +62,10 @@ public sealed partial class GridPlayground {
         foreach(var m in new List<MagnetPiece>(barRocks.Keys)){
             var rock=barRocks[m];float age=Time.time-rock.started;
             if(!m||!m.geometry||!m.gameObject.activeInHierarchy||m.storedInPortal||m.product!=MagnetProduct.None
-                ||!MagnetPiece.VerticalBar(m.Pose)||age>=BarRockSeconds){barRocks.Remove(m);continue;}
+                ||MagnetPiece.VerticalBar(m.Pose)==rock.touchdown||age>=(rock.undoBounce?.7f:rock.touchdown?.52f:BarRockSeconds)){barRocks.Remove(m);continue;}
             if(MagnetStillAnimating(m)||portalAnimatedMagnets.Contains(m))continue;
             var geometry=m.geometry;hoverRenderPositions[geometry]=geometry.position;rockRenderRotations[geometry]=geometry.rotation;
-            ApplyBarRock(m,rock.axis,BarRockAngle(age,rock.velocity));
+            ApplyBarRock(m,rock.axis,SettlingAngle(rock,age));
         }
     }
     const float MagnetHoverAmplitude=.09f,MagnetHoverPeriod=2.8f;

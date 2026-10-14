@@ -159,15 +159,18 @@ public sealed partial class PlayerPushPose:MonoBehaviour {
         if(!held||!held.geometry)return;
         float nearest=float.PositiveInfinity;
         foreach(var filter in held.geometry.GetComponentsInChildren<MeshFilter>()){
-            if(!filter.sharedMesh)continue;var bounds=filter.sharedMesh.bounds;
-            for(int i=0;i<8;i++){
-                var p=filter.transform.TransformPoint(bounds.center+Vector3.Scale(bounds.extents,
-                    new Vector3((i&1)==0?-1:1,(i&2)==0?-1:1,(i&4)==0?-1:1)));
+            if(!filter.sharedMesh)continue;
+            // Chapter meshes carry enlarged culling bounds; only real geometry
+            // can determine how far the complete body needs to move back.
+            filter.sharedMesh.GetVertices(recoilContactVertices);
+            foreach(var vertex in recoilContactVertices){
+                var p=filter.transform.TransformPoint(vertex);
                 nearest=Mathf.Min(nearest,Vector3.Dot(p-transform.position,transform.forward));
             }
         }
         if(front+gap>nearest)visual.position-=transform.forward*(front+gap-nearest);
     }
+    readonly System.Collections.Generic.List<Vector3> recoilContactVertices=new System.Collections.Generic.List<Vector3>();
     public void SampleRecoilFlight(float seconds,MagnetPiece held=null){
         if(!visual)return;
         // Facing stays toward the magnet while the body travels backwards.

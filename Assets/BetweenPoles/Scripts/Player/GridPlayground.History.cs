@@ -122,8 +122,21 @@ public sealed partial class GridPlayground {
         if(ChapterRecoilTravel.Active)return ChapterRecoilTravel.TryUndoFlight();
         if(OpeningCinematic)return false;
         if(history.Count==0)return Reject("没有可以撤销的操作");
+        RestoreMagnetHover(null);
+        var beforePositions=new Vector3[magnets.Length];var beforePoses=new Quaternion[magnets.Length];
+        var beforeActive=new bool[magnets.Length];var beforeProducts=new MagnetProduct[magnets.Length];
+        for(int i=0;i<magnets.Length;i++)if(magnets[i]){
+            var m=magnets[i];beforePositions[i]=m.transform.position;beforePoses[i]=m.geometry?m.Pose:Quaternion.identity;
+            beforeActive[i]=m.gameObject.activeInHierarchy;beforeProducts[i]=m.product;
+        }
         var state=history[history.Count-1];history.RemoveAt(history.Count-1);
-        RestoreWorld(state);ReleaseUnusedGeometry();LastRule="已撤销上一步";return true;
+        RestoreWorld(state);ReleaseUnusedGeometry();
+        for(int i=0;i<magnets.Length;i++){
+            var m=magnets[i];if(!m||!m.geometry)continue;
+            if((m.transform.position-beforePositions[i]).sqrMagnitude>.000001f||Quaternion.Angle(m.Pose,beforePoses[i])>.01f
+                ||m.gameObject.activeInHierarchy!=beforeActive[i]||m.product!=beforeProducts[i])StartUndoBarSettle(m,beforePositions[i]);
+        }
+        LastRule="已撤销上一步";return true;
     }
     public bool ResetCurrentIsland(){
         ClearMovementInput();
