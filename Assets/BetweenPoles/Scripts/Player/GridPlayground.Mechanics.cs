@@ -496,22 +496,27 @@ public sealed partial class GridPlayground {
             magnetRear=Mathf.Min(magnetRear,Vector3.Dot(r.bounds.center-magnetStart,forward)-Vector3.Dot(r.bounds.extents,absolute));
         }
         var impact=braced+forward*Mathf.Clamp(playerFront-magnetRear,cellSize*.12f,cellSize*.9f);
+        var recoilPose=PlayerPushPose.Begin(player);
+        try{
         float approachSeconds=Mathf.Max(.42f,stepSeconds*1.9f);
         for(float t=0;t<approachSeconds;t+=MovementDeltaTime){
             float a=Mathf.SmoothStep(0,1,t/approachSeconds);
             incoming.transform.position=Vector3.Lerp(magnetStart,approach,a);
             player.position=Vector3.Lerp(playerStart,braced,a);
-            player.rotation=Quaternion.AngleAxis(9*a,axis)*facing;yield return null;
+            player.rotation=facing;recoilPose.SampleRecoilPush(Mathf.Clamp01(t/.12f),0);yield return null;
         }
         incoming.transform.position=approach;player.position=braced;
         float returnSeconds=Mathf.Max(.20f,stepSeconds);
         for(float t=0;t<returnSeconds;t+=MovementDeltaTime){
             float a=t/returnSeconds;
             incoming.transform.position=Vector3.Lerp(approach,impact,a*a);
+            recoilPose.SampleRecoilPush(1,Mathf.SmoothStep(0,1,Mathf.InverseLerp(.65f,1,a)));
             yield return null;
         }
         incoming.transform.position=impact;
+        recoilPose.SampleRecoilFlight(0);
         yield return RecoilAcrossIslands(incoming,from,-dir,braced,impact,facing,axis);
+        }finally{if(recoilPose&&!ChapterRecoilTravel.Active)recoilPose.End();}
     }
     IEnumerator Assemble(MagnetPiece incoming,MagnetPiece target,Vector2Int dir,Quaternion arrival,MagnetProduct product,Vector2Int next,Vector2Int bridgeDir){
         return AssembleCore(incoming,target,dir,arrival,product,next,bridgeDir,false);

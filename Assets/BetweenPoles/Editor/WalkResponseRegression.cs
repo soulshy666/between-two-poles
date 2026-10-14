@@ -130,9 +130,62 @@ namespace BetweenPoles.EditorTools {
             Call(board,"PumpMovementInput",Vector2Int.right,true);
             remaining=100;while(undoWalk.MoveNext())Check(--remaining>0,"Undo setup stuck");
             Check(board.UndoCount==1&&board.UndoStep()&&board.PlayerCell==Vector2Int.right,"Accelerated continuation lost per-cell undo");
-            File.WriteAllText(Report,"PASS: same-direction fresh taps accelerate; held timing unchanged; gait tracks actual distance; no teleport or obstacle bypass; per-cell undo; reversals; cardinal turns; uninterrupted gait; exact landing and unlock.");
+            ValidateLocalRecoil(board,root);
+            File.WriteAllText(Report,"PASS: same-island stone recoil in four directions, nearest stone, exact player/magnet landing and undo; same-direction fresh taps accelerate; held timing unchanged; gait tracks actual distance; no teleport or obstacle bypass; per-cell undo; reversals; cardinal turns; uninterrupted gait; exact landing and unlock.");
         }catch(Exception ex){File.WriteAllText(Report,"FAIL: "+ex);Debug.LogException(ex);}
         finally{EditorSceneManager.ClosePreviewScene(scene);}
+    }
+    static void ValidateLocalRecoil(GridPlayground board,GameObject root){
+        foreach(var direction in new[]{Vector2Int.right,Vector2Int.left,Vector2Int.up,Vector2Int.down}){
+            board.tiles=new GridTile[8];board.magnets=new MagnetPiece[0];
+            for(int i=0;i<8;i++){
+                var tile=new GameObject("Recoil tile");tile.transform.SetParent(root.transform);
+                tile.transform.position=new Vector3(direction.x*(i-3)*board.cellSize,0,direction.y*(i-3)*board.cellSize);
+                board.tiles[i]=tile.AddComponent<GridTile>();board.tiles[i].blocked=i==0||i>=6;
+            }
+            var piece=new GameObject("Recoil magnet");piece.transform.SetParent(root.transform);
+            piece.transform.position=new Vector3(-direction.x*board.cellSize,0,-direction.y*board.cellSize);
+            var magnet=piece.AddComponent<MagnetPiece>();magnet.geometry=new GameObject("Geometry").transform;magnet.geometry.SetParent(piece.transform,false);
+            board.magnets=new[]{magnet};board.player.position=Vector3.zero;board.CaptureInitialState();
+            object[] query={magnet,Vector2Int.zero,direction,Vector2Int.zero,Vector2Int.zero};
+            Check((bool)Call(board,"FindLocalRecoilStop",query),"Same-island stone was ignored");
+            Check((Vector2Int)query[3]==direction*2&&(Vector2Int)query[4]==direction,"Incorrect local recoil cells");
+            Call(board,"RecordHistory",Call(board,"SaveWorld"));
+            var motion=(IEnumerator)Call(board,"RecoilIntoObstacle",magnet,direction,(Vector2Int)query[3],(Vector2Int)query[4],Vector3.zero,magnet.transform.position,Quaternion.LookRotation(new Vector3(-direction.x,0,-direction.y)));
+            int guard=300;while(motion.MoveNext())Check(--guard>0,"Local recoil never finished");
+            Check(board.PlayerCell==direction*2&&!board.Busy&&!board.RecoilFlying,"Local recoil failed to unlock at stone");
+            Check(Vector3.Distance(magnet.transform.position,new Vector3(direction.x*board.cellSize,0,direction.y*board.cellSize))<.001f,"Released magnet missed chest-side cell");
+            Check(board.UndoStep()&&board.PlayerCell==Vector2Int.zero,"Local recoil undo failed");
+            Check(Vector3.Distance(magnet.transform.position,new Vector3(-direction.x*board.cellSize,0,-direction.y*board.cellSize))<.001f,"Recoil undo lost magnet");
+            board.tiles[6].blocked=board.tiles[7].blocked=false;
+            Check(!(bool)Call(board,"FindLocalRecoilStop",query),"Open floor unexpectedly stopped recoil");
+            board.tiles[5].surfaceHeight=.25f;
+            Check((bool)Call(board,"FindLocalRecoilStop",query)&&(Vector2Int)query[3]==direction,"Raised ground did not stop recoil before the higher cell");
+            board.tiles[5].surfaceHeight=0;
+            var obstacle=GameObject.CreatePrimitive(PrimitiveType.Cube);obstacle.transform.SetParent(root.transform);
+            var obstaclePiece=obstacle.AddComponent<MagnetPiece>();obstaclePiece.geometry=obstacle.transform;
+            board.magnets=new[]{magnet,obstaclePiece};
+            foreach(float topHeight in new[]{.12f,1.5f}){
+                obstacle.transform.position=new Vector3(direction.x*2*board.cellSize,topHeight*.5f,direction.y*2*board.cellSize);
+                obstacle.transform.localScale=new Vector3(.5f,topHeight,.5f);
+                Check((bool)Call(board,"FindLocalRecoilStop",query)&&(Vector2Int)query[3]==direction,"Magnet height did not block recoil: "+topHeight);
+                Check(!(bool)Call(board,"RecoilCellBlocksFlight",direction*2,topHeight+.1f),"An obstacle below flight height incorrectly blocked flight");
+            }
+            obstacle.SetActive(false);board.magnets=new[]{magnet};
+            board.tiles[6].blocked=true;
+            var gap=board.tiles[4];board.tiles[4]=null;gap.gameObject.SetActive(false);board.CaptureInitialState();
+            Check((bool)Call(board,"FindLocalRecoilStop",query)&&(Vector2Int)query[3]==direction*2&&(Vector2Int)query[4]==direction,
+                "A floor gap hid the stone beyond it or rejected the hovering magnet cell");
+            motion=(IEnumerator)Call(board,"RecoilIntoObstacle",magnet,direction,direction*2,direction,Vector3.zero,magnet.transform.position,Quaternion.LookRotation(new Vector3(-direction.x,0,-direction.y)));
+            guard=300;while(motion.MoveNext())Check(--guard>0,"Gap-crossing recoil never finished");
+            Check(board.PlayerCell==direction*2&&Mathf.Abs(magnet.transform.position.y)<.001f,"Gap recoil missed floor or changed magnet hover height");
+            board.player.position=Vector3.zero;magnet.transform.position=new Vector3(-direction.x*board.cellSize,0,-direction.y*board.cellSize);
+            var stopGap=board.tiles[5];board.tiles[5]=null;stopGap.gameObject.SetActive(false);board.CaptureInitialState();
+            Check((bool)Call(board,"FindLocalRecoilStop",query),"Unsupported impact cell cancelled obstacle detection");
+            motion=(IEnumerator)Call(board,"RecoilIntoObstacle",magnet,direction,direction*2,direction,Vector3.zero,magnet.transform.position,Quaternion.LookRotation(new Vector3(-direction.x,0,-direction.y)));
+            guard=300;while(motion.MoveNext())Check(--guard>0,"Airborne recoil never recovered");
+            Check(board.PlayerCell==Vector2Int.zero&&!board.Busy,"Airborne impact left player stranded above missing floor");
+        }
     }
 }
 }

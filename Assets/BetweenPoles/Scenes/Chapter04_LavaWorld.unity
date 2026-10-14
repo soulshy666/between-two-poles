@@ -1876,7 +1876,7 @@ MonoBehaviour:
   rockStyle: 2
   lowRockVariant: 0
   rockTheme: 4
-  rockYaw: 280
+  rockYaw: 245.7
   goal: 0
   surfaceHeight: 0
 --- !u!1001 &124691236
@@ -5871,7 +5871,7 @@ MonoBehaviour:
   rockStyle: 2
   lowRockVariant: 0
   rockTheme: 4
-  rockYaw: 90
+  rockYaw: 110.3
   goal: 0
   surfaceHeight: 0
 --- !u!1 &397174237
@@ -5923,7 +5923,7 @@ MonoBehaviour:
   rockStyle: 2
   lowRockVariant: 0
   rockTheme: 4
-  rockYaw: 347
+  rockYaw: 14.9
   goal: 0
   surfaceHeight: 0
 --- !u!1 &401356250
@@ -16545,7 +16545,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   cellSize: 1.5
-  stepSeconds: 0.22
+  stepSeconds: 0.045
   walkSeconds: 0.25
   turnSeconds: 0.05
   heldStepPauseSeconds: 0

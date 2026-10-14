@@ -59,6 +59,11 @@ public sealed partial class GridPlayground {
         recoilRenderers=null;
     }
     IEnumerator RecoilAcrossIslands(MagnetPiece magnet,Vector2Int from,Vector2Int travel,Vector3 playerStart,Vector3 magnetStart,Quaternion facing,Vector3 axis){
+        Vector2Int stop,releaseCell;
+        if(FindLocalRecoilStop(magnet,from,travel,out stop,out releaseCell)){
+            yield return RecoilIntoObstacle(magnet,travel,stop,releaseCell,playerStart,magnetStart,facing);
+            yield break;
+        }
         Vector2Int shore;Vector3 magnetEnd,playerEnd;int exitDistance;
         bool lands=FindRecoilLanding(from,travel,out shore,out magnetEnd,out playerEnd,out exitDistance);
         var chapterExit=GetComponent<ChapterRecoilExit>();bool nextChapter=chapterExit&&chapterExit.Matches(from,travel);
@@ -72,11 +77,13 @@ public sealed partial class GridPlayground {
         float duration=Mathf.Max(.8f,Vector3.Distance(playerStart,playerEnd)/(cellSize*5));
         Vector3 endPlayerOffset=lands?SurfaceOffset(playerEnd):playerFlightOffset,endMagnetOffset=lands?SurfaceOffset(magnetEnd):magnetFlightOffset;
         bool contactHandled=false;
+        var flightPose=player.GetComponent<PlayerPushPose>();
         for(float t=0;t<duration;t+=Time.deltaTime){
             float a=Mathf.Clamp01(t/duration);
             player.position=Vector3.Lerp(playerStart,playerEnd,a);magnet.transform.position=Vector3.Lerp(magnetStart,magnetEnd,a);
             FlightOffset(player,Vector3.Lerp(playerFlightOffset,endPlayerOffset,a));FlightOffset(magnet.transform,Vector3.Lerp(magnetFlightOffset,endMagnetOffset,a));
             player.rotation=facing;
+            if(flightPose)flightPose.SampleRecoilFlight(t);
             if(lands&&!contactHandled&&Vector3.Distance(player.position,playerEnd)<=cellSize){
                 contactHandled=true;LaunchLandingMagnets(magnet,shore,travel);
             }
@@ -101,6 +108,103 @@ public sealed partial class GridPlayground {
             player.rotation=Quaternion.AngleAxis(-20+Mathf.Sin(t)*6,axis)*facing;yield return null;
         }
         EndRecoilFlight();Busy=false;ResetCurrentIsland();history.Clear();ReleaseUnusedGeometry();LastRule="太空漂浮结束，已重开当前小岛";
+    }
+    bool FindLocalRecoilStop(MagnetPiece magnet,Vector2Int from,Vector2Int travel,out Vector2Int stop,out Vector2Int release){
+        stop=release=from;var owner=Owner(Tile(from));float height=player.position.y;
+        // Missing floor does not end a flight. Bound the scan by the island's
+        // actual extent, not tile count (sparse islands may contain wide gaps).
+        int extent=0;
+        foreach(var ground in tiles){
+            if(!ground||!ground.gameObject.activeInHierarchy||Owner(ground)!=owner)continue;
+            var delta=Cell(ground.transform)-from;
+            if(delta.x*travel.y==delta.y*travel.x)extent=Mathf.Max(extent,delta.x*travel.x+delta.y*travel.y);
+        }
+        for(int distance=1;distance<=extent;distance++){
+            var cell=from+travel*distance;var tile=Tile(cell);
+            if(tile&&tile.gameObject.activeInHierarchy&&Owner(tile)!=owner)return false;
+            if(RecoilCellBlocksFlight(cell,height)){
+                stop=cell-travel;
+                // Throw toward the chest. Prefer the adjacent cell; never overwrite
+                // another piece, enter a portal, or release into a rock.
+                release=stop-travel;var ground=Tile(release);
+                bool emptySpace=!ground||!ground.gameObject.activeInHierarchy;
+                return (emptySpace||(!ground.blocked&&Owner(ground)==owner&&SameHeight(ground.surfaceHeight,height)))
+                    &&!TransportObstacle(release,magnet)
+                    &&!IsWreckCell(release)&&!BlackHolePortal.At(this,release);
+            }
+        }
+        return false;
+    }
+    bool RecoilCellBlocksFlight(Vector2Int cell,float flightHeight){
+        const float tolerance=.0001f;
+        var tile=Tile(cell);
+        if(tile&&tile.surfaceHeight>flightHeight+tolerance)return true;
+        if(IsWreckCell(cell))return true;
+        // Use logical mesh surface heights, not renderer bounds enlarged for the
+        // curved-world shader. Flat and upright magnets both have a solid top.
+        GridTile support;Vector3 top;
+        bool hasSurface=TryLandingSurface(cell,out support,out top);
+        if(hasSurface&&top.y>flightHeight+tolerance)return true;
+        // Authored blockers without readable geometry must still remain solid.
+        if(tile&&tile.blocked&&!hasSurface)return true;
+        return false;
+    }
+    IEnumerator RecoilIntoObstacle(MagnetPiece magnet,Vector2Int travel,Vector2Int stop,Vector2Int releaseCell,Vector3 playerStart,Vector3 magnetStart,Quaternion facing){
+        var direction=new Vector3(travel.x,0,travel.y);
+        float flightHeight=playerStart.y;
+        var floor=Tile(stop);
+        bool grounded=floor&&floor.gameObject.activeInHierarchy&&!floor.blocked&&SameHeight(floor.surfaceHeight,flightHeight);
+        var end=Position(stop,flightHeight);
+        // A body cannot lie on missing floor. After the airborne impact, pull
+        // back to the nearest safe cell on the approach, excluding the magnet.
+        var recoveryCell=stop;
+        if(!grounded){
+            var origin=CellAt(playerStart);
+            int distance=Mathf.Abs(stop.x-origin.x)+Mathf.Abs(stop.y-origin.y);
+            recoveryCell=origin;
+            for(int back=1;back<=distance;back++){
+                var candidate=stop-travel*back;var ground=Tile(candidate);
+                if(candidate!=releaseCell&&ground&&ground.gameObject.activeInHierarchy&&!ground.blocked
+                    &&SameHeight(ground.surfaceHeight,flightHeight)&&!TransportObstacle(candidate,magnet)
+                    &&!IsWreckCell(candidate)&&!BlackHolePortal.At(this,candidate)){recoveryCell=candidate;break;}
+            }
+        }
+        // Approach the obstacle, then fall back to the free cell.
+        var contact=end+direction*(cellSize*.18f);
+        var heldOffset=magnetStart-playerStart;
+        float seconds=Mathf.Max(.12f,Vector3.Distance(playerStart,contact)/(cellSize*5));
+        var pose=PlayerPushPose.Begin(player);
+        try{
+            for(float t=0;t<seconds;t+=MovementDeltaTime){
+                float p=Mathf.Clamp01(t/seconds);
+                player.SetPositionAndRotation(Vector3.Lerp(playerStart,contact,p),facing);
+                magnet.transform.position=player.position+heldOffset;
+                pose.SampleRecoilFlight(t);yield return null;
+            }
+            player.position=contact;magnet.transform.position=contact+heldOffset;
+            var releasePose=pose.CapturePushRelease();
+            var thrownFrom=magnet.transform.position;var thrownTo=Position(releaseCell,flightHeight);
+            // Abrupt body stop, quick two-handed release, then a chest-first fall.
+            const float recovery=1.15f,throwSeconds=.23f;
+            for(float t=0;t<recovery;t+=MovementDeltaTime){
+                float a=Mathf.Clamp01(t/throwSeconds);
+                magnet.transform.position=Vector3.Lerp(thrownFrom,thrownTo,a)+Vector3.up*(Mathf.Sin(a*Mathf.PI)*cellSize*.16f);
+                if(grounded){
+                    player.position=Vector3.Lerp(contact,end,Mathf.SmoothStep(0,1,t/.25f));
+                    pose.SampleRecoilCrash(t/recovery,cellSize);
+                }else{
+                    float rebound=Mathf.SmoothStep(0,1,Mathf.InverseLerp(.18f,recovery,t));
+                    player.position=Vector3.Lerp(contact,Position(recoveryCell,flightHeight),rebound)
+                        +Vector3.up*(Mathf.Sin(rebound*Mathf.PI)*cellSize*.2f);
+                    pose.SamplePortalHeadImpact((1-rebound)*Mathf.Sin(Mathf.PI*Mathf.Clamp01(t/.22f)),0);
+                }
+                releasePose?.Invoke(Mathf.Clamp01(t/.1f));
+                yield return null;
+            }
+            magnet.transform.position=thrownTo;player.SetPositionAndRotation(Position(recoveryCell,flightHeight),facing);
+        }finally{if(pose)pose.End();}
+        NotifyLanding(recoveryCell);Busy=false;
+        LastRule=grounded?"反冲撞上障碍：向胸前甩出磁铁，摔倒后起身":"悬空撞上障碍：甩出磁铁，弹回最近的安全地面";
     }
     void SettleFlightView(Vector2Int cell){
         foreach(var camera in FindObjectsOfType<CurvedTrialCamera>())
