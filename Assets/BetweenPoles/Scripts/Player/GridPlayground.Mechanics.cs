@@ -344,6 +344,7 @@ public sealed partial class GridPlayground {
             halfHeight=bounds.size.y*.5f;
         }
         float inheritedRock=TakeBarRock(m,axis);
+        float touchdownAge=-1;
         player.rotation=Quaternion.LookRotation(new Vector3(step.direction.x,0,step.direction.y));
         var style=m.shape!=MagnetShape.Bar?PlayerPushPose.FlowPushStyle.Standard:
             MagnetPiece.VerticalBar(rotation)?PlayerPushPose.FlowPushStyle.ShoveBar:PlayerPushPose.FlowPushStyle.LiftBar;
@@ -362,7 +363,12 @@ public sealed partial class GridPlayground {
             if(!continuing&&!recordingPush)desired*=Mathf.Sqrt(Mathf.Clamp((1-pushFlowProgress)/.2f,.04f,1));
             pushFlowSpeed=Mathf.Min(speedLimit,Mathf.MoveTowards(pushFlowSpeed,desired,normalSpeed*3*dt/.07f));
             float remainingTime=(1-pushFlowProgress)/Mathf.Max(.001f,pushFlowSpeed);
+            float previousProgress=pushFlowProgress;
             pushFlowProgress=Mathf.Min(1,pushFlowProgress+pushFlowSpeed*dt);
+            if(groundBar&&falling&&pushFlowProgress>=.78f){
+                float used=Mathf.Min(dt,remainingTime);
+                touchdownAge=touchdownAge<0?Mathf.Max(0,used-(.78f-previousProgress)/Mathf.Max(.001f,pushFlowSpeed)):touchdownAge+used;
+            }
             var previous=player.position;
             player.position=Vector3.Lerp(actorStart,actorEnd,pushFlowProgress);
             float roll=pushFlowProgress;
@@ -370,7 +376,7 @@ public sealed partial class GridPlayground {
                 // Gravity accelerates the fall; lifting accelerates under effort then brakes at vertical.
                 float phase=Mathf.Clamp01(pushFlowProgress/(falling?.78f:1));
                 // Retain angular momentum at vertical; the settling motion inherits it.
-                roll=falling?phase*phase:phase*phase*(2.56f-1.56f*phase);
+                roll=falling?phase*phase:phase*phase*(2.47f-1.47f*phase);
                 float angle=roll*Mathf.PI*.5f;
                 float pivotTravel=halfWidth*(1-Mathf.Cos(angle))+halfHeight*Mathf.Sin(angle);
                 float slide=falling?cellSize*.1f:0;
@@ -383,12 +389,14 @@ public sealed partial class GridPlayground {
             m.geometry.rotation=Quaternion.AngleAxis(step.degrees*roll,axis)*rotation;
             MagnetVisuals.Ground(m);
             if(Mathf.Abs(followRock)>.001f)ApplyBarRock(m,axis,followRock);
+            if(touchdownAge>=0)ApplyBarRock(m,axis,BarTouchdownAngle(touchdownAge));
             pose.AdvanceFlowPush(Vector3.Distance(previous,player.position),dt,groundBar?roll:pushFlowProgress);
             if(pushFlowProgress>=1){pushFlowCarryTime=Mathf.Max(0,dt-remainingTime);break;}
             yield return null;
         }
         m.transform.position=end;m.geometry.rotation=step.pose;MagnetVisuals.Ground(m);
         if(groundBar&&!falling&&!recordingPush&&!finishingMovement)StartBarRock(m,axis);
+        if(groundBar&&falling&&touchdownAge<.52f&&!recordingPush&&!finishingMovement)StartBarTouchdown(m,axis,touchdownAge);
         yield return SettleMagnetArrival(m,start);
         player.position=actorEnd;NotifyLanding(next);
         // The movement driver may start the next validated push in this frame.
@@ -496,13 +504,14 @@ public sealed partial class GridPlayground {
         // Contact first, then launch both bodies. The far magnet stays pinned by the stone.
         float playerFront=cellSize*.23f,magnetRear=0;
         float magnetBottom=float.PositiveInfinity,magnetTop=float.NegativeInfinity;
-        // Shader-expanded renderer bounds are not physical contact geometry.
+        // Both mesh and renderer bounds may be enlarged for planet rendering.
+        // Contact must use the actual vertices, never those culling bounds.
         foreach(var filter in incoming.geometry.GetComponentsInChildren<MeshFilter>()){
-            if(!filter.sharedMesh)continue;var bounds=filter.sharedMesh.bounds;
-            for(int i=0;i<8;i++){
-                var corner=bounds.center+Vector3.Scale(bounds.extents,new Vector3((i&1)==0?-1:1,(i&2)==0?-1:1,(i&4)==0?-1:1));
-                magnetRear=Mathf.Min(magnetRear,Vector3.Dot(filter.transform.TransformPoint(corner)-magnetStart,forward));
-                float height=filter.transform.TransformPoint(corner).y-magnetStart.y;
+            if(!filter.sharedMesh)continue;
+            foreach(var vertex in filter.sharedMesh.vertices){
+                var point=filter.transform.TransformPoint(vertex);
+                magnetRear=Mathf.Min(magnetRear,Vector3.Dot(point-magnetStart,forward));
+                float height=point.y-magnetStart.y;
                 magnetBottom=Mathf.Min(magnetBottom,height);magnetTop=Mathf.Max(magnetTop,height);
             }
         }

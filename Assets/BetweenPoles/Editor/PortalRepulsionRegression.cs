@@ -141,7 +141,7 @@ public static class PortalRepulsionRegression {
                     if(current.Current is System.Collections.IEnumerator child){stack.Push(child);continue;}
                     float travel=Vector3.Dot(m.transform.position,axis)/b.cellSize;
                     Check(travel>=previous-.0001f&&travel<=1.0001f,"Ground bar moved backward or beyond its destination");previous=travel;
-                    if(upright&&slideStart<0&&Quaternion.Angle(m.Pose,final)<.01f)slideStart=travel;
+                    if(upright&&slideStart<0&&(float)typeof(GridPlayground).GetField("pushFlowProgress",flags).GetValue(b)>=.78f)slideStart=travel;
                     float bottom=float.PositiveInfinity;
                     foreach(var f in m.geometry.GetComponentsInChildren<MeshFilter>())foreach(var v in f.sharedMesh.vertices)bottom=Mathf.Min(bottom,f.transform.TransformPoint(v).y);
                     Check(Mathf.Abs(bottom)<.001f,"Ground roll lost support contact");

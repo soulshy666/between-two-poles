@@ -130,11 +130,53 @@ namespace BetweenPoles.EditorTools {
             Call(board,"PumpMovementInput",Vector2Int.right,true);
             remaining=100;while(undoWalk.MoveNext())Check(--remaining>0,"Undo setup stuck");
             Check(board.UndoCount==1&&board.UndoStep()&&board.PlayerCell==Vector2Int.right,"Accelerated continuation lost per-cell undo");
+            ValidateRecoilCullingBounds(board,root);
             ValidateStoneBackedRecoil(board,root);
             ValidateLocalRecoil(board,root);
             File.WriteAllText(Report,"PASS: same-island stone recoil in four directions, nearest stone, exact player/magnet landing and undo; same-direction fresh taps accelerate; held timing unchanged; gait tracks actual distance; no teleport or obstacle bypass; per-cell undo; reversals; cardinal turns; uninterrupted gait; exact landing and unlock.");
         }catch(Exception ex){File.WriteAllText(Report,"FAIL: "+ex);Debug.LogException(ex);}
         finally{EditorSceneManager.ClosePreviewScene(scene);}
+    }
+    static void ValidateRecoilCullingBounds(GridPlayground board,GameObject root){
+        var prefab=AssetDatabase.LoadAssetAtPath<GameObject>("Assets/BetweenPoles/Art/AstronautV1/AstronautVisual.prefab");
+        var visual=UnityEngine.Object.Instantiate(prefab,board.player,false);visual.name="Visual";
+        board.playerVisual=visual.transform;
+        foreach(var dir in new[]{Vector2Int.right,Vector2Int.left,Vector2Int.up,Vector2Int.down})
+        foreach(var rotation in new[]{Quaternion.identity,Quaternion.Euler(0,0,90)}){
+            var origin=new Vector3(dir.x,0,dir.y)*board.cellSize;
+            var magnet=MagnetVisuals.Create(root.transform,origin,MagnetShape.Bar,true,rotation,board.cellSize,root.transform);
+            var filters=magnet.geometry.GetComponentsInChildren<MeshFilter>();
+            var meshes=new Mesh[filters.Length];
+            for(int i=0;i<filters.Length;i++){meshes[i]=UnityEngine.Object.Instantiate(filters[i].sharedMesh);filters[i].sharedMesh=meshes[i];}
+            var baseline=new System.Collections.Generic.List<Vector3>();
+            try{
+                for(int pass=0;pass<2;pass++){
+                    if(pass==1)foreach(var mesh in meshes)mesh.bounds=new Bounds(Vector3.zero,Vector3.one*200);
+                    board.player.position=Vector3.zero;magnet.transform.position=origin;
+                    var motion=(IEnumerator)Call(board,"Recoil",magnet,dir,Vector2Int.zero);
+                    int frame=0;
+                    try{
+                        while(motion.MoveNext()){
+                            var cargo=magnet.transform.position;var body=visual.transform.position;
+                            Check(Vector3.Distance(cargo,origin)<board.cellSize*2,"Recoil contact launched magnet out of reach");
+                            if(pass==0){baseline.Add(cargo);baseline.Add(body);}
+                            else{
+                                Check(frame*2+1<baseline.Count,"Culling bounds changed recoil timing");
+                                Check(Vector3.Distance(cargo,baseline[frame*2])<.0001f&&Vector3.Distance(body,baseline[frame*2+1])<.0001f,
+                                    "Culling bounds changed recoil contact or player clearance");
+                            }
+                            frame++;Check(frame<200,"Recoil contact did not finish");
+                            // Stop at the nested flight: this test isolates chest contact.
+                            if(motion.Current is IEnumerator)break;
+                        }
+                        Check(frame*2==baseline.Count,"Recoil sample count changed");
+                    }finally{(motion as IDisposable)?.Dispose();}
+                }
+            }finally{
+                UnityEngine.Object.DestroyImmediate(magnet.gameObject);
+                foreach(var mesh in meshes)UnityEngine.Object.DestroyImmediate(mesh);
+            }
+        }
     }
     static void ValidateStoneBackedRecoil(GridPlayground board,GameObject root){
         foreach(var dir in new[]{Vector2Int.right,Vector2Int.left,Vector2Int.up,Vector2Int.down}){
