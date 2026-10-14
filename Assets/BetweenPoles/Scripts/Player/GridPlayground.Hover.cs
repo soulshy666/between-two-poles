@@ -38,7 +38,7 @@ public sealed partial class GridPlayground {
     void IndexHoverNeighbors(){
         hoverNeighbors.Clear();
         foreach(var m in magnets){
-            if(!m||!m.enabled||!m.gameObject.activeInHierarchy||IsKnockedFlying(m))continue;
+            if(!m||!m.enabled||!m.gameObject.activeInHierarchy||MagnetFlightOwnsHeight(m))continue;
             var cell=Cell(m.transform);IndexHoverCell(cell,m);
             if(m.product==MagnetProduct.Bridge||m.product==MagnetProduct.BridgeHalf)IndexHoverCell(cell+m.bridgeDirection,m);
         }
@@ -104,9 +104,11 @@ public sealed partial class GridPlayground {
         }
         return false;
     }
+    // Airborne motion owns the whole displayed height, including gaps between islands.
+    bool MagnetFlightOwnsHeight(MagnetPiece m){return (RecoilFlying&&RecoilMagnet==m)||IsKnockedFlying(m);}
     bool ShouldHover(MagnetPiece m){
         return m&&m.enabled&&m.gameObject.activeInHierarchy&&m.geometry&&m.geometry.gameObject.activeInHierarchy
-            &&!Supported(m)&&!HoverPassage(m)&&!MagnetStillAnimating(m);
+            &&!MagnetFlightOwnsHeight(m)&&!Supported(m)&&!HoverPassage(m)&&!MagnetStillAnimating(m);
     }
     void UpdateMagnetHover(){
         RestoreMagnetHover(null);
@@ -134,7 +136,7 @@ public sealed partial class GridPlayground {
             portalHoverFrame=Time.frameCount;UpdateMagnetHover();
         }
         foreach(var entry in hoveringMagnets){
-            var m=entry.Key;if(!m||!m.geometry||!m.gameObject.activeInHierarchy||portalAnimatedMagnets.Contains(m))continue;
+            var m=entry.Key;if(!m||!m.geometry||!m.gameObject.activeInHierarchy||portalAnimatedMagnets.Contains(m)||MagnetFlightOwnsHeight(m))continue;
             float t=entry.Value;
             float offset=(hoverLevels.TryGetValue(m,out float level)?level:0)+MagnetHoverAmplitude*Mathf.Sin(t*Mathf.PI*2/MagnetHoverPeriod)
                 *Mathf.SmoothStep(0,1,Mathf.Clamp01(t/.4f));
@@ -146,7 +148,7 @@ public sealed partial class GridPlayground {
         // the shore. Keep this display offset out of assembly and undo data.
         foreach(var m in magnets){
             if(!m||!m.enabled||!m.gameObject.activeInHierarchy||!m.geometry
-                ||hoveringMagnets.ContainsKey(m)||!ShoreLevelBridge(m)||MagnetStillAnimating(m))continue;
+                ||MagnetFlightOwnsHeight(m)||hoveringMagnets.ContainsKey(m)||!ShoreLevelBridge(m)||MagnetStillAnimating(m))continue;
             float offset=DeckHeight(m)-MagnetGeometryTop(m);
             hoverRenderPositions[m.geometry]=m.geometry.position;
             m.geometry.position+=Vector3.up*offset;
