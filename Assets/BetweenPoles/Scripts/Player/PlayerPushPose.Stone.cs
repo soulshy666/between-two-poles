@@ -7,6 +7,8 @@ public sealed partial class PlayerPushPose {
     float stonePushTime;
     Vector2Int stonePushDirection;
     float stoneContactDistance;
+    int stoneSoundsPlayed;
+    PlayerFootstepAudio stoneAudio;
     public bool HasBlockedFeedback {get{return pushingStone||balancing;}}
     public static void BeginBlockedMagnetPush(Transform player,MagnetPiece magnet,Vector2Int direction){
         var pose=GetPose(player);
@@ -65,13 +67,22 @@ public sealed partial class PlayerPushPose {
     }
     public void InterruptStonePush(Vector2Int direction){if(pushingStone&&direction!=stonePushDirection)End();}
     public void EndStonePush(){if(pushingStone)End();}
-    void ResetStonePush(){if(board)board.ClearBlockedUNudge();pushingStone=false;stonePushTime=0;fixedMagnetShove=false;}
+    void ResetStonePush(){
+        if(board)board.ClearBlockedUNudge();
+        pushingStone=false;stonePushTime=0;fixedMagnetShove=false;stoneSoundsPlayed=0;
+        if(stoneAudio)stoneAudio.StopStoneBlocked();
+    }
     void UpdateStonePush(){
         if(!pushingStone)return;
         if(!board||board.Busy){End();return;}
         stonePushTime+=Time.deltaTime;
         board.SampleBlockedUNudge(stonePushTime);
         if(stonePushTime>=(fixedMagnetShove?1.15f:StonePushSeconds)){End();return;}
+        // Three efforts during hand contact, before the recovery/shrug animation.
+        if(stoneSoundsPlayed<3&&stonePushTime>=.25f+.4f*stoneSoundsPlayed){
+            stoneSoundsPlayed++;stoneAudio=PlayerFootstepAudio.For(transform);
+            if(stoneAudio)stoneAudio.PlayStoneBlocked();
+        }
         if(fixedMagnetShove){
             // One brief effort against an immovable assembly, then release and shrug.
             float sample=stonePushTime<.35f?Mathf.Lerp(0,1.15f,stonePushTime/.35f)
