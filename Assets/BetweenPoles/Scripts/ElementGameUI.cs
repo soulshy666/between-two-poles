@@ -35,6 +35,20 @@ public sealed class ElementGameUI:MonoBehaviour {
         return Asset("text-"+key+(light?"-light":""));
     }
     public static Color Ink {get{Color color;ColorUtility.TryParseHtmlString(Theme=="ice"?"#45697d":Theme=="grass"?"#4b6a3a":Theme=="earth"?"#7a5538":"#2f2331",out color);return color;}}
+    // Same thresholded 12px glyphs as the original web UI, enlarged without smoothing.
+    public static void ProgressText(Rect rect,string value,bool light=false,bool timeLabel=false){
+        var atlas=Asset(light?"digits-light":"digits");var label=timeLabel?Asset("playtime-label"):null;
+        if(!atlas)return;
+        float labelWidth=label?label.width+6:0;
+        float width=labelWidth+value.Length*6+2;
+        float k=Mathf.Max(1,Mathf.Floor(Mathf.Min(TextScale,Mathf.Min(rect.width/width,rect.height/15))));
+        float x=Mathf.Round(rect.center.x-width*k*.5f),y=Mathf.Round(rect.center.y-15*k*.5f);
+        if(label){GUI.DrawTexture(new Rect(x,y,label.width*k,15*k),label);x+=labelWidth*k;}
+        for(int i=0;i<value.Length;i++){
+            int index="0123456789/:".IndexOf(value[i]);if(index<0)continue;
+            GUI.DrawTextureWithTexCoords(new Rect(x+i*6*k,y,8*k,15*k),atlas,new Rect(index/12f,0,1/12f,1));
+        }
+    }
     public static void Panel(Rect rect){
         var texture=Asset("panel");if(!texture)return;
         float k=TextScale,left=2*k,right=2*k,top=2*k,bottom=5*k;
@@ -74,7 +88,7 @@ public sealed class ElementGameUI:MonoBehaviour {
     }
     void Notify(string action){
         Blip(action);
-        if(action=="undo"||action=="reset"){toastUntil=0;return;}
+        if(action=="undo"||action=="reset"||action=="sound"||action=="mute"){toastUntil=0;return;}
         toast=action;toastUntil=Time.unscaledTime+1.6f;
     }
     void Activate(string action){
@@ -141,7 +155,7 @@ public sealed class ElementGameUI:MonoBehaviour {
         float buttonWidth=70*k,buttonHeight=18*k;
         var timeRect=new Rect((width-110*k)*.5f,top+panelHeight+3*k,110*k,15*k);
         Panel(timeRect);
-        GUI.Label(timeRect,"游玩时长  "+SessionPlayTime.Display,PixelGameUI.Text(Mathf.RoundToInt(5*k),TextAnchor.MiddleCenter));
+        ProgressText(timeRect,SessionPlayTime.Display,false,true);
         var menu=new Rect((width-buttonWidth)*.5f,top+panelHeight+22*k,buttonWidth,buttonHeight);
         bool old=GUI.enabled;GUI.enabled=interactive&&!returningToMenu;
         bool clicked=PixelGameUI.Button(menu,"返回主菜单");GUI.enabled=old;

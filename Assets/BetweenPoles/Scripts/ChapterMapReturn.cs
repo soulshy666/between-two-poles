@@ -110,12 +110,14 @@ public sealed class ChapterMapReturn : MonoBehaviour {
         foreach(var root in gameObject.scene.GetRootGameObjects())if(root.activeSelf)suspendedRoots.Add(root);
         foreach(var root in suspendedRoots)if(root!=transform.root.gameObject)root.SetActive(false);
         transform.root.gameObject.SetActive(false);
+        GameBackgroundMusic.SyncListener();
     }
     static void ClearArrivalFrame(){if(ChapterAtlas.ChartArrivalFrame)Destroy(ChapterAtlas.ChartArrivalFrame);ChapterAtlas.ChartArrivalFrame=null;}
     public static void ResumeGame(bool keepChartForTransition=false){
         if(!suspended)return;var previous=suspended;suspended=null;
         SceneManager.SetActiveScene(previous.gameObject.scene);
         foreach(var root in previous.suspendedRoots)if(root)root.SetActive(true);
+        GameBackgroundMusic.SyncListener();
         previous.suspendedRoots.Clear();previous.board.player.gameObject.SetActive(previous.playerWasActive);previous.loading=false;
         if(previous.mapSession)previous.StartCoroutine(previous.StowMap());else previous.board.enabled=previous.boardWasEnabled;
         if(!keepChartForTransition)SceneManager.UnloadSceneAsync(Showcase);

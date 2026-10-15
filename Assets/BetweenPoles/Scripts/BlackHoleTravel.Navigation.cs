@@ -289,13 +289,9 @@ public sealed partial class BlackHoleTravel {
         if(navigationCamera&&navigationWindow&&navigationMapPresentation){
             int unlocked=0,total=0;
             foreach(var room in navigationWindow.rooms){if(!room.center)continue;total++;if(VisitedRoom(room.id)||VisitedRoom(room.center.name))unlocked++;}
-            var style=PixelGameUI.Text(Mathf.RoundToInt(9*ElementGameUI.K),TextAnchor.MiddleCenter);
-            style.normal.textColor=new Color(.94f,.97f,1);
-            var safe=Screen.safeArea;float top=Screen.height-safe.yMax+6*ElementGameUI.K;
-            var rect=new Rect(safe.center.x-100,top,200,12*ElementGameUI.K);
-            var shadow=new GUIStyle(style);shadow.normal.textColor=new Color(0,0,0,.75f);
-            GUI.Label(new Rect(rect.x+2,rect.y+2,rect.width,rect.height),unlocked+"/"+total,shadow);
-            GUI.Label(rect,unlocked+"/"+total,style);
+            var safe=ElementGameUI.SafeRect;
+            var rect=new Rect(safe.center.x-120*ElementGameUI.TextScale,safe.y+6*ElementGameUI.K,240*ElementGameUI.TextScale,15*ElementGameUI.TextScale);
+            ElementGameUI.ProgressText(rect,unlocked+"/"+total,true);
         }
         if(inspectionBoard){if(inspectionPosition.HasValue)DrawOriginIndicator();return;}
         if(testPortals==null||busy||!Selecting)return;
