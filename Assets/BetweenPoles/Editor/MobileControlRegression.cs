@@ -36,6 +36,11 @@ public static class MobileControlRegression {
             Check(pad.Held==Vector2Int.zero,"Backgrounding clears touch state");
             Check(!PlayerSettings.allowedAutorotateToPortrait&&!PlayerSettings.allowedAutorotateToPortraitUpsideDown,"Landscape-only configuration");
             foreach(var scene in EditorBuildSettings.scenes)if(scene.enabled)Check(File.Exists(scene.path),"Missing build scene: "+scene.path);
+            var pinch=typeof(BlackHoleTravel).GetMethod("PinchScroll",BindingFlags.Static|BindingFlags.NonPublic);
+            Func<float,float,float,float> scroll=(size,previous,current)=>(float)pinch.Invoke(null,new object[]{size,previous,current});
+            Check(Mathf.Abs(20-scroll(20,100,200)*1.5f-10)<.001f,"Spreading fingers zooms in proportionally");
+            Check(Mathf.Abs(20-scroll(20,200,100)*1.5f-40)<.001f,"Closing fingers zooms out proportionally");
+            Check(scroll(20,100,100)==0&&scroll(20,0,100)==0,"Stationary or degenerate pinch does not zoom");
             Directory.CreateDirectory("output");
             File.WriteAllText("output/mobile-control-regression.txt","PASS: cardinal touch regions, neutral center, drag outside, diagonal restriction, movement-controller held/press integration, focus/background release, landscape settings, build scene paths. Device touch and gameplay still require Android testing.");
             Debug.Log("MobileControlRegression PASS");
