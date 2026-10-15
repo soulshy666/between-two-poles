@@ -253,7 +253,17 @@ public static class WebSketchImporter {
             if(p.kind=="player")continue;var island=rooms[p.room].center.parent;
             if(p.kind=="rock"||p.kind=="goal"){
                 var o=Child(p.kind,island);o.transform.position=Pos(p.cell);Box(p.kind,o.transform,new Vector3(0,p.kind=="rock"?.4f:.12f,0),p.kind=="rock"?new Vector3(1,.8f,1):new Vector3(.7f,.24f,.7f),p.kind=="rock"?rock:gold);
-                if(p.kind=="rock")tiles[p.cell].blocked=true;else{tiles[p.cell].goal=true;board.goalLight=o.GetComponentInChildren<Renderer>();board.goalCompleteMaterial=blue;}
+                if(p.kind=="rock"){
+                    var stone=tiles[p.cell];stone.blocked=true;
+                    if(scene.name.StartsWith("Chapter0")){
+                        stone.rockStyle=2;stone.lowRockVariant=0;
+                        // Stable per-cell orientation, persisted with the scene.
+                        // Reimporting must not restore default round, unrotated rocks.
+                        uint hash=unchecked((uint)p.cell.x*73856093u^(uint)p.cell.y*19349663u^(uint)stone.rockTheme*83492791u);
+                        hash^=hash>>16;hash=unchecked(hash*2246822519u);hash^=hash>>13;
+                        stone.rockYaw=(hash%3600u)*.1f;
+                    }
+                }else{tiles[p.cell].goal=true;board.goalLight=o.GetComponentInChildren<Renderer>();board.goalCompleteMaterial=blue;}
                 var binding=Undo.AddComponent<IslandSurfaceAnchor>(o);binding.center=rooms[p.room].center;
                 rooms[p.room].surfaces=rooms[p.room].surfaces.Concat(o.GetComponentsInChildren<Renderer>()).ToArray();continue;
             }
