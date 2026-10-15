@@ -320,6 +320,8 @@ public sealed partial class GridPlayground {
         preview.transform.SetParent(receiver.transform,false);
         preview.transform.SetPositionAndRotation(receiver.transform.position,yaw);
         var final=MagnetVisuals.Build(preview.transform,receiver.shape,receiver.north,product,cellSize,uNorth,bridgeDirection,incoming.north);
+        if(product==MagnetProduct.ThickU)final.position+=AssemblyBounds(AssemblyBodies(receiver.geometry)).center
+            -AssemblyBounds(final.GetChild(0).GetComponentsInChildren<Renderer>(true)).center;
         if(product==MagnetProduct.Cross&&receiverOnTop){final.GetChild(0).localPosition=new Vector3(0,.36f,0);final.GetChild(1).localPosition=new Vector3(0,.12f,0);}
         if(product==MagnetProduct.Cross&&!receiverOnTop&&!incomingOnTop)final.localPosition=Vector3.down*.24f;
         var incomingParts=new List<Renderer>();var receiverParts=new List<Renderer>();
@@ -385,6 +387,32 @@ public sealed partial class GridPlayground {
         }
         float rollDegrees;var rolled=MagnetPiece.Rolled(incoming.shape,poseIncoming,direction,out rollDegrees);
         var rollAxis=new Vector3(direction.y,0,-direction.x);
+        if(product==MagnetProduct.ThickU){
+            float duration=Mathf.Max(.8f,barPushSeconds)/Mathf.Clamp(attractionAnimationSpeed,1f,2f);
+            var push=new Vector3(direction.x,0,direction.y);
+            float reach=Mathf.Abs(push.x)*startIncoming.extents.x+Mathf.Abs(push.z)*startIncoming.extents.z;
+            // Lift the edge nearest the player around the opposite lower edge.
+            // Until the shell passes vertical this contact point stays on the floor.
+            var pivot=startIncoming.center+push*reach-Vector3.up*startIncoming.extents.y;
+            var lever=startIncoming.center-pivot;
+            var flipEnd=pivot+Quaternion.AngleAxis(180,rollAxis)*lever;
+            var docking=endIncoming.center-flipEnd;
+            for(float elapsed=0;elapsed<duration;elapsed+=MovementDeltaTime){
+                float p=Mathf.Clamp01(elapsed/duration);
+                // Effort builds into the tip, then gravity carries the shell over.
+                // Magnetic alignment only takes over after the tipping point.
+                float phase=Mathf.Clamp01(p/.92f);
+                float turnProgress=phase*phase*(2.47f-1.47f*phase);
+                float angle=180*turnProgress;
+                var turn=Quaternion.AngleAxis(angle,rollAxis);
+                float dock=Mathf.SmoothStep(0,1,Mathf.InverseLerp(95,180,angle));
+                var center=pivot+turn*lever+docking*dock;
+                PlaceAssemblyBody(incoming,turn*poseIncoming,scaleIncoming,center);
+                onSlideProgress?.Invoke(p);yield return null;
+            }
+            PlaceAssemblyBody(incoming,rolled,scaleIncoming,endIncoming.center);
+            onSlideProgress?.Invoke(1);AssemblyContact(incoming,receiver);yield return null;yield break;
+        }
         var forward=new Vector3(direction.x,0,direction.y);var lateral=Vector3.Cross(Vector3.up,forward);
         if(product==MagnetProduct.Ring){
             var push=new Vector3(direction.x,0,direction.y);

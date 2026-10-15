@@ -61,6 +61,19 @@ namespace BetweenPoles.EditorTools {
                 Check(!(bool)Call(b,"WideBarConnected",branch),"Open branch accepted");
                 Check(!(bool)Call(b,"BridgePassage",origin,branchCell,null),"Open branch walkable");
                 Call(b,"UpdateBridgeJunctionLinks");Check(!link.gameObject.activeSelf,"Broken route still displays wave");
+                // A flat space ring replaces the main span as an independent shore.
+                shore.gameObject.SetActive(true);b.tiles=b.tiles.Concat(new[]{shore}).ToArray();b.InvalidateTileLookup();
+                MagnetVisuals.Product(main,MagnetProduct.Ring,b.cellSize,yaw,true);
+                MagnetVisuals.Ground(main);main.geometry.position+=Vector3.down*.24f;
+                Check((bool)Call(b,"WideBarConnected",branch),"Space ring failed to anchor branch");
+                Check((bool)Call(b,"BridgePassage",origin,branchCell,null),"Ring-to-bar passage blocked");
+                Check((bool)Call(b,"BridgePassage",branchCell,origin,null),"Bar-to-ring passage blocked");
+                Call(b,"UpdateBridgeJunctionLinks");
+                Check(main.GetComponentsInChildren<MagneticLinkPulse>().Length==2,"Missing ring-edge current");
+                main.geometry.rotation=yaw*Quaternion.Euler(90,0,0);main.walkable=false;
+                Check(!(bool)Call(b,"WideBarConnected",branch),"Upright ring incorrectly anchors branch");
+                Call(b,"UpdateBridgeJunctionLinks");
+                Check(main.GetComponentsInChildren<MagneticLinkPulse>().Length==0,"Upright ring retained current");
                 UnityEngine.Object.DestroyImmediate(main.gameObject);UnityEngine.Object.DestroyImmediate(branch.gameObject);UnityEngine.Object.DestroyImmediate(red.gameObject);
             }
             File.WriteAllText("output/bridge-junction-result.txt","PASS: four orientations; anchored perpendicular branch, forward/reverse walking, pushing red onward, sideways shore blocked, open branch blocked; animated links created at correct sockets, deduplicated, removed on disconnection.");

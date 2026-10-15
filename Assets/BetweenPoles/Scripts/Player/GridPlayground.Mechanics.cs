@@ -30,7 +30,14 @@ public sealed partial class GridPlayground {
             ||Cell(far.transform)!=Cell(near.transform)+direction
             ||!SameHeight(near.transform.position.y,far.transform.position.y))return false;
         var stop=Tile(Cell(far.transform)+direction);
-        return stop&&stop.blocked;
+        return stop&&stop.blocked&&RecoilPairHasGround(near,far);
+    }
+    bool RecoilPairHasGround(MagnetPiece near,MagnetPiece far){
+        if(near.shape!=MagnetShape.Bar||far.shape!=MagnetShape.Bar)return true;
+        // The backstop and the player's floor do not support the magnets themselves.
+        var nearFloor=Tile(Cell(near.transform));var farFloor=Tile(Cell(far.transform));
+        return (nearFloor&&!nearFloor.blocked&&SameHeight(nearFloor.surfaceHeight,near.transform.position.y))
+            ||(farFloor&&!farFloor.blocked&&SameHeight(farFloor.surfaceHeight,far.transform.position.y));
     }
     Vector2Int PushLanding(Vector2Int vacated,Vector2Int from){
         var moving=Piece(vacated);var deck=Deck(vacated,moving);float height;
@@ -60,8 +67,11 @@ public sealed partial class GridPlayground {
         if(target.product==MagnetProduct.BridgeHalf)return incoming.shape==MagnetShape.Bar&&Mathf.Abs((incoming.Pose*Vector3.right).y)<.05f?MagnetProduct.Bridge:MagnetProduct.None;
         if(target.combined||incoming.north==target.north)return MagnetProduct.None;
         if(incoming.shape==target.shape){
-            if(incoming.shape==MagnetShape.Horseshoe)return MagnetPiece.FlatU(incoming.Pose)&&MagnetPiece.FlatU(target.Pose)
-                &&RingOpeningsAligned(incoming.Pose,target.Pose,push)?MagnetProduct.Ring:MagnetProduct.None;
+            if(incoming.shape==MagnetShape.Horseshoe){
+                if(!MagnetPiece.FlatU(incoming.Pose)||!MagnetPiece.FlatU(target.Pose))return MagnetProduct.None;
+                if(Vector3.Dot(arrival*Vector3.forward,target.Pose*Vector3.forward)>.95f)return MagnetProduct.ThickU;
+                return RingOpeningsAligned(incoming.Pose,target.Pose,push)?MagnetProduct.Ring:MagnetProduct.None;
+            }
             // Decide from both pre-push postures, before any animation rotates them.
             bool receiverStanding=MagnetPiece.VerticalBar(target.Pose);
             bool incomingStanding=MagnetPiece.VerticalBar(incoming.Pose);
@@ -192,10 +202,10 @@ public sealed partial class GridPlayground {
             if(!m.CanBePushed)return Reject("只有单个磁铁可以推动；合成后固定在原格");
             if(!CanReachMagnet(m))return Reject("需要站在同一层推动");
             var target=next+dir;var far=TransportObstacle(target,m);var land=Tile(target);float targetHeight;
-            // A stone-backed same-pole pair transmits recoil even over a gap.
-            // All other direct pushes still require support under the near piece.
+            // Direct contact needs support beneath the piece being pushed.
+            // A grounded receiver/backstop cannot brace a floating near piece.
+            if(!Supported(m))return Reject("磁铁下方没有支撑，直接推只能受阻，不能翻转、合成或反冲");
             bool stoneBackedRecoil=StoneBackedRecoilPair(m,far,dir);
-            if(!Supported(m)&&!stoneBackedRecoil)return Reject("边缘外的磁铁无法直接推动，请从岸上推来磁铁与它组合，或用同极磁铁将它排斥回陆地");
             var portal=BlackHolePortal.At(this,target);if(portal)return BeginPortalPush(m,portal,dir);
             if(far&&MagnetStillAnimating(far))return Reject("目标磁铁正在完成上一次推动");
             if(land&&land.blocked)return Reject("目标格被石头占据");
@@ -228,6 +238,7 @@ public sealed partial class GridPlayground {
                         Busy=true;StartMovement(Repel(m,far,nearPath,farPath,PushLanding(next,from)));LastRule="同极排斥：各翻滚一格，空格中保持悬停";return true;
                     }
                     if(beyondTile&&beyondTile.blocked){
+                        if(!RecoilPairHasGround(m,far))return Reject("两块长条都悬空，无法反冲；至少一块长条下方需要地板支撑");
                         Busy=true;StartCoroutine(Recoil(m,dir,from));LastRule="远端受石头阻挡：磁铁弹回撞击主角，一起反冲";return true;
                     }
                     return Reject("远端没有落脚位，无法推动；反冲需要远端石头阻挡");
@@ -627,8 +638,10 @@ public sealed partial class GridPlayground {
         bool tippedReceiver=target.shape==MagnetShape.Bar&&MagnetPiece.VerticalBar(target.Pose)&&(product==MagnetProduct.WideBar||product==MagnetProduct.Cross);
         bool tippedIncoming=product==MagnetProduct.Cross&&MagnetPiece.VerticalBar(old);
         Quaternion receiverStart=target.Pose;
+        Vector3 receiverBodyCenter=AssemblyBounds(AssemblyBodies(target.geometry)).center;
         Quaternion receiverEnd=tippedReceiver?ReceiverLandingPose(target,dir):receiverStart;
         Quaternion yaw=Yaw(receiverEnd*Vector3.right);
+        if(product==MagnetProduct.ThickU)yaw=Quaternion.LookRotation(receiverStart*Vector3.forward,Vector3.up);
         if(product==MagnetProduct.Ring&&MagnetPiece.FlatU(receiverStart)){
             var opening=receiverStart*Vector3.forward;
             if(AxialRingDock(old,receiverStart,dir)||SideBySideRingDock(old,receiverStart,dir))opening=-new Vector3(dir.x,0,dir.y);
@@ -649,21 +662,32 @@ public sealed partial class GridPlayground {
             &&Mathf.Abs(Vector3.Dot(receiverStart*Vector3.right,pushAxis))>.95f)
             yaw=Yaw(pushAxis);
         Vector3 playerStart=player.position,playerEnd=PushPlayerEnd(next,incoming);
-        var pushPose=portal?null:PlayerPushPose.Begin(player);
+        var pushPose=portal?null:product==MagnetProduct.ThickU
+            ?PlayerPushPose.BeginFlowPush(player,cellSize,PlayerPushPose.FlowPushStyle.LiftBar):PlayerPushPose.Begin(player);
         if(!portal)player.rotation=Quaternion.LookRotation(new Vector3(dir.x,0,dir.y));
         // Every recipe drives the player during docking, not with a later Walk.
         bool throwing=(product==MagnetProduct.BridgeHalf||product==MagnetProduct.Bridge||product==MagnetProduct.Lift)&&incoming.shape==MagnetShape.Bar;
         System.Action<float> follow=progress=>{
             if(portal)return;
             float travel=throwing?Mathf.SmoothStep(0,1,Mathf.InverseLerp(.3f,1,progress)):progress;
+            var previous=player.position;
+            if(product==MagnetProduct.ThickU)travel=Mathf.SmoothStep(0,1,Mathf.InverseLerp(.35f,1,progress));
             player.position=Vector3.Lerp(playerStart,playerEnd,travel);
-            if(throwing)pushPose.SampleBridgeThrow(progress);else pushPose.Sample(progress);
+            if(product==MagnetProduct.ThickU)pushPose.AdvanceFlowPush(Vector3.Distance(previous,player.position),MovementDeltaTime,progress);
+            else if(throwing)pushPose.SampleBridgeThrow(progress);else pushPose.Sample(progress);
         };
         yield return AnimateAssembly(incoming,target,dir,product,yaw,bridgeDir,uNorth,tippedReceiver,tippedIncoming,receiverEnd,follow);
         if(!portal)EndPushInterrupt();
-        if(pushPose)pushPose.End();
+        if(pushPose){
+            // The lifted hands are still extended at docking. Let the stance
+            // release after contact instead of snapping its mesh to idle.
+            if(product==MagnetProduct.ThickU)pushPose.ReleaseFlowPush(.24f);
+            else pushPose.End();
+        }
         incoming.transform.SetParent(target.transform,true);incoming.enabled=false;incoming.combined=true;incoming.gameObject.SetActive(false);
         target.bridgeDirection=bridgeDir;MagnetVisuals.Product(target,product,cellSize,yaw,uNorth,tippedReceiver&&product==MagnetProduct.Cross,incoming.north);
+        if(product==MagnetProduct.ThickU)target.geometry.position+=receiverBodyCenter
+            -AssemblyBounds(AssemblyBodies(target.geometry.GetChild(0))).center;
         if(product==MagnetProduct.Cross&&!tippedReceiver&&!tippedIncoming)target.geometry.localPosition=Vector3.down*.24f;
         if(!portal){player.position=playerEnd;NotifyLanding(next);Busy=false;}
         else {pushHoverParticipants.Remove(incoming);pushHoverParticipants.Remove(target);}
