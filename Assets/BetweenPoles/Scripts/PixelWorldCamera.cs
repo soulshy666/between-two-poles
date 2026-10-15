@@ -11,7 +11,7 @@ public sealed class PixelWorldCamera : MonoBehaviour {
     [Range(0,1)] public float normalEdge = .13f;
     public RenderTexture Buffer { get; private set; }
     Camera world;
-    IceCrashIntro opening;Material revealMaterial;
+    IceCrashIntro opening;Material revealMaterial,pauseBlurMaterial;
     RenderTexture heldFrame;Vector3 heldCenter;
     public void SetOpeningReveal(IceCrashIntro intro){opening=intro;}
     void OnEnable() { world=GetComponent<Camera>(); world.depthTextureMode=DepthTextureMode.DepthNormals; }
@@ -29,6 +29,22 @@ public sealed class PixelWorldCamera : MonoBehaviour {
         world.aspect=aspect;
     }
     void OnRenderImage(RenderTexture source,RenderTexture destination) {
+        if(ElementGameUI.Paused){
+            if(!pauseBlurMaterial){var shader=Resources.Load<Shader>("Shaders/PauseBlur");if(shader)pauseBlurMaterial=new Material(shader){hideFlags=HideFlags.HideAndDontSave};}
+            if(pauseBlurMaterial){
+                var a=RenderTexture.GetTemporary(Mathf.Max(1,source.width/2),Mathf.Max(1,source.height/2),0,source.format);
+                var b=RenderTexture.GetTemporary(a.width,a.height,0,source.format);
+                a.filterMode=b.filterMode=FilterMode.Bilinear;
+                try{
+                    Graphics.Blit(source,a);
+                    for(int i=0;i<3;i++){
+                        pauseBlurMaterial.SetVector("_Direction",new Vector4(1f/a.width,0,0,0));Graphics.Blit(a,b,pauseBlurMaterial);
+                        pauseBlurMaterial.SetVector("_Direction",new Vector4(0,1f/a.height,0,0));Graphics.Blit(b,a,pauseBlurMaterial);
+                    }
+                    Graphics.Blit(a,destination);return;
+                }finally{RenderTexture.ReleaseTemporary(a);RenderTexture.ReleaseTemporary(b);}
+            }
+        }
         bool reveal=Application.isPlaying&&opening&&opening.ColorRevealActive;
         if(!reveal)ReleaseHeldFrame();
         if(reveal&&!revealMaterial){
@@ -73,6 +89,6 @@ public sealed class PixelWorldCamera : MonoBehaviour {
         if(Buffer) { Buffer.Release(); if(Application.isPlaying)Destroy(Buffer);else DestroyImmediate(Buffer); }
         Buffer=null;
     }
-    void OnDisable(){Release();if(revealMaterial){if(Application.isPlaying)Destroy(revealMaterial);else DestroyImmediate(revealMaterial);revealMaterial=null;}}
+    void OnDisable(){Release();if(revealMaterial){if(Application.isPlaying)Destroy(revealMaterial);else DestroyImmediate(revealMaterial);revealMaterial=null;}if(pauseBlurMaterial){if(Application.isPlaying)Destroy(pauseBlurMaterial);else DestroyImmediate(pauseBlurMaterial);pauseBlurMaterial=null;}}
 }
 }

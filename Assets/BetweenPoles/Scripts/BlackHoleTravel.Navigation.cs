@@ -284,8 +284,6 @@ public sealed partial class BlackHoleTravel {
         DrawUnknownIslands();
         if(inspectionBoard){if(inspectionPosition.HasValue)DrawOriginIndicator();return;}
         if(testPortals==null||busy||!Selecting)return;
-        PixelGameUI.Panel(new Rect(16,16,Mathf.Min(Screen.width-32,790),72));
-        GUI.Label(new Rect(30,25,750,54),testMessage,PixelGameUI.Text(17));
         DrawOriginIndicator();
     }
 }

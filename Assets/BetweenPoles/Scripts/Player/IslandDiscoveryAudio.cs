@@ -27,6 +27,8 @@ public sealed class IslandDiscoveryAudio:MonoBehaviour {
     }
     public static void Arrive(GridPlayground board,Transform island){
         if(!CanTrack(board,island)||!board.player||board.RecoilFlying)return;
+        // The first cross-chapter arrival belongs to the title sequence, not a reward cue.
+        if(ChapterRecoilTravel.Active&&board.gameObject.scene.name=="Chapter02_VerdantWorld"){Seed(board,island);return;}
         if(board.OpeningCinematic){Seed(board,island);return;}
         if(visited.Add(VisitKey(board,island)))Play(board.player);
     }

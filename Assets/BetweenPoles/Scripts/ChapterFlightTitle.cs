@@ -9,6 +9,8 @@ public sealed class ChapterFlightTitle:MonoBehaviour {
     static readonly Texture2D[] letters=new Texture2D[4];
     static Texture2D subtitle;
     static AudioClip score;
+    static ChapterFlightTitle activeTitle;
+    public static bool HoldsMusic {get{return activeTitle&&activeTitle.running;}}
     readonly Texture2D[] silhouettes=new Texture2D[4],highlights=new Texture2D[4];
     readonly Color32[][] original=new Color32[4][],working=new Color32[4][];
     static readonly int[] subtitleSteps={2,7,12,18,24,29,34,39,42,48,54,59,62,67,72,77,82,87};
@@ -33,7 +35,7 @@ public sealed class ChapterFlightTitle:MonoBehaviour {
     public static void Preload(){
         for(int i=0;i<4;i++)if(!letters[i])letters[i]=Resources.Load<Texture2D>("ChapterFlightTitle/letter-"+i);
         if(!subtitle)subtitle=Resources.Load<Texture2D>("ChapterFlightTitle/subtitle");
-        if(!score)score=Resources.Load<AudioClip>("ChapterFlightTitle/flight-score");
+        if(!score)score=Resources.Load<AudioClip>("ChapterFlightTitle/title-sfx");
         if(score)score.LoadAudioData();
     }
     public void Begin(MagnetPiece actor,CurvedTrialCamera camera){
@@ -53,12 +55,12 @@ public sealed class ChapterFlightTitle:MonoBehaviour {
             glowPixels[y*32+x]=new Color(1,1,1,a);
         }
         magnetGlow.SetPixels(glowPixels);magnetGlow.Apply();
-        started=Time.time;running=true;
+        started=Time.time;running=true;activeTitle=this;
         sound=gameObject.AddComponent<AudioSource>();sound.playOnAwake=false;sound.spatialBlend=0;
         sound.clip=score;sound.volume=1;if(score)sound.Play();
     }
     static Texture2D NewTexture(Texture2D source){return new Texture2D(source.width,source.height,TextureFormat.RGBA32,false){filterMode=FilterMode.Point,wrapMode=TextureWrapMode.Clamp,hideFlags=HideFlags.HideAndDontSave};}
-    public void Stop(){running=false;if(sound)sound.Stop();}
+    public void Stop(){running=false;if(activeTitle==this)activeTitle=null;if(sound)sound.Stop();}
     void OnDisable(){Stop();}
     void OnDestroy(){if(magnetGlow)Destroy(magnetGlow);for(int i=0;i<4;i++){if(silhouettes[i])Destroy(silhouettes[i]);if(highlights[i])Destroy(highlights[i]);}}
     void Update(){

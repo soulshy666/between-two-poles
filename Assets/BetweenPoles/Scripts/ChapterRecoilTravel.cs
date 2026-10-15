@@ -24,6 +24,9 @@ public sealed partial class ChapterRecoilTravel:MonoBehaviour {
     AsyncOperation loading;
     ChapterFlightTitle flightTitle;float flightBeganAt;
     public static bool IsPreparing(Scene scene){return prepared&&scene.path==prepared.destinationPath;}
+    public static IEnumerator CancelPreloadForMenu(){
+        if(!Active&&prepared)yield return prepared.ReleaseCancelledDestination();
+    }
     public static void Prepare(ChapterRecoilExit exit){
         if(Active||prepared||!Application.CanStreamedLevelBeLoaded(exit.destinationScene))return;
         // Do not adopt an atlas inspection scene as a flight destination.
@@ -46,6 +49,8 @@ public sealed partial class ChapterRecoilTravel:MonoBehaviour {
         runner.view.navigationZoomSmoothTime=0;runner.view.ResetZoomVelocity();
         runner.destinationPath=exit.destinationScene;runner.speed=runner.source.cellSize*5;Active=true;
         runner.CaptureUndoView();activeFlight=runner;runner.flightBeganAt=Time.time;
+        PlayerPushPose.Begin(runner.source.player).SampleRecoilFlight(0,incoming);
+        var movementAudio=PlayerFootstepAudio.For(runner.source.player);if(movementAudio)movementAudio.StopMovementSounds();
         if(runner.source.gameObject.scene.name=="Chapter01_IceWorld"){var titleObject=new GameObject("跨章标题 · 落地交互后消散");DontDestroyOnLoad(titleObject);runner.flightTitle=titleObject.AddComponent<ChapterFlightTitle>();runner.flightTitle.Begin(incoming,runner.view);}
         runner.StartCoroutine(runner.Travel());
     }
@@ -87,7 +92,7 @@ public sealed partial class ChapterRecoilTravel:MonoBehaviour {
         float right=Vector3.Dot(planet.position-camera.transform.position,camera.transform.right);
         return right-radius>camera.orthographicSize*camera.aspect+source.cellSize;
     }
-    void Advance(){var delta=heading*speed*Time.deltaTime;source.player.position+=delta;magnet.transform.position+=delta;}
+    void Advance(){var delta=heading*speed*Time.deltaTime;source.player.position+=delta;magnet.transform.position+=delta;var pose=source.player.GetComponent<PlayerPushPose>();if(pose)pose.SampleRecoilFlight(Time.time-flightBeganAt,magnet);}
     IEnumerator BlendBackground(float duration){
         if(!flightBackground||!targetBackground)yield break;
         flightBackground.EnsureData();targetBackground.EnsureData();
