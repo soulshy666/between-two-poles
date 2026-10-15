@@ -25,6 +25,10 @@ public static class SharedPlayer {
     public static void Bind(GridPlayground board,bool preservePose){
         var marker=board.player;if(!marker)return;
         var position=marker.position;var rotation=marker.rotation;
+        // Authored Chapter 3 start: room 1, the empty cell directly above its rock.
+        // Apply only on a fresh spawn, never during a pose-preserving chapter transfer.
+        if(!preservePose&&board.gameObject.scene.name=="Chapter03_RingWorld")
+            position=new Vector3(-3f,0f,0f);
         if(!Instance){
             var definition=Resources.Load<SharedPlayerDefinition>("SharedPlayerDefinition");
             Instance=definition&&definition.prefab?Object.Instantiate(definition.prefab).transform:marker;Instance.name="Player · Shared";

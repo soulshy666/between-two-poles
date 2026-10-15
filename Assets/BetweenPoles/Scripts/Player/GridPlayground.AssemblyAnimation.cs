@@ -172,6 +172,36 @@ public sealed partial class GridPlayground {
         var push=new Vector3(direction.x,0,direction.y);
         return Mathf.Abs(Vector3.Dot(incoming*Vector3.forward,push))>.95f&&Mathf.Abs(Vector3.Dot(receiver*Vector3.forward,push))>.95f;
     }
+    static bool SameFacingAxialRingDock(Quaternion incoming,Quaternion receiver,Vector2Int direction){
+        return AxialRingDock(incoming,receiver,direction)
+            &&Vector3.Dot(incoming*Vector3.forward,receiver*Vector3.forward)>.95f;
+    }
+    IEnumerator AnimateFlipCatchRingDock(MagnetPiece incoming,MagnetPiece receiver,Vector2Int direction,
+        Quaternion incomingPose,Quaternion receiverPose,Vector3 incomingScale,Vector3 receiverScale,
+        Bounds startIncoming,Bounds startReceiver,Bounds endIncoming,Bounds endReceiver,System.Action<float> follow){
+        var push=new Vector3(direction.x,0,direction.y);
+        var axis=new Vector3(direction.y,0,-direction.x);
+        float reach=Mathf.Abs(push.x)*startIncoming.extents.x+Mathf.Abs(push.z)*startIncoming.extents.z;
+        var pivot=startIncoming.center+push*reach-Vector3.up*startIncoming.extents.y;
+        var lever=startIncoming.center-pivot;
+        var landing=pivot+Quaternion.AngleAxis(180,axis)*lever;
+        float duration=Mathf.Max(.8f,barPushSeconds)/Mathf.Clamp(attractionAnimationSpeed,1f,2f);
+        for(float elapsed=0;elapsed<duration;elapsed+=MovementDeltaTime){
+            float p=Mathf.Clamp01(elapsed/duration),phase=Mathf.Clamp01(p/.92f);
+            float angle=180*phase*phase*(2.47f-1.47f*phase);
+            var turn=Quaternion.AngleAxis(angle,axis);
+            // Keep the far edge planted through the lift, then catch at the actual ring socket.
+            float catchProgress=Mathf.SmoothStep(0,1,Mathf.InverseLerp(95,180,angle));
+            var center=pivot+turn*lever+(endIncoming.center-landing)*catchProgress;
+            float yieldProgress=Mathf.SmoothStep(0,1,Mathf.InverseLerp(.10f,.55f,p));
+            PlaceAssemblyBody(receiver,receiverPose,receiverScale,Vector3.Lerp(startReceiver.center,endReceiver.center,yieldProgress));
+            PlaceAssemblyBody(incoming,turn*incomingPose,incomingScale,center);
+            follow?.Invoke(p);yield return null;
+        }
+        PlaceAssemblyBody(incoming,Quaternion.AngleAxis(180,axis)*incomingPose,incomingScale,endIncoming.center);
+        PlaceAssemblyBody(receiver,receiverPose,receiverScale,endReceiver.center);
+        follow?.Invoke(1);AssemblyContact(incoming,receiver);yield return null;
+    }
     static bool SideBySideRingDock(Quaternion incoming,Quaternion receiver,Vector2Int direction){
         var push=new Vector3(direction.x,0,direction.y);
         return Vector3.Dot(incoming*Vector3.forward,receiver*Vector3.forward)>.95f
@@ -397,6 +427,10 @@ public sealed partial class GridPlayground {
             var lever=startIncoming.center-pivot;
             var flipEnd=pivot+Quaternion.AngleAxis(180,rollAxis)*lever;
             var docking=endIncoming.center-flipEnd;
+            // Same-facing axial U's need to align their opening during the final
+            // attraction, otherwise replacing the shell makes it snap 180 degrees.
+            var stackedPose=MagnetPiece.UDockPose(yaw,rolled);
+            var alignment=stackedPose*Quaternion.Inverse(rolled);
             for(float elapsed=0;elapsed<duration;elapsed+=MovementDeltaTime){
                 float p=Mathf.Clamp01(elapsed/duration);
                 // Effort builds into the tip, then gravity carries the shell over.
@@ -407,15 +441,20 @@ public sealed partial class GridPlayground {
                 var turn=Quaternion.AngleAxis(angle,rollAxis);
                 float dock=Mathf.SmoothStep(0,1,Mathf.InverseLerp(95,180,angle));
                 var center=pivot+turn*lever+docking*dock;
-                PlaceAssemblyBody(incoming,turn*poseIncoming,scaleIncoming,center);
+                PlaceAssemblyBody(incoming,Quaternion.Slerp(Quaternion.identity,alignment,dock)*turn*poseIncoming,scaleIncoming,center);
                 onSlideProgress?.Invoke(p);yield return null;
             }
-            PlaceAssemblyBody(incoming,rolled,scaleIncoming,endIncoming.center);
+            PlaceAssemblyBody(incoming,stackedPose,scaleIncoming,endIncoming.center);
             onSlideProgress?.Invoke(1);AssemblyContact(incoming,receiver);yield return null;yield break;
         }
         var forward=new Vector3(direction.x,0,direction.y);var lateral=Vector3.Cross(Vector3.up,forward);
         if(product==MagnetProduct.Ring){
             var push=new Vector3(direction.x,0,direction.y);
+            if(SameFacingAxialRingDock(poseIncoming,poseReceiver,direction)){
+                yield return AnimateFlipCatchRingDock(incoming,receiver,direction,poseIncoming,poseReceiver,
+                    scaleIncoming,scaleReceiver,startIncoming,startReceiver,endIncoming,endReceiver,onSlideProgress);
+                yield break;
+            }
             if(OpposedSideRingDock(poseIncoming,poseReceiver,direction)){
                 yield return AnimateOpposedSideRingDock(incoming,receiver,poseIncoming,poseReceiver,
                     scaleIncoming,scaleReceiver,startIncoming,startReceiver,endIncoming,endReceiver,onSlideProgress);
