@@ -2,6 +2,94 @@ using System.Collections.Generic;
 using UnityEngine;
 namespace BetweenPoles {
 public sealed partial class GridPlayground {
+    MagnetPiece blockedUNudge;
+    Vector3 blockedUNudgeDirection;
+    float blockedUNudgeOffset;
+    public void BeginBlockedUNudge(MagnetPiece magnet,Vector2Int direction){
+        blockedUNudge=magnet;blockedUNudgeDirection=new Vector3(direction.x,0,direction.y);blockedUNudgeOffset=0;
+    }
+    public void SampleBlockedUNudge(float time){
+        float press=Mathf.SmoothStep(0,1,Mathf.Clamp01(time/.25f));
+        float release=1-Mathf.SmoothStep(0,1,Mathf.InverseLerp(.35f,.65f,time));
+        blockedUNudgeOffset=cellSize*.07f*press*release;
+    }
+    public void ClearBlockedUNudge(){RestoreMagnetHover(null);blockedUNudge=null;blockedUNudgeOffset=0;}
+    void RenderBlockedUNudge(){
+        if(!blockedUNudge||!blockedUNudge.geometry||!blockedUNudge.gameObject.activeInHierarchy||MagnetStillAnimating(blockedUNudge))return;
+        var geometry=blockedUNudge.geometry;
+        if(!hoverRenderPositions.ContainsKey(geometry))hoverRenderPositions[geometry]=geometry.position;
+        geometry.position+=blockedUNudgeDirection*blockedUNudgeOffset;
+    }
+    const float BarRockSeconds=.95f;
+    sealed class BarRock {public Vector3 axis;public float started,velocity;public bool touchdown,undoBounce;}
+    readonly Dictionary<MagnetPiece,BarRock> barRocks=new Dictionary<MagnetPiece,BarRock>();
+    readonly Dictionary<Transform,Quaternion> rockRenderRotations=new Dictionary<Transform,Quaternion>();
+    static float BarRockAngle(float age,float velocity){
+        float a=Mathf.Clamp01(age/BarRockSeconds);
+        float frequency=3*Mathf.PI/BarRockSeconds;
+        // Continue the lift's angular velocity through vertical, then dissipate it.
+        return velocity/frequency*Mathf.Sin(age*frequency)*Mathf.Pow(1-a,2);
+    }
+    void StartBarRock(MagnetPiece m,Vector3 axis){barRocks[m]=new BarRock{axis=axis,started=Time.time,velocity=90*.53f*pushFlowSpeed};}
+    static float BarTouchdownAngle(float age){
+        if(age<0||age>=.52f)return 0;
+        bool second=age>=.32f;
+        float p=second?(age-.32f)/.2f:age/.32f;
+        return -(second?2.5f:7f)*4*p*(1-p);
+    }
+    void StartBarTouchdown(MagnetPiece m,Vector3 axis,float age){
+        barRocks[m]=new BarRock{axis=axis,started=Time.time-age,touchdown=true};
+    }
+    static float SettlingAngle(BarRock rock,float age){
+        if(rock.undoBounce){
+            if(age<0||age>=.7f)return 0;
+            bool second=age>=.4f;
+            float p=second?(age-.4f)/.3f:age/.4f;
+            return -(second?4f:8f)*4*p*(1-p);
+        }
+        return rock.touchdown?BarTouchdownAngle(age):BarRockAngle(age,rock.velocity);
+    }
+    void StartUndoBarSettle(MagnetPiece m,Vector3 previous){
+        if(!m||!m.geometry||!m.gameObject.activeInHierarchy||m.storedInPortal)return;
+        bool ring=m.product==MagnetProduct.Ring;
+        if(!ring&&(m.combined||m.shape!=MagnetShape.Bar||m.product!=MagnetProduct.None))return;
+        var tile=Tile(Cell(m.transform));if(!tile||tile.blocked||!SameHeight(tile.surfaceHeight,m.transform.position.y))return;
+        bool standing=ring?!MagnetPiece.FlatU(m.Pose):MagnetPiece.VerticalBar(m.Pose);
+        var direction=standing||ring?previous-m.transform.position:m.Pose*Vector3.right;direction.y=0;
+        // An upright ring settles by tilting across its face, not by rolling
+        // along its circumference when undoing a sideways push.
+        if(ring&&standing){direction=m.Pose*Vector3.up;direction.y=0;}
+        if(direction.sqrMagnitude<.001f){direction=m.Pose*Vector3.up;direction.y=0;}
+        if(direction.sqrMagnitude<.001f)direction=Vector3.right;
+        direction.Normalize();
+        barRocks[m]=new BarRock{axis=Vector3.Cross(Vector3.up,direction),started=Time.time,
+            velocity=90*.53f/Mathf.Max(.01f,barPushSeconds),touchdown=!standing,undoBounce=!standing};
+    }
+    float TakeBarRock(MagnetPiece m,Vector3 axis){
+        if(!barRocks.TryGetValue(m,out var rock))return 0;
+        barRocks.Remove(m);return SettlingAngle(rock,Time.time-rock.started)*Vector3.Dot(axis,rock.axis);
+    }
+    void ApplyBarRock(MagnetPiece m,Vector3 axis,float angle){
+        // Rock about the contacting bottom edge, not the mesh centre. Switching
+        // edges at zero tilt keeps the base planted without sinking into the floor.
+        var bounds=AssemblyBounds(AssemblyBodies(m.geometry));
+        var direction=Vector3.Cross(axis,Vector3.up).normalized;
+        float radius=Mathf.Abs(direction.x)*bounds.extents.x+Mathf.Abs(direction.z)*bounds.extents.z;
+        var pivot=new Vector3(bounds.center.x,bounds.min.y,bounds.center.z)+direction*(Mathf.Sign(angle)*radius);
+        var turn=Quaternion.AngleAxis(angle,axis);
+        m.geometry.position=pivot+turn*(m.geometry.position-pivot);
+        m.geometry.rotation=turn*m.geometry.rotation;
+    }
+    void RenderBarRocks(){
+        foreach(var m in new List<MagnetPiece>(barRocks.Keys)){
+            var rock=barRocks[m];float age=Time.time-rock.started;
+            if(!m||!m.geometry||!m.gameObject.activeInHierarchy||m.storedInPortal||(m.product!=MagnetProduct.None&&m.product!=MagnetProduct.Ring)
+                ||(m.product==MagnetProduct.Ring?!MagnetPiece.FlatU(m.Pose):MagnetPiece.VerticalBar(m.Pose))==rock.touchdown||age>=(rock.undoBounce?.7f:rock.touchdown?.52f:BarRockSeconds)){barRocks.Remove(m);continue;}
+            if(MagnetStillAnimating(m)||portalAnimatedMagnets.Contains(m))continue;
+            var geometry=m.geometry;hoverRenderPositions[geometry]=geometry.position;rockRenderRotations[geometry]=geometry.rotation;
+            ApplyBarRock(m,rock.axis,SettlingAngle(rock,age));
+        }
+    }
     const float MagnetHoverAmplitude=.09f,MagnetHoverPeriod=2.8f;
     readonly Dictionary<MagnetPiece,float> hoveringMagnets=new Dictionary<MagnetPiece,float>();
     readonly HashSet<MagnetPiece> pushHoverParticipants=new HashSet<MagnetPiece>();
@@ -81,6 +169,8 @@ public sealed partial class GridPlayground {
     void OnDestroy(){ClearMagnetHover();}
     bool HoverPassage(MagnetPiece m){
         if(!m.walkable)return false;
+        // Floating rings are stable, four-way floor cells, even at a single shore.
+        if(SpaceRing(m)&&MagnetPiece.FlatU(m.Pose))return true;
         if(m.product==MagnetProduct.WideBar||m.product==MagnetProduct.None)return WideBarConnected(m);
         if(m.product==MagnetProduct.Bridge)
             return HoverEndConnected(m,m.bridgeDirection)&&HoverEndConnected(m,-m.bridgeDirection);
@@ -108,7 +198,22 @@ public sealed partial class GridPlayground {
     bool MagnetFlightOwnsHeight(MagnetPiece m){return (RecoilFlying&&RecoilMagnet==m)||IsKnockedFlying(m);}
     bool ShouldHover(MagnetPiece m){
         return m&&m.enabled&&m.gameObject.activeInHierarchy&&m.geometry&&m.geometry.gameObject.activeInHierarchy
-            &&!MagnetFlightOwnsHeight(m)&&!Supported(m)&&!HoverPassage(m)&&!MagnetStillAnimating(m);
+            &&!MagnetFlightOwnsHeight(m)&&!Supported(m)&&(!HoverPassage(m)||FloatingRing(m))&&!MagnetStillAnimating(m);
+    }
+    bool FloatingRing(MagnetPiece m){return SpaceRing(m)&&m.walkable&&MagnetPiece.FlatU(m.Pose);}
+    float RingRiderWeight(MagnetPiece ring){
+        if(!player||BlackHoleTravel.InTransit||RecoilFlying)return 0;
+        var delta=player.position-ring.transform.position;
+        float distance=new Vector2(delta.x,delta.z).magnitude;
+        float horizontal=1-Mathf.SmoothStep(0,1,Mathf.InverseLerp(cellSize*.35f,cellSize,distance));
+        float vertical=1-Mathf.SmoothStep(0,1,Mathf.InverseLerp(.03f,.3f,Mathf.Abs(delta.y)));
+        return horizontal*vertical;
+    }
+    void RenderRingRider(float offset){
+        if(!player||Mathf.Abs(offset)<.000001f)return;
+        var visual=player.Find("Visual");if(!visual)return;
+        if(!hoverRenderPositions.ContainsKey(visual))hoverRenderPositions[visual]=visual.position;
+        visual.position+=Vector3.up*offset;
     }
     void UpdateMagnetHover(){
         RestoreMagnetHover(null);
@@ -135,15 +240,21 @@ public sealed partial class GridPlayground {
         if(portalMagnetPresentation&&!enabled&&portalHoverFrame!=Time.frameCount){
             portalHoverFrame=Time.frameCount;UpdateMagnetHover();
         }
+        RenderBarRocks();
+        RenderBlockedUNudge();
+        float riderOffset=0,riderWeight=0;
         foreach(var entry in hoveringMagnets){
             var m=entry.Key;if(!m||!m.geometry||!m.gameObject.activeInHierarchy||portalAnimatedMagnets.Contains(m)||MagnetFlightOwnsHeight(m))continue;
             float t=entry.Value;
-            float offset=(hoverLevels.TryGetValue(m,out float level)?level:0)+MagnetHoverAmplitude*Mathf.Sin(t*Mathf.PI*2/MagnetHoverPeriod)
+            float bob=MagnetHoverAmplitude*Mathf.Sin(t*Mathf.PI*2/MagnetHoverPeriod)
                 *Mathf.SmoothStep(0,1,Mathf.Clamp01(t/.4f));
+            float offset=(hoverLevels.TryGetValue(m,out float level)?level:0)+bob;
+            if(FloatingRing(m)){float weight=RingRiderWeight(m);riderOffset+=bob*weight;riderWeight+=weight;}
             var geometry=m.geometry;
             hoverRenderPositions[geometry]=geometry.position;
             geometry.position+=Vector3.up*offset;
         }
+        RenderRingRider(riderOffset/Mathf.Max(1,riderWeight));
         // Connected bridges do not bob, but their deck must still sit flush with
         // the shore. Keep this display offset out of assembly and undo data.
         foreach(var m in magnets){
@@ -156,10 +267,14 @@ public sealed partial class GridPlayground {
     }
     // Render-only offsets never enter movement, assembly bounds or undo snapshots.
     void RestoreMagnetHover(Camera camera){
+        foreach(var entry in rockRenderRotations)if(entry.Key)entry.Key.rotation=entry.Value;
+        rockRenderRotations.Clear();
         foreach(var entry in hoverRenderPositions)if(entry.Key)entry.Key.position=entry.Value;
         hoverRenderPositions.Clear();
     }
     void ClearMagnetHover(){
+        blockedUNudge=null;blockedUNudgeOffset=0;
+        barRocks.Clear();
         portalMagnetPresentation=false;
         portalAnimatedMagnets.Clear();
         Camera.onPreCull-=RenderMagnetHover;Camera.onPostRender-=RestoreMagnetHover;

@@ -13,6 +13,11 @@ public sealed partial class MagnetDebugPanel {
         pole=(m.product==MagnetProduct.Lift||m.product==MagnetProduct.Bridge||m.product==MagnetProduct.BridgeHalf?m.baseNorth:m.north)?0:1;
         yaw=Mathf.RoundToInt(m.transform.eulerAngles.y/90)%4;
         pose=m.product==MagnetProduct.None&&MagnetPiece.VerticalBar(m.Pose)?1:0;
+        if(shape==3){
+            var right=m.Pose*Vector3.right;
+            yaw=(Mathf.RoundToInt(Mathf.Atan2(-right.z,right.x)*Mathf.Rad2Deg/90)+4)%4;
+            pose=MagnetPiece.FlatU(m.Pose)?((m.Pose*Vector3.up).y<0?2:0):1;
+        }
         if(shape==1){
             var opening=m.Pose*Vector3.forward;
             yaw=(Mathf.RoundToInt(Mathf.Atan2(opening.x,opening.z)*Mathf.Rad2Deg/90)+4)%4;
@@ -68,7 +73,7 @@ public sealed partial class MagnetDebugPanel {
             }else{
             Label(new Rect(16,510,240,24),"极性",ink);if(Button(new Rect(16,540,117,32),"N / 红",pole==0)){pole=0;if(shape<8)ApplySelectedStyle();}if(Button(new Rect(145,540,117,32),"S / 蓝",pole==1)){pole=1;if(shape<8)ApplySelectedStyle();}
             Label(new Rect(16,578,240,22),"朝向",ink);for(int i=0;i<4;i++)if(Button(new Rect(16+i*63,604,57,32),i*90+"°",yaw==i)){yaw=i;if(shape<8)ApplySelectedStyle();}
-            Label(new Rect(16,645,240,22),shape<2?"姿态":"成品使用固定配方姿态",ink,13);GUI.enabled=shape<2;string[] poses=shape==1?new[]{"正面平躺","反面平躺"}:new[]{"平躺","竖立","倒立"};float poseWidth=252f/poses.Length;for(int i=0;i<poses.Length;i++)if(Button(new Rect(16+i*poseWidth,672,poseWidth-6,32),poses[i],pose==i)){pose=i;ApplySelectedStyle();}GUI.enabled=true;
+            Label(new Rect(16,645,240,22),shape<2||shape==3?"姿态":"成品使用固定配方姿态",ink,13);GUI.enabled=shape<2||shape==3;string[] poses=shape==1?new[]{"正面平躺","反面平躺"}:shape==3?new[]{"平躺","竖立","反面平躺"}:new[]{"平躺","竖立","倒立"};float poseWidth=252f/poses.Length;for(int i=0;i<poses.Length;i++)if(Button(new Rect(16+i*poseWidth,672,poseWidth-6,32),poses[i],pose==i)){pose=i;ApplySelectedStyle();}GUI.enabled=true;
             }
         }
         if(section==2){

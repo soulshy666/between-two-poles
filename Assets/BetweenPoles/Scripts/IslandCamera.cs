@@ -20,6 +20,7 @@ public sealed class IslandCamera : MonoBehaviour {
     bool mergeShakeActive,shakeApplied;
     Vector3 focus, velocity;
     int current;
+    bool discoveryReady;
     public Transform CurrentIsland {get{return islandCenters!=null&&current>=0&&current<islandCenters.Length?islandCenters[current]:null;}}
     void OnEnable(){if(board)board.Landed+=OnLanded;}
     void OnDisable(){if(board)board.Landed-=OnLanded;CancelMergeShake();}
@@ -49,14 +50,20 @@ public sealed class IslandCamera : MonoBehaviour {
     void OnLanded(GridTile tile){
         if(!tile||!tile.gameObject.activeInHierarchy||islandCenters==null)return;
         var owner=tile.GetComponentInParent<IslandSurfaceAnchor>();
-        if(owner&&owner.center){for(int i=0;i<islandCenters.Length;i++)if(islandCenters[i]==owner.center){current=i;return;}}
+        if(owner&&owner.center){for(int i=0;i<islandCenters.Length;i++)if(islandCenters[i]==owner.center){current=i;AnnounceDiscovery();return;}}
         current=Nearest();
+        AnnounceDiscovery();
     }
+    void AnnounceDiscovery(){if(discoveryReady)IslandDiscoveryAudio.Arrive(board,CurrentIsland);}
     void Start() {
         if(islandCenters==null||islandCenters.Length==0)return;
         current=Nearest();
         if(board)foreach(var tile in board.tiles)if(tile&&tile.gameObject.activeInHierarchy){Vector3 d=tile.transform.position-player.position;d.y=0;if(d.sqrMagnitude<.1f){OnLanded(tile);break;}}
         focus=islandCenters[current].position;Apply();
+        // Spawn is silent; a destination preloaded for a chapter flight is not
+        // visited until the landing event starts its camera transition.
+        if(!ChapterRecoilTravel.Active)IslandDiscoveryAudio.Seed(board,CurrentIsland);
+        discoveryReady=true;
     }
     public void SelectCurrentIsland(){current=Nearest();}
     public void FocusIsland(Vector3 point){PreviewNavigation(point);focus=point;velocity=Vector3.zero;Apply();}

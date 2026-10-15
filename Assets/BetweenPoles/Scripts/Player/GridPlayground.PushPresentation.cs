@@ -1,4 +1,4 @@
-using System.Collections;
+﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 namespace BetweenPoles {
@@ -32,7 +32,7 @@ public sealed partial class GridPlayground {
     }
     void PlayContact(ContactEvent contact){
         if(Application.isPlaying&&!finishingMovement){
-            var audio=PlayerFootstepAudio.For(player);if(audio)audio.PlayMerge();
+            if(!BlackHoleTravel.SkipTransitionActive){var audio=PlayerFootstepAudio.For(player);if(audio)audio.PlayMerge();}
             foreach(var camera in FindObjectsOfType<IslandCamera>())
                 if(camera.board==this)camera.PlayMergeShake(contact.direction,cellSize);
         }
@@ -48,6 +48,7 @@ public sealed partial class GridPlayground {
         public readonly List<PushFrame> frames=new List<PushFrame>();
     }
     sealed class PushPresentation {
+        public readonly HashSet<Vector2Int> reservedCells=new HashSet<Vector2Int>();
         public GameObject root; public Coroutine playback;
         public float playbackSeconds;
         public readonly List<ContactEvent> contacts=new List<ContactEvent>();
@@ -55,6 +56,8 @@ public sealed partial class GridPlayground {
         public readonly Dictionary<Renderer,bool> hidden=new Dictionary<Renderer,bool>();
     }
     readonly List<PushPresentation> pushPresentations=new List<PushPresentation>();
+    Vector2Int[] pendingRingRelease;
+    bool RingRouteReserved(Vector2Int cell){foreach(var p in pushPresentations)if(p.reservedCells.Contains(cell))return true;return false;}
     void HideCommittedGeometry(PushPresentation presentation){
         foreach(var track in presentation.tracks){
             if(!track.piece||!track.piece.geometry)continue;
@@ -71,6 +74,8 @@ public sealed partial class GridPlayground {
         pushPresentations.Remove(presentation);
     }
     void ClearPushPresentations(){
+        pendingRingRelease=null;
+        RestoreMagnetHover(null);barRocks.Clear();
         foreach(var presentation in pushPresentations.ToArray())RemovePushPresentation(presentation);
         foreach(var effect in contactSparks)if(effect){effect.gameObject.SetActive(false);Destroy(effect.gameObject);}
         contactSparks.Clear();
@@ -82,10 +87,11 @@ public sealed partial class GridPlayground {
             foreach(var track in presentation.tracks)if(track.piece==piece)return true;
         return false;
     }
-    void FinishPushWithPresentation(float catchupSeconds){
+    void FinishPushWithPresentation(float catchupSeconds,Vector2Int[] reserved=null){
         // Sample the original path, including every turn and contact. Commit its
         // logical result now, then compress the render playback into the catch-up window.
         var presentation=new PushPresentation{playbackSeconds=catchupSeconds};
+        if(reserved!=null)foreach(var cell in reserved)presentation.reservedCells.Add(cell);
         foreach(var piece in magnets){
             if(!piece||!piece.gameObject.activeInHierarchy||!piece.geometry||MagnetStillAnimating(piece))continue;
             foreach(var renderer in piece.geometry.GetComponentsInChildren<MeshRenderer>()){

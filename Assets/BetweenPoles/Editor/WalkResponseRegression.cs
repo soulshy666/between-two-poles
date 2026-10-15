@@ -130,10 +130,75 @@ namespace BetweenPoles.EditorTools {
             Call(board,"PumpMovementInput",Vector2Int.right,true);
             remaining=100;while(undoWalk.MoveNext())Check(--remaining>0,"Undo setup stuck");
             Check(board.UndoCount==1&&board.UndoStep()&&board.PlayerCell==Vector2Int.right,"Accelerated continuation lost per-cell undo");
+            ValidateRecoilCullingBounds(board,root);
+            ValidateStoneBackedRecoil(board,root);
             ValidateLocalRecoil(board,root);
             File.WriteAllText(Report,"PASS: same-island stone recoil in four directions, nearest stone, exact player/magnet landing and undo; same-direction fresh taps accelerate; held timing unchanged; gait tracks actual distance; no teleport or obstacle bypass; per-cell undo; reversals; cardinal turns; uninterrupted gait; exact landing and unlock.");
         }catch(Exception ex){File.WriteAllText(Report,"FAIL: "+ex);Debug.LogException(ex);}
         finally{EditorSceneManager.ClosePreviewScene(scene);}
+    }
+    static void ValidateRecoilCullingBounds(GridPlayground board,GameObject root){
+        var prefab=AssetDatabase.LoadAssetAtPath<GameObject>("Assets/BetweenPoles/Art/AstronautV1/AstronautVisual.prefab");
+        var visual=UnityEngine.Object.Instantiate(prefab,board.player,false);visual.name="Visual";
+        board.playerVisual=visual.transform;
+        foreach(var dir in new[]{Vector2Int.right,Vector2Int.left,Vector2Int.up,Vector2Int.down})
+        foreach(var rotation in new[]{Quaternion.identity,Quaternion.Euler(0,0,90)}){
+            var origin=new Vector3(dir.x,0,dir.y)*board.cellSize;
+            var magnet=MagnetVisuals.Create(root.transform,origin,MagnetShape.Bar,true,rotation,board.cellSize,root.transform);
+            var filters=magnet.geometry.GetComponentsInChildren<MeshFilter>();
+            var meshes=new Mesh[filters.Length];
+            for(int i=0;i<filters.Length;i++){meshes[i]=UnityEngine.Object.Instantiate(filters[i].sharedMesh);filters[i].sharedMesh=meshes[i];}
+            var baseline=new System.Collections.Generic.List<Vector3>();
+            try{
+                for(int pass=0;pass<2;pass++){
+                    if(pass==1)foreach(var mesh in meshes)mesh.bounds=new Bounds(Vector3.zero,Vector3.one*200);
+                    board.player.position=Vector3.zero;magnet.transform.position=origin;
+                    var motion=(IEnumerator)Call(board,"Recoil",magnet,dir,Vector2Int.zero);
+                    int frame=0;
+                    try{
+                        while(motion.MoveNext()){
+                            var cargo=magnet.transform.position;var body=visual.transform.position;
+                            Check(Vector3.Distance(cargo,origin)<board.cellSize*2,"Recoil contact launched magnet out of reach");
+                            if(pass==0){baseline.Add(cargo);baseline.Add(body);}
+                            else{
+                                Check(frame*2+1<baseline.Count,"Culling bounds changed recoil timing");
+                                Check(Vector3.Distance(cargo,baseline[frame*2])<.0001f&&Vector3.Distance(body,baseline[frame*2+1])<.0001f,
+                                    "Culling bounds changed recoil contact or player clearance");
+                            }
+                            frame++;Check(frame<200,"Recoil contact did not finish");
+                            // Stop at the nested flight: this test isolates chest contact.
+                            if(motion.Current is IEnumerator)break;
+                        }
+                        Check(frame*2==baseline.Count,"Recoil sample count changed");
+                    }finally{(motion as IDisposable)?.Dispose();}
+                }
+            }finally{
+                UnityEngine.Object.DestroyImmediate(magnet.gameObject);
+                foreach(var mesh in meshes)UnityEngine.Object.DestroyImmediate(mesh);
+            }
+        }
+    }
+    static void ValidateStoneBackedRecoil(GridPlayground board,GameObject root){
+        foreach(var dir in new[]{Vector2Int.right,Vector2Int.left,Vector2Int.up,Vector2Int.down}){
+            var near=MagnetVisuals.Create(root.transform,new Vector3(dir.x,0,dir.y)*board.cellSize,MagnetShape.Bar,true,Quaternion.identity,board.cellSize,root.transform);
+            var far=MagnetVisuals.Create(root.transform,new Vector3(dir.x,0,dir.y)*board.cellSize*2,MagnetShape.Bar,true,Quaternion.identity,board.cellSize,root.transform);
+            var stone=new GameObject("Recoil backstop");stone.transform.SetParent(root.transform);
+            stone.transform.position=new Vector3(dir.x,0,dir.y)*board.cellSize*3;
+            var tile=stone.AddComponent<GridTile>();tile.blocked=true;
+            // Neither magnet has floor support; orientation must not disable recoil.
+            board.tiles=new[]{tile};board.magnets=new[]{near,far};
+            foreach(var pose in new[]{Quaternion.identity,Quaternion.Euler(0,0,90)}){
+                near.geometry.rotation=pose;
+                Check((bool)Call(board,"StoneBackedRecoilPair",near,far,dir),"Floating stone-backed pair failed: "+dir+" / "+pose);
+            }
+            far.north=false;
+            Check(!(bool)Call(board,"StoneBackedRecoilPair",near,far,dir),"Opposite poles incorrectly triggered recoil");
+            far.north=true;tile.blocked=false;
+            Check(!(bool)Call(board,"StoneBackedRecoilPair",near,far,dir),"Missing stone incorrectly triggered recoil");
+            tile.blocked=true;far.transform.position+=Vector3.up;
+            Check(!(bool)Call(board,"StoneBackedRecoilPair",near,far,dir),"Different heights incorrectly triggered recoil");
+            near.gameObject.SetActive(false);far.gameObject.SetActive(false);stone.SetActive(false);
+        }
     }
     static void ValidateLocalRecoil(GridPlayground board,GameObject root){
         foreach(var direction in new[]{Vector2Int.right,Vector2Int.left,Vector2Int.up,Vector2Int.down}){
@@ -185,6 +250,28 @@ namespace BetweenPoles.EditorTools {
             motion=(IEnumerator)Call(board,"RecoilIntoObstacle",magnet,direction,direction*2,direction,Vector3.zero,magnet.transform.position,Quaternion.LookRotation(new Vector3(-direction.x,0,-direction.y)));
             guard=300;while(motion.MoveNext())Check(--guard>0,"Airborne recoil never recovered");
             Check(board.PlayerCell==Vector2Int.zero&&!board.Busy,"Airborne impact left player stranded above missing floor");
+            board.tiles[5]=stopGap;stopGap.gameObject.SetActive(true);
+            foreach(var shape in new[]{MagnetShape.Bar,MagnetShape.Horseshoe})foreach(bool blocked in new[]{false,true}){
+                board.tiles[6].blocked=blocked;
+                board.player.position=Vector3.zero;
+                var cargoOrigin=new Vector3(-direction.x*board.cellSize,0,-direction.y*board.cellSize);
+                magnet.transform.position=cargoOrigin;
+                var target=MagnetVisuals.Create(root.transform,new Vector3(direction.x*2*board.cellSize,0,direction.y*2*board.cellSize),shape,true,Quaternion.identity,board.cellSize,root.transform);
+                board.magnets=new[]{magnet,target};board.CaptureInitialState();
+                var initialPose=target.Pose;float degrees;
+                var expectedPose=MagnetPiece.Rolled(shape,initialPose,direction,out degrees);
+                Check((bool)Call(board,"CanRecoilRoll",target,direction,0f)==!blocked,"Impact roll clearance incorrect");
+                Call(board,"RecordHistory",Call(board,"SaveWorld"));
+                motion=(IEnumerator)Call(board,"RecoilIntoMagnet",magnet,target,Vector2Int.zero,direction,Vector3.zero,cargoOrigin,Quaternion.LookRotation(new Vector3(-direction.x,0,-direction.y)));
+                guard=600;while(motion.MoveNext())Check(--guard>0,"Magnet impact never settled");
+                Check(board.PlayerCell==(blocked?Vector2Int.zero:direction*2)&&!board.Busy,"Magnet impact player landing incorrect");
+                var expectedCargo=blocked?cargoOrigin:new Vector3(direction.x*board.cellSize,0,direction.y*board.cellSize);
+                Check(Vector3.Distance(magnet.transform.position,expectedCargo)<.001f,"Impact lost carried magnet");
+                Check(Quaternion.Angle(target.Pose,blocked?initialPose:expectedPose)<.01f,"Struck magnet ended in wrong orientation");
+                Check(board.UndoStep()&&board.PlayerCell==Vector2Int.zero&&Vector3.Distance(magnet.transform.position,cargoOrigin)<.001f,"Impact undo lost original state");
+                Check(Quaternion.Angle(target.Pose,initialPose)<.01f,"Impact undo lost target pose");
+                target.gameObject.SetActive(false);
+            }
         }
     }
 }

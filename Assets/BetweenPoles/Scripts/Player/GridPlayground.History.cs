@@ -104,6 +104,8 @@ public sealed partial class GridPlayground {
         foreach(var bridge in FindObjectsOfType<PrejoinedTestBridges>())if(bridge.board==this&&bridge.isActiveAndEnabled)bridge.Refresh();
     }
     void RestoreWorld(WorldState s){
+        var portalAudio=player.GetComponent<PortalAudio>();if(portalAudio)portalAudio.StopAll();
+        var actionAudio=player.GetComponent<PlayerFootstepAudio>();if(actionAudio)actionAudio.StopMovementSounds();
         ClearPushPresentations();
         movementStack.Clear();movementPlayback=null;
         continuePushOnComplete=false;pushFlowSpeed=pushFlowBoost=0;pushFlowCarryTime=-1;
@@ -122,8 +124,22 @@ public sealed partial class GridPlayground {
         if(ChapterRecoilTravel.Active)return ChapterRecoilTravel.TryUndoFlight();
         if(OpeningCinematic)return false;
         if(history.Count==0)return Reject("没有可以撤销的操作");
+        RestoreMagnetHover(null);
+        var beforePositions=new Vector3[magnets.Length];var beforePoses=new Quaternion[magnets.Length];
+        var beforeActive=new bool[magnets.Length];var beforeProducts=new MagnetProduct[magnets.Length];
+        for(int i=0;i<magnets.Length;i++)if(magnets[i]){
+            var m=magnets[i];beforePositions[i]=m.transform.position;beforePoses[i]=m.geometry?m.Pose:Quaternion.identity;
+            beforeActive[i]=m.gameObject.activeInHierarchy;beforeProducts[i]=m.product;
+        }
         var state=history[history.Count-1];history.RemoveAt(history.Count-1);
-        RestoreWorld(state);ReleaseUnusedGeometry();LastRule="已撤销上一步";return true;
+        RestoreWorld(state);ReleaseUnusedGeometry();
+        for(int i=0;i<magnets.Length;i++){
+            var m=magnets[i];if(!m||!m.geometry)continue;
+            if((m.transform.position-beforePositions[i]).sqrMagnitude>.000001f||Quaternion.Angle(m.Pose,beforePoses[i])>.01f
+                ||m.gameObject.activeInHierarchy!=beforeActive[i]||m.product!=beforeProducts[i])StartUndoBarSettle(m,beforePositions[i]);
+        }
+        LastRule="已撤销上一步";
+        var audio=HistoryActionAudio.For(player);if(audio)audio.PlayUndo();return true;
     }
     public bool ResetCurrentIsland(){
         ClearMovementInput();
@@ -164,7 +180,8 @@ public sealed partial class GridPlayground {
         RestorePieces(restore,affected);
         ResetPlayerOnCurrentIsland();
         foreach(var t in tiles)if(t&&t.goal&&Owner(t)==currentIsland){ReachedGoal=initialState.goal;if(goalLight)goalLight.sharedMaterial=initialState.goalMaterial;break;}
-        RefreshRestoredIsland();ReleaseUnusedGeometry();LastRule="已重置当前小岛；Z 可撤销重置";return true;
+        RefreshRestoredIsland();ReleaseUnusedGeometry();LastRule="已重置当前小岛；Z 可撤销重置";
+        var audio=HistoryActionAudio.For(player);if(audio)audio.PlayReset();return true;
     }
     Vector2Int CellAt(Vector3 p){return new Vector2Int(Mathf.RoundToInt(p.x/cellSize),Mathf.RoundToInt(p.z/cellSize));}
 }

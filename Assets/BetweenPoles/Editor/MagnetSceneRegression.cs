@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
@@ -20,6 +20,111 @@ namespace BetweenPoles.EditorTools {
             };
         }
         static void Check(bool condition,string message){if(!condition)throw new Exception(message);}
+        [MenuItem("两极之间/验证圆环逐格半圈滚动")]
+        static void ValidateRingHalfTurns(){
+            var scene=EditorSceneManager.NewPreviewScene();
+            try{
+                foreach(var dir in new[]{Vector2Int.right,Vector2Int.left,Vector2Int.up,Vector2Int.down})
+                foreach(int cells in new[]{1,2,5}){
+                    var root=new GameObject("Ring half-turn regression");root.SetActive(false);SceneManager.MoveGameObjectToScene(root,scene);
+                    var board=root.AddComponent<GridPlayground>();board.player=new GameObject("Player").transform;board.player.SetParent(root.transform);
+                    typeof(GridPlayground).GetField("recordingPush",Flags).SetValue(board,true);
+                    var forward=new Vector3(dir.x,0,dir.y);var axis=new Vector3(dir.y,0,-dir.x);
+                    board.player.position=-forward*board.cellSize;
+                    board.tiles=new GridTile[cells+1];
+                    for(int i=0;i<=cells;i++){
+                        var tile=new GameObject("Floor");tile.transform.SetParent(root.transform);tile.transform.position=forward*(i*board.cellSize);
+                        board.tiles[i]=tile.AddComponent<GridTile>();
+                    }
+                    var ring=MagnetVisuals.Create(root.transform,Vector3.zero,MagnetShape.Horseshoe,true,Quaternion.identity,board.cellSize,root.transform);
+                    var pose=Quaternion.FromToRotation(Vector3.up,axis);
+                    MagnetVisuals.Product(ring,MagnetProduct.Ring,board.cellSize,pose,true);MagnetVisuals.Ground(ring);board.magnets=new[]{ring};
+                    var motion=(IEnumerator)typeof(GridPlayground).GetMethod("MoveRing",Flags).Invoke(board,new object[]{ring,dir,Vector2Int.zero,cells,false});
+                    int frames=0;float previousDistance=0,previousSpeed=0;bool accelerated=false;
+                    Drain(motion,frame=>{
+                        frames=frame;
+                        float distance=Vector3.Dot(ring.transform.position,forward)/board.cellSize;
+                        float speed=(distance-previousDistance)*60;
+                        if(frame>2&&speed>previousSpeed+.01f)accelerated=true;
+                        Check(speed<=1.5f/board.walkSeconds*1.08f+.01f,"Ring exceeded cruise speed");
+                        previousDistance=distance;previousSpeed=speed;
+                        Check(Quaternion.Angle(ring.Pose,Quaternion.AngleAxis(distance*180,axis)*pose)<.05f,"Ring colour orientation detached from travelled cells");
+                    });
+                    Check(Quaternion.Angle(ring.Pose,Quaternion.AngleAxis(cells*180,axis)*pose)<.05f,"Ring half-turn parity incorrect");
+                    Check(Vector3.Distance(ring.transform.position,forward*(cells*board.cellSize))<.001f&&!board.Busy,"Ring missed final cell or remained locked");
+                    Check(accelerated,"Ring started at constant speed instead of accelerating");
+                    float cruise=cells*board.walkSeconds/(1.5f*1.08f);
+                    float expected=cruise+Mathf.Min(.32f,cruise)*.5f;
+                    Check(frames/60f>=expected-.02f,"Ring skipped its acceleration time");
+                    UnityEngine.Object.DestroyImmediate(root);
+                }
+                Debug.Log("PASS: continuous half-turns, odd/even final colours, landing and speed in four directions.");
+            }finally{EditorSceneManager.ClosePreviewScene(scene);}
+        }
+        [MenuItem("两极之间/验证太空圆环平台")]
+        static void ValidateSpaceRing(){
+            var scene=EditorSceneManager.NewPreviewScene();
+            try{
+                foreach(var dir in new[]{Vector2Int.right,Vector2Int.left,Vector2Int.up,Vector2Int.down})
+                foreach(int posture in new[]{0,1,2}){
+                    var root=new GameObject("Space ring regression");root.SetActive(false);SceneManager.MoveGameObjectToScene(root,scene);
+                    var board=root.AddComponent<GridPlayground>();board.player=new GameObject("Player").transform;board.player.SetParent(root.transform);
+                    typeof(GridPlayground).GetField("recordingPush",Flags).SetValue(board,true);
+                    var shore=new GameObject("Shore");shore.transform.SetParent(root.transform);var tile=shore.AddComponent<GridTile>();board.tiles=new[]{tile};
+                    var axis=new Vector3(dir.x,0,dir.y);
+                    board.player.position=-axis*board.cellSize;
+                    var ring=MagnetVisuals.Create(root.transform,Vector3.zero,MagnetShape.Horseshoe,true,Quaternion.identity,board.cellSize,root.transform);
+                    var pose=posture==0?Quaternion.identity:Quaternion.FromToRotation(Vector3.up,posture==1?axis:Vector3.Cross(axis,Vector3.up));
+                    MagnetVisuals.Product(ring,MagnetProduct.Ring,board.cellSize,pose,true);MagnetVisuals.Ground(ring);board.magnets=new[]{ring};
+                    Func<string,object[],object> call=(name,args)=>typeof(GridPlayground).GetMethod(name,Flags).Invoke(board,args);
+                    Drain((IEnumerator)call("MoveRing",new object[]{ring,dir,Vector2Int.zero,1,posture!=2}),null);
+                    Check(MagnetPiece.FlatU(ring.Pose)&&ring.walkable,"Space ring remained upright: "+dir+" / "+posture);
+                    Check(Mathf.Abs((float)call("DeckHeight",new object[]{ring}))<.0001f,"Space ring deck not at shore height");
+                    Check(Mathf.Abs((float)call("MagnetGeometryTop",new object[]{ring}))<.0001f,"Visible ring top not at shore height");
+                    Check(!(bool)call("ShouldHover",new object[]{ring}),"Floor ring still bobs vertically");
+                    foreach(var side in new[]{Vector2Int.right,Vector2Int.left,Vector2Int.up,Vector2Int.down}){
+                        var neighbor=new GameObject("Adjacent shore");neighbor.transform.SetParent(root.transform);
+                        neighbor.transform.position=new Vector3(dir.x+side.x,0,dir.y+side.y)*board.cellSize;
+                        board.tiles=new[]{neighbor.AddComponent<GridTile>()};board.InvalidateTileLookup();
+                        board.player.position=neighbor.transform.position;
+                        Drain((IEnumerator)call("MovePlayer",new object[]{dir}),null);
+                        Check(Vector3.Distance(board.player.position,axis*board.cellSize)<.0001f,"Ring entry missed floor centre");
+                        Drain((IEnumerator)call("MovePlayer",new object[]{dir+side}),null);
+                        Check(Vector3.Distance(board.player.position,neighbor.transform.position)<.0001f,"Ring exit changed height");
+                        UnityEngine.Object.DestroyImmediate(neighbor);
+                    }
+                    UnityEngine.Object.DestroyImmediate(root);
+                }
+                Debug.Log("PASS: space rings flatten from three postures in four directions, remain level and support four-way walking.");
+            }finally{EditorSceneManager.ClosePreviewScene(scene);}
+        }
+        [MenuItem("两极之间/验证圆环开口限制")]
+        static void ValidateAlignedRingRecipes(){
+            var scene=EditorSceneManager.NewPreviewScene();
+            try{
+                var root=new GameObject("Ring alignment regression");root.SetActive(false);
+                SceneManager.MoveGameObjectToScene(root,scene);
+                var near=MagnetVisuals.Create(root.transform,Vector3.zero,MagnetShape.Horseshoe,true,Quaternion.identity,1.5f,root.transform);
+                var far=MagnetVisuals.Create(root.transform,Vector3.forward*1.5f,MagnetShape.Horseshoe,false,Quaternion.identity,1.5f,root.transform);
+                int cases=0;
+                foreach(var push in new[]{Vector2Int.right,Vector2Int.left,Vector2Int.up,Vector2Int.down})
+                foreach(bool nearUpsideDown in new[]{false,true})foreach(bool farUpsideDown in new[]{false,true})
+                for(int a=0;a<4;a++)for(int b=0;b<4;b++){
+                    var facing=Quaternion.LookRotation(new Vector3(push.x,0,push.y));
+                    near.geometry.rotation=facing*Quaternion.Euler(0,a*90,0)*Quaternion.Euler(0,0,nearUpsideDown?180:0);
+                    far.geometry.rotation=facing*Quaternion.Euler(0,b*90,0)*Quaternion.Euler(0,0,farUpsideDown?180:0);
+                    float degrees;var arrival=MagnetPiece.Rolled(near.shape,near.Pose,push,out degrees);
+                    var expected=a==0&&b==2?MagnetProduct.Ring:MagnetProduct.None;
+                    Check(GridPlayground.Recipe(near,arrival,far,true,push)==expected,"Strict ring alignment: "+push+" / "+a+" / "+b);
+                    Check(GridPlayground.Recipe(near,arrival,far,false,push)==expected,"Floating receiver changed alignment rule");
+                    Check(GridPlayground.Recipe(near,arrival,far,true,push)==expected,"All scenes must use facing openings");
+                    far.north=true;
+                    Check(GridPlayground.Recipe(near,arrival,far,true,push)==MagnetProduct.None,"Same poles formed a ring");
+                    far.north=false;cases++;
+                }
+                Debug.Log("PASS: "+cases+" ring orientation cases; unified recipes, both flat faces, supported/floating receiver and same poles.");
+            }finally{EditorSceneManager.ClosePreviewScene(scene);}
+        }
         static string Fingerprint(Transform geometry){
             return string.Join(";",geometry.GetComponentsInChildren<MeshFilter>(true).SelectMany(f=>f.sharedMesh.vertices.Select(v=>geometry.InverseTransformPoint(f.transform.TransformPoint(v))))
                 .Select(v=>Mathf.RoundToInt(v.x*1000)+","+Mathf.RoundToInt(v.y*1000)+","+Mathf.RoundToInt(v.z*1000)).OrderBy(v=>v));
@@ -118,8 +223,11 @@ namespace BetweenPoles.EditorTools {
                     // Cross uses a flat receiver transverse to the push; the other mixed posture is axial wide-bar.
                     if(variant==1){incoming.geometry.rotation=yaw*Quaternion.Euler(0,0,90);receiver.geometry.rotation=yaw*Quaternion.Euler(0,90,0);}
                     if(variant==6)incoming.geometry.rotation=yaw*Quaternion.Euler(0,0,90);
-                    if(variant==3){incoming.geometry.rotation=yaw*Quaternion.Euler(0,-90,0);receiver.geometry.rotation=yaw*Quaternion.Euler(0,90,0);}
-                    if(variant==4){incoming.geometry.rotation=yaw*Quaternion.Euler(0,180,0);receiver.geometry.rotation=yaw*Quaternion.Euler(0,90,0);}
+                    if(variant>=2&&variant<=4){
+                        var facing=Quaternion.LookRotation(forward);
+                        incoming.geometry.rotation=facing*Quaternion.Euler(0,0,variant==3?180:0);
+                        receiver.geometry.rotation=facing*Quaternion.Euler(0,180,0)*Quaternion.Euler(0,0,variant==4?180:0);
+                    }
                     MagnetVisuals.Ground(incoming);MagnetVisuals.Ground(receiver);
                     var product=variant==0?MagnetProduct.WideBar:variant==1?MagnetProduct.Cross:variant<=4?MagnetProduct.Ring:variant==5?MagnetProduct.BridgeHalf:MagnetProduct.Lift;
                     Check(GridPlayground.Recipe(incoming,incoming.Pose,receiver,true,push)==product,"Recipe mismatch "+variant);

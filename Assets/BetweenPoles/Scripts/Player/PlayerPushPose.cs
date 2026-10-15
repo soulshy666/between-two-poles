@@ -11,7 +11,7 @@ public sealed partial class PlayerPushPose:MonoBehaviour {
     float nextWalkFoot=1,walkFoot=1;
     PlayerFootstepAudio footsteps;
     float nextWalkSoundDistance;
-    bool flowPushing;
+    bool flowPushing,flowReleaseRequested;
     float flowDistance,flowCellSize,flowEffort,flowRelease=1;
     public enum FlowPushStyle { Standard, LiftBar, ShoveBar }
     FlowPushStyle flowStyle;
@@ -64,10 +64,11 @@ public sealed partial class PlayerPushPose:MonoBehaviour {
         else pose.flowEffort*=pose.flowRelease;
         pose.flowStartStance=FlowStance.Blend(default(FlowStance),pose.flowStance,pose.flowRelease);
         pose.flowStyle=style;
-        pose.flowPushing=true;pose.pushing=true;pose.walking=false;
+        pose.flowPushing=true;pose.flowReleaseRequested=false;pose.pushing=true;pose.walking=false;
         pose.flowCellSize=Mathf.Max(.01f,cellSize);pose.flowRelease=1;
         return pose;
     }
+    public void ReleaseFlowPush(){if(flowPushing)flowReleaseRequested=true;}
     public void AdvanceFlowPush(float distance,float seconds,float progress=0){
         flowDistance+=distance;
         flowEffort=Mathf.MoveTowards(flowEffort,1,seconds/.07f);
@@ -112,21 +113,74 @@ public sealed partial class PlayerPushPose:MonoBehaviour {
         }
         posed.vertices=workVertices;if(normals.Length==vertices.Length)posed.normals=workNormals;
     }
-    public void SampleRecoilPush(float reach,float impact){
+    public void SampleRecoilPush(float reach,float impact,MagnetPiece held=null){
         if(!visual)return;
         reach=Mathf.Clamp01(reach);impact=Mathf.Clamp01(impact);
-        ApplyFlowStance(new FlowStance{lean=Mathf.Lerp(18*reach,-24,impact),
-            armPitch=Mathf.Lerp(-78*reach,-92,impact),armInset=.035f,armYaw=18,
-            armZ=.09f*reach,legDrive=-62*impact,drop=-.08f*impact},1);
+        float drive=Mathf.SmoothStep(0,1,Mathf.InverseLerp(.32f,1,reach));
+        SampleRecoilJoints(Mathf.Lerp(Mathf.Lerp(-20,-55,drive)*reach,-40,impact),
+            Mathf.Lerp(Mathf.Lerp(-65,-25,drive)*reach,-75,impact),
+            Mathf.Lerp(-25*reach,-62,impact),Mathf.Lerp(45*reach,12,impact),0);
+        visual.localRotation=restRotation*Quaternion.Euler(Mathf.Lerp(24*reach,-24,impact),0,0);
+        visual.localPosition=restPosition+new Vector3(0,Mathf.Lerp(-.12f*reach,.08f,impact),.10f*reach*(1-impact));
+        KeepRecoilClear(held);
     }
-    public void SampleRecoilFlight(float seconds){
+    // Forward kinematics only: shoulder/elbow and hip/knee rotations preserve
+    // the authored joint distances. No hand-target vertex translations/scaling.
+    void SampleRecoilJoints(float shoulderPitch,float elbowPitch,float hipPitch,float kneePitch,float flutter){
+        if(!posed)return;
+        for(int i=0;i<vertices.Length;i++){
+            var point=vertices[i];var normal=i<normals.Length?normals[i]:Vector3.up;
+            if(arms[i]||legs[i]){
+                bool arm=arms[i];float side=Mathf.Sign(point.x);
+                var root=arm?new Vector3(side*.235f,.635f,0):new Vector3(side*.097f,.34f,0);
+                var joint=arm?new Vector3(side*.235f,.51f,0):new Vector3(side*.097f,.19f,0);
+                var proximal=Quaternion.Euler(arm?shoulderPitch:hipPitch+side*flutter,0,arm?-side*12:0);
+                if(point.y<joint.y){
+                    var distal=Quaternion.Euler(arm?elbowPitch:kneePitch,0,0);
+                    point=joint+distal*(point-joint);normal=distal*normal;
+                }
+                point=root+proximal*(point-root);normal=proximal*normal;
+            }
+            workVertices[i]=point;if(i<normals.Length)workNormals[i]=normal;
+        }
+        posed.vertices=workVertices;if(normals.Length==vertices.Length)posed.normals=workNormals;
+    }
+    void KeepRecoilClear(MagnetPiece held){
+        if(!body||!posed)return;
+        const float gap=.025f;
+        float bottom=float.PositiveInfinity,front=float.NegativeInfinity;
+        foreach(var vertex in workVertices){
+            var p=body.transform.TransformPoint(vertex);
+            bottom=Mathf.Min(bottom,p.y);
+            front=Mathf.Max(front,Vector3.Dot(p-transform.position,transform.forward));
+        }
+        // Ground correction and contact correction move the complete visual,
+        // never stretch limbs or alter the authoritative grid position.
+        if(bottom<transform.position.y+.008f)visual.position+=Vector3.up*(transform.position.y+.008f-bottom);
+        if(!held||!held.geometry)return;
+        float nearest=float.PositiveInfinity;
+        foreach(var filter in held.geometry.GetComponentsInChildren<MeshFilter>()){
+            if(!filter.sharedMesh)continue;
+            // Chapter meshes carry enlarged culling bounds; only real geometry
+            // can determine how far the complete body needs to move back.
+            filter.sharedMesh.GetVertices(recoilContactVertices);
+            foreach(var vertex in recoilContactVertices){
+                var p=filter.transform.TransformPoint(vertex);
+                nearest=Mathf.Min(nearest,Vector3.Dot(p-transform.position,transform.forward));
+            }
+        }
+        if(front+gap>nearest)visual.position-=transform.forward*(front+gap-nearest);
+    }
+    readonly System.Collections.Generic.List<Vector3> recoilContactVertices=new System.Collections.Generic.List<Vector3>();
+    public void SampleRecoilFlight(float seconds,MagnetPiece held=null){
         if(!visual)return;
         // Facing stays toward the magnet while the body travels backwards.
         // Both feet reach forward, with a small trailing flutter rather than a run.
         float flutter=Mathf.Sin(seconds*11);
-        SamplePortalLimbs(-92+3*flutter,-92-3*flutter,-62+5*flutter,-62-5*flutter,8);
+        SampleRecoilJoints(-40,-75,-62,12,5*flutter);
         visual.localRotation=restRotation*Quaternion.Euler(-24,0,0);
         visual.localPosition=restPosition+Vector3.up*.08f;
+        KeepRecoilClear(held);
     }
     public void SampleRecoilCrash(float progress,float cellSize=1.5f){
         if(!visual)return;
@@ -298,7 +352,7 @@ public sealed partial class PlayerPushPose:MonoBehaviour {
         posed.vertices=workVertices;if(normals.Length==vertices.Length)posed.normals=workNormals;
     }
     public void End(){
-        flowPushing=false;flowDistance=0;flowEffort=0;flowRelease=1;
+        flowPushing=false;flowReleaseRequested=false;flowDistance=0;flowEffort=0;flowRelease=1;
         flowStance=flowStartStance=default(FlowStance);
         readingMap=false;DockMapTablet();
         ResetPortalEntry();
@@ -338,7 +392,7 @@ public sealed partial class PlayerPushPose:MonoBehaviour {
     void LateUpdate(){
         if(collectingStarPose)return;
         if(readingMap){SampleMap(mapProgress);return;}
-        if(flowPushing&&(!board||!board.Busy)){
+        if(flowPushing&&(flowReleaseRequested||!board||!board.Busy)){
             flowRelease=Mathf.MoveTowards(flowRelease,0,Time.deltaTime/.12f);
             ApplyFlowStance(flowStance,flowRelease);
             if(flowRelease<=0)End();

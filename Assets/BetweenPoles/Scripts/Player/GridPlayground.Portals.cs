@@ -8,11 +8,14 @@ public sealed partial class GridPlayground {
     }
     IEnumerator JumpIntoPortalAnimation(BlackHolePortal portal,Vector2Int direction){
         var start=player.position;var end=Position(portal.Cell,portal.tile.surfaceHeight);
-        yield return TurnPlayer(new Vector3(direction.x,0,direction.y));
+        var facing=Quaternion.LookRotation(new Vector3(direction.x,0,direction.y));
         var pose=PlayerPushPose.Begin(player);
-        for(float t=0;t<.95f;t+=MovementDeltaTime*BlackHoleTravel.AnimationSpeed){
-            float a=Mathf.Clamp01(t/.95f);var position=Vector3.Lerp(start,end,Mathf.SmoothStep(0,1,a));
-            position.y+=Mathf.Sin(a*Mathf.PI)*.85f;player.position=position;pose.SamplePortalEntry(a);yield return null;
+        if(Application.isPlaying&&!recordingPush&&!finishingMovement){var audio=PortalAudio.For(player);if(audio)audio.Enter(false,.36f);}
+        for(float t=0;t<.36f;){
+            t+=MovementDeltaTime*BlackHoleTravel.AnimationSpeed;
+            float a=Mathf.Clamp01(t/.36f);var position=Vector3.Lerp(start,end,a);
+            player.rotation=Quaternion.RotateTowards(player.rotation,facing,180f/Mathf.Max(.085f,turnSeconds)*MovementDeltaTime);
+            position.y+=Mathf.Sin(a*Mathf.PI)*.4f;player.position=position;pose.SamplePortalEntry(a);yield return null;
         }
         player.position=end;pose.SamplePortalEntry(1);NotifyLanding(portal.Cell);Busy=false;
 
@@ -24,9 +27,24 @@ public sealed partial class GridPlayground {
     }
     public IEnumerator SettleMagnetArrival(MagnetPiece magnet,Vector3 previousPosition,bool unscaled=false){
         var cell=Cell(magnet.transform);var portal=BlackHolePortal.At(this,cell);
+        // Also covers rings kicked from portal exits into empty space.
+        if(!portal&&SpaceRing(magnet)&&!Deck(cell,magnet)){
+            if(!MagnetPiece.FlatU(magnet.Pose)){
+                var start=magnet.Pose;
+                var flat=Quaternion.FromToRotation(start*Vector3.up,Vector3.up)*start;
+                for(float t=0;t<.2f;t+=unscaled?BlackHoleTravel.AnimationDeltaTime:MovementDeltaTime){
+                    magnet.geometry.rotation=Quaternion.Slerp(start,flat,Mathf.SmoothStep(0,1,t/.2f));
+                    MagnetVisuals.Ground(magnet);yield return null;
+                }
+                magnet.geometry.rotation=flat;
+            }
+            MagnetVisuals.Ground(magnet);magnet.walkable=true;
+            magnet.geometry.position+=Vector3.up*(magnet.transform.position.y-MagnetGeometryTop(magnet));
+        }
         if(!portal)yield break; // Ground/deck heights and space hovering use the shared surface rules.
         if(portal.Cargo&&portal.Cargo!=magnet)throw new System.InvalidOperationException("Magnet destination became occupied during movement");
         var scale=magnet.geometry.localScale;
+        if(Application.isPlaying&&!recordingPush&&!finishingMovement){var audio=PortalAudio.For(player);if(audio)audio.Enter(true,.28f,unscaled);}
         for(float t=0;t<.28f;t+=unscaled?BlackHoleTravel.AnimationDeltaTime:MovementDeltaTime){
             float a=Mathf.SmoothStep(0,1,t/.28f);
             magnet.geometry.localScale=scale*(1-a);MagnetVisuals.Ground(magnet);
@@ -57,6 +75,7 @@ public sealed partial class GridPlayground {
             arrival=Quaternion.AngleAxis(degrees,axis)*pose;
         }
         player.rotation=Quaternion.LookRotation(new Vector3(dir.x,0,dir.y));var push=PlayerPushPose.Begin(player);
+        if(Application.isPlaying&&!recordingPush&&!finishingMovement){var audio=PortalAudio.For(player);if(audio)audio.Enter(true,.65f);}
         for(float t=0;t<.65f;t+=MovementDeltaTime*BlackHoleTravel.AnimationSpeed){
             float a=Mathf.SmoothStep(0,1,t/.65f);magnet.transform.position=Vector3.Lerp(start,end,a);
             magnet.geometry.rotation=Quaternion.AngleAxis(degrees*Mathf.Clamp01(a/.75f),axis)*pose;magnet.geometry.localScale=scale*Mathf.Lerp(1,.05f,Mathf.SmoothStep(0,1,Mathf.Clamp01((a-.75f)/.25f)));

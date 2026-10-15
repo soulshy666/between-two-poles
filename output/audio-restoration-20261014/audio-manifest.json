@@ -1,0 +1,239 @@
+[
+  {
+    "path": "Assets/BetweenPoles/Resources/Audio/GameBackgroundMusic.wav",
+    "bytes": 23040044,
+    "sha256": "f9c2f56cf398fca50efdf881378bc15c45dec732ae80e4da688ce65ecbfb6b88",
+    "seconds": 120.0,
+    "channels": 2,
+    "sample_rate": 48000
+  },
+  {
+    "path": "Assets/BetweenPoles/Resources/Audio/Intro/ColorReveal.wav",
+    "bytes": 537644,
+    "sha256": "b39bb4bdc16d072c1258bd5015368687bf8456fc346c047f4f8981c2131d636c",
+    "seconds": 2.8,
+    "channels": 2,
+    "sample_rate": 48000
+  },
+  {
+    "path": "Assets/BetweenPoles/Resources/Audio/Intro/ShuttleApproach.wav",
+    "bytes": 960044,
+    "sha256": "2bcbead2ccd14a893be8caed56f85659e99dfa3fc7ab5d12726da2bd5f19f5c2",
+    "seconds": 5.0,
+    "channels": 2,
+    "sample_rate": 48000
+  },
+  {
+    "path": "Assets/BetweenPoles/Resources/Audio/Intro/ShuttleImpact.wav",
+    "bytes": 652844,
+    "sha256": "cdfb847b5e95605f025174dda7c321288c72a38dcef565d9ffd067ff3965da95",
+    "seconds": 3.4,
+    "channels": 2,
+    "sample_rate": 48000
+  },
+  {
+    "path": "Assets/BetweenPoles/Resources/Audio/Player/Actions/Footstep.wav",
+    "bytes": 32684,
+    "sha256": "ad344f2cbb348844403887b437d00028c89a30c7779644677d2d28883a52e16c",
+    "seconds": 0.17,
+    "channels": 1,
+    "sample_rate": 48000
+  },
+  {
+    "path": "Assets/BetweenPoles/Resources/Audio/Player/Actions/IslandDiscovery.wav",
+    "bytes": 537644,
+    "sha256": "6fe2546963f8a79cf653ddb0ce521983dd8899a5788355d7275c6b9a71d58139",
+    "seconds": 2.8,
+    "channels": 2,
+    "sample_rate": 48000
+  },
+  {
+    "path": "Assets/BetweenPoles/Resources/Audio/Player/Actions/IslandReset.wav",
+    "bytes": 23084,
+    "sha256": "ff62b60a00b6a1f8637efcb0ea601446ee2de4588b75dd28370308fe7cc0df8b",
+    "seconds": 0.24,
+    "channels": 1,
+    "sample_rate": 48000
+  },
+  {
+    "path": "Assets/BetweenPoles/Resources/Audio/Player/Actions/JumpDownAir.wav",
+    "bytes": 80684,
+    "sha256": "8653d3f12af5cc6977717b10e9619b0bbf1fdefe64c0d033ae7c9e2dd1a00f55",
+    "seconds": 0.42,
+    "channels": 2,
+    "sample_rate": 48000
+  },
+  {
+    "path": "Assets/BetweenPoles/Resources/Audio/Player/Actions/JumpDownLand.wav",
+    "bytes": 53804,
+    "sha256": "3d4321c29030b20b932a51da5b66de3894f0aa6452a96bb94a9e894b63c11bd2",
+    "seconds": 0.28,
+    "channels": 2,
+    "sample_rate": 48000
+  },
+  {
+    "path": "Assets/BetweenPoles/Resources/Audio/Player/Actions/MagnetMerge.wav",
+    "bytes": 192078,
+    "sha256": "521d023b8388c5181bc19f5baf10eda123ace2899cde3ca4cd49cf7b9899aca4",
+    "seconds": 1.0,
+    "channels": 2,
+    "sample_rate": 48000
+  },
+  {
+    "path": "Assets/BetweenPoles/Resources/Audio/Player/Actions/MagnetPush.wav",
+    "bytes": 73004,
+    "sha256": "161853c66a890ad7a34d8f7457ccd6b93145eb96b0d3df9b4e6d88177d0431a3",
+    "seconds": 0.38,
+    "channels": 1,
+    "sample_rate": 48000
+  },
+  {
+    "path": "Assets/BetweenPoles/Resources/Audio/Player/Actions/MagnetRecoil.wav",
+    "bytes": 80684,
+    "sha256": "68b537132a8724e0720b22ec61bffba32ec3ae67346d6a3f3bb9e2d716334ad9",
+    "seconds": 0.42,
+    "channels": 2,
+    "sample_rate": 48000
+  },
+  {
+    "path": "Assets/BetweenPoles/Resources/Audio/Player/Actions/MagnetRecoilCharge.wav",
+    "bytes": 76844,
+    "sha256": "3ca0eb590f78db0ceaddbbbb859d0d21fd2b67addae21e2d7cc09f7df7092420",
+    "seconds": 0.4,
+    "channels": 2,
+    "sample_rate": 48000
+  },
+  {
+    "path": "Assets/BetweenPoles/Resources/Audio/Player/Actions/PortalMagnetEnter.wav",
+    "bytes": 124844,
+    "sha256": "b10d13caa7c00bfe1222fe6f8a4edd16313cf879b0b156a838bda6a0c6ad306d",
+    "seconds": 0.65,
+    "channels": 2,
+    "sample_rate": 48000
+  },
+  {
+    "path": "Assets/BetweenPoles/Resources/Audio/Player/Actions/PortalMagnetExit.wav",
+    "bytes": 268844,
+    "sha256": "95e78cc87fc263c5da12cde0b77ad31c34d9da538a09db8521cb762d6a74818b",
+    "seconds": 1.4,
+    "channels": 2,
+    "sample_rate": 48000
+  },
+  {
+    "path": "Assets/BetweenPoles/Resources/Audio/Player/Actions/PortalPlayerEnter.wav",
+    "bytes": 182444,
+    "sha256": "bdcc7c6bde420c0e31d1b671fcb09be5df6f4cc52a3948c7ed9316ce80b93184",
+    "seconds": 0.95,
+    "channels": 2,
+    "sample_rate": 48000
+  },
+  {
+    "path": "Assets/BetweenPoles/Resources/Audio/Player/Actions/PortalPlayerExit.wav",
+    "bytes": 268844,
+    "sha256": "563b79c83506221c499b66477292f550b38c48ff6c26145fbdd4ea9b320bdf74",
+    "seconds": 1.4,
+    "channels": 2,
+    "sample_rate": 48000
+  },
+  {
+    "path": "Assets/BetweenPoles/Resources/Audio/Player/Actions/StarCollect.wav",
+    "bytes": 806444,
+    "sha256": "05f8dafbca092e2f21ac116644fdbb70f4beab9a83326eb1e8342afce407191d",
+    "seconds": 4.2,
+    "channels": 2,
+    "sample_rate": 48000
+  },
+  {
+    "path": "Assets/BetweenPoles/Resources/Audio/Player/Actions/StoneBlocked.wav",
+    "bytes": 230444,
+    "sha256": "7ddc7e0595211a4a5c7128f2df2a9bdb01cb086ab85953cd05010ff2ebc3dce8",
+    "seconds": 1.2,
+    "channels": 2,
+    "sample_rate": 48000
+  },
+  {
+    "path": "Assets/BetweenPoles/Resources/Audio/Player/Actions/Undo1.wav",
+    "bytes": 8684,
+    "sha256": "92038416259da5e171e44bda6a38526ae78dc8e793b6f80721bb8f3bc716e2ef",
+    "seconds": 0.09,
+    "channels": 1,
+    "sample_rate": 48000
+  },
+  {
+    "path": "Assets/BetweenPoles/Resources/Audio/Player/Actions/Undo2.wav",
+    "bytes": 8684,
+    "sha256": "6c039189132e7258cf60108c5bedaf4fafd92e5399e7b83c0b0635e2630b5f57",
+    "seconds": 0.09,
+    "channels": 1,
+    "sample_rate": 48000
+  },
+  {
+    "path": "Assets/BetweenPoles/Resources/Audio/Player/Actions/Undo3.wav",
+    "bytes": 8684,
+    "sha256": "0d90a31434b60aac446c5bac6d0a72011f6dbaa3e0956c57073f8ea7f438322e",
+    "seconds": 0.09,
+    "channels": 1,
+    "sample_rate": 48000
+  },
+  {
+    "path": "Assets/BetweenPoles/Resources/Audio/Player/Actions/Undo4.wav",
+    "bytes": 8684,
+    "sha256": "1f0061b2654a27fef451631bee4c510de838398d464c51463918a2a4867e8af7",
+    "seconds": 0.09,
+    "channels": 1,
+    "sample_rate": 48000
+  },
+  {
+    "path": "Assets/BetweenPoles/Resources/Audio/Player/Actions/Undo5.wav",
+    "bytes": 8684,
+    "sha256": "0009091aa5dbd2b17fc27a65d83f70248b42f56c8e1f02e2813cba45df250dea",
+    "seconds": 0.09,
+    "channels": 1,
+    "sample_rate": 48000
+  },
+  {
+    "path": "Assets/BetweenPoles/Resources/Audio/Player/Footsteps/Chapter01_IceWorld.wav",
+    "bytes": 192078,
+    "sha256": "e1eea42cb69a4ffcf2b100693c9df7c2e22aee1d34e282177772597408d663ae",
+    "seconds": 1.0,
+    "channels": 2,
+    "sample_rate": 48000
+  },
+  {
+    "path": "Assets/BetweenPoles/Resources/Audio/Player/Footsteps/Chapter01_IceWorld_Footstep2.wav",
+    "bytes": 80684,
+    "sha256": "8670af1400b26ebf38b6a8c6c0a11626561809b9be0142eed3dbff5dadf511fd",
+    "seconds": 0.42,
+    "channels": 2,
+    "sample_rate": 48000
+  },
+  {
+    "path": "Assets/BetweenPoles/Resources/Audio/Player/Footsteps/Chapter02_VerdantWorld.wav",
+    "bytes": 192078,
+    "sha256": "6335c6c74b19a6b28bf1d79b1ce50f6ca1d0713e4a8a4fd42c271f0ab2df7475",
+    "seconds": 1.0,
+    "channels": 2,
+    "sample_rate": 48000
+  },
+  {
+    "path": "Assets/BetweenPoles/Resources/Audio/Player/Footsteps/Chapter03_RingWorld.wav",
+    "bytes": 192078,
+    "sha256": "56ed56175c5ad89e68f2af35e216794251e0848dc3dd788cce9fc421338f8508",
+    "seconds": 1.0,
+    "channels": 2,
+    "sample_rate": 48000
+  },
+  {
+    "path": "Assets/BetweenPoles/Resources/Audio/Player/Footsteps/Chapter04_LavaWorld.wav",
+    "bytes": 192078,
+    "sha256": "ff7a12713b658a5cb27b8f96ad7162f6c41ee666f3455a88960b977157e9e4dc",
+    "seconds": 1.0,
+    "channels": 2,
+    "sample_rate": 48000
+  },
+  {
+    "path": "Assets/BetweenPoles/Resources/Audio/Player/magnet_push_grit.mp3",
+    "bytes": 9261,
+    "sha256": "faaf9fa3bfbae03b71b901d0866fc8c48fc7001ab403b0dcb280ab13dc06d105"
+  }
+]

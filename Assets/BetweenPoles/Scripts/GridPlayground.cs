@@ -79,8 +79,14 @@ public sealed partial class GridPlayground:MonoBehaviour {
         return false;
     }
     IEnumerator PlayMovement(){
-        while(AdvanceMovement())yield return null;
-        movementPlayback=null;
+        while(AdvanceMovement()){
+            if(pendingRingRelease!=null){
+                var route=pendingRingRelease;pendingRingRelease=null;
+                FinishPushWithPresentation(float.MaxValue,route);yield break;
+            }
+            yield return null;
+        }
+        pendingRingRelease=null;movementPlayback=null;
         // Finish the transaction before starting the next one, but do not spend
         // a rendered frame idle between two ordinary pushes.
         if(continuePushOnComplete){
@@ -250,6 +256,7 @@ public sealed partial class GridPlayground:MonoBehaviour {
             nextHeldStep=Mathf.Max(nextHeldStep,Time.unscaledTime+Mathf.Clamp(heldStepPauseSeconds,0,.1f));
     }
     void PumpMovementInput(Vector2Int direction,bool freshPress=false){
+        if(responsiveJump&&freshPress&&direction!=Vector2Int.zero)jumpTapBoost=true;
         if(exitingPush&&direction!=Vector2Int.zero){
             pushExitDirection=direction;
             bufferedSteps.Clear();
@@ -360,7 +367,7 @@ public sealed partial class GridPlayground:MonoBehaviour {
         completingWalkForTurn=false;return true;
     }
     void ClearWalkInterrupt(){reversibleWalk=false;completingWalkForTurn=false;curvedWalkRequested=false;walkTapSpeed=0;}
-    void BeginPushInterrupt(Vector2Int direction,bool feedbackOnly=false){pushHoverParticipants.Clear();if(!feedbackOnly)PlayMagnetPushSound();interruptiblePush=true;pushFeedbackOnly=feedbackOnly;pushDirection=direction;pushUndo=null;}
+    void BeginPushInterrupt(Vector2Int direction,bool feedbackOnly=false,bool playPushSound=true){pushHoverParticipants.Clear();if(!feedbackOnly&&playPushSound)PlayMagnetPushSound();interruptiblePush=true;pushFeedbackOnly=feedbackOnly;pushDirection=direction;pushUndo=null;}
     void EndPushInterrupt(){pushHoverParticipants.Clear();interruptiblePush=false;pushFeedbackOnly=false;pushUndo=null;flowingPush=false;}
     bool CanInterruptPush(Vector2Int direction,bool freshPress=false){
         return Busy&&interruptiblePush&&(pushUndo!=null||pushFeedbackOnly)
