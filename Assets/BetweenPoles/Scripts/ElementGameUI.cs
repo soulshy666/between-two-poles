@@ -18,8 +18,9 @@ public sealed class ElementGameUI:MonoBehaviour {
     readonly Dictionary<string,AudioClip> clips=new Dictionary<string,AudioClip>();
     public const float UIScale=1.5f;
     public static int BaseK {get{return Mathf.Clamp(Mathf.FloorToInt(Screen.width/460f+.5f),2,4);}}
-    public static float K {get{return BaseK*UIScale;}}
-    public static float TextScale {get{return Mathf.Max(1,BaseK-1)*UIScale;}}
+    public static Rect SafeRect {get{var safe=Application.isMobilePlatform?Screen.safeArea:new Rect(0,0,Screen.width,Screen.height);return new Rect(safe.x,Screen.height-safe.yMax,safe.width,safe.height);}}
+    public static float K {get{return Application.isMobilePlatform?Mathf.Clamp(Mathf.Min(SafeRect.height/150f,SafeRect.width/160f),1.5f,8f):BaseK*UIScale;}}
+    public static float TextScale {get{return Application.isMobilePlatform?K*.75f:Mathf.Max(1,BaseK-1)*UIScale;}}
     public static string Theme {
         get{string name=SceneManager.GetActiveScene().name;for(int i=0;i<4;i++)if(name.Contains("Chapter0"+(i+1)))return themes[i];return themes[Mathf.Clamp(ChapterAtlas.ReturnChapter,0,3)];}
     }
@@ -43,7 +44,8 @@ public sealed class ElementGameUI:MonoBehaviour {
     }
     public static bool NavigationButton(string asset,bool right,System.Action action){
         var texture=Asset(asset);if(!texture)return false;float k=K,t=TextScale;
-        var rect=new Rect(right?Screen.width-6*k-texture.width*t:6*k,6*k,texture.width*t,texture.height*t);
+        var safe=SafeRect;
+        var rect=new Rect(right?safe.xMax-6*k-texture.width*t:safe.x+6*k,safe.y+6*k,texture.width*t,texture.height*t);
         if(rect.Contains(Event.current.mousePosition)&&Input.GetMouseButton(0))rect.y+=t;
         GUI.DrawTexture(rect,texture);if(GUI.Button(rect,GUIContent.none,GUIStyle.none)){action();return true;}return false;
     }
@@ -116,15 +118,19 @@ public sealed class ElementGameUI:MonoBehaviour {
         if(map&&map.MapSessionActive)return;
         GUI.depth=-20;float k=K;
         if(Paused){
-            DrawPausePanel(Screen.width,Screen.height,k,true);
+            var pauseSafe=SafeRect;
+            GUI.BeginGroup(pauseSafe);
+            DrawPausePanel(pauseSafe.width,pauseSafe.height,k,true);
+            GUI.EndGroup();
             return;
         }
-        Icon("map",6*k,6*k,Available||Paused,HUDReady||Paused);
-        float x=Screen.width-6*k-85*k;
-        Icon("undo",x,6*k,Available&&!Paused,HUDReady&&!Paused);Icon("reset",x+21*k,6*k,Available&&!Paused,HUDReady&&!Paused);
-        Draw(new Rect(x+39*k,12*k,7*k,6*k),"bridge");
-        Icon("sound",x+45*k,6*k);Icon("pause",x+66*k,6*k);
-        if(Time.unscaledTime<toastUntil){var t=Asset("toast-"+toast);float tk=TextScale;if(t)GUI.DrawTexture(new Rect(Screen.width-6*k-t.width*tk,50*k,t.width*tk,t.height*tk),t);}
+        var safe=SafeRect;float top=safe.y+6*k;
+        Icon("map",safe.x+6*k,top,Available||Paused,HUDReady||Paused);
+        float x=safe.xMax-6*k-85*k;
+        Icon("undo",x,top,Available&&!Paused,HUDReady&&!Paused);Icon("reset",x+21*k,top,Available&&!Paused,HUDReady&&!Paused);
+        Draw(new Rect(x+39*k,top+6*k,7*k,6*k),"bridge");
+        Icon("sound",x+45*k,top);Icon("pause",x+66*k,top);
+        if(Time.unscaledTime<toastUntil){var t=Asset("toast-"+toast);float tk=TextScale;if(t)GUI.DrawTexture(new Rect(safe.xMax-6*k-t.width*tk,safe.y+50*k,t.width*tk,t.height*tk),t);}
     }
     bool returningToMenu;
     void DrawPausePanel(float width,float height,float k,bool interactive){

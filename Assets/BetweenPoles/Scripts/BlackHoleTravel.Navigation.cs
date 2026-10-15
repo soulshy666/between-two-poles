@@ -91,6 +91,7 @@ public sealed partial class BlackHoleTravel {
             foreach(var renderer in m.GetComponentsInChildren<Renderer>())SetNavigationVisible(renderer,show);
         }
         if(mapPresentation){BeginUnknownIslands(board);BeginMapLighting(board);}
+        navigationFinger=-1;touchGestureBlocked=Input.touchCount>0;
         dragging=false;playerReturnPressed=false;PlayerReturnRequested=false;ApplyNavigation();
     }
     void SetNavigationVisible(Renderer renderer,bool show){
@@ -98,7 +99,7 @@ public sealed partial class BlackHoleTravel {
     }
     void ApplyNavigation(){
         if(!navigationCamera)return;
-        if(Input.GetMouseButtonDown(0))playerReturnPressed=HitInspectionPlayer(Input.mousePosition);
+        if(!Application.isMobilePlatform&&Input.touchCount==0&&Input.GetMouseButtonDown(0))playerReturnPressed=HitInspectionPlayer(Input.mousePosition);
         if(Input.GetMouseButton(1)||Input.GetMouseButton(2))playerReturnPressed=false;
         // Orthographic zoom widens the ground footprint without moving the lens.
         // Retreat along the same viewing direction so its near plane cannot slice that footprint.
@@ -114,6 +115,7 @@ public sealed partial class BlackHoleTravel {
     }
     void UpdateNavigation(){
         if(!navigationCamera)return;
+        if(UpdateTouchNavigation()){ApplyNavigation();return;}
         if(Input.GetMouseButtonDown(0)||Input.GetMouseButtonDown(1)||Input.GetMouseButtonDown(2)){pressPosition=lastMouse=Input.mousePosition;dragging=false;}
         if(Input.GetMouseButton(0)||Input.GetMouseButton(1)||Input.GetMouseButton(2)){
             var mouse=Input.mousePosition;
