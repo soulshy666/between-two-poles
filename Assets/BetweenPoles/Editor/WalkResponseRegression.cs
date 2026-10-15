@@ -185,19 +185,47 @@ namespace BetweenPoles.EditorTools {
             var stone=new GameObject("Recoil backstop");stone.transform.SetParent(root.transform);
             stone.transform.position=new Vector3(dir.x,0,dir.y)*board.cellSize*3;
             var tile=stone.AddComponent<GridTile>();tile.blocked=true;
-            // Neither magnet has floor support; orientation must not disable recoil.
+            // A stone alone cannot anchor two floating bars.
             board.tiles=new[]{tile};board.magnets=new[]{near,far};
+            Check(!(bool)Call(board,"StoneBackedRecoilPair",near,far,dir),"Unsupported pair recoiled");
+            var shoreObject=new GameObject("Recoil support");shoreObject.transform.SetParent(root.transform);
+            shoreObject.transform.position=near.transform.position;
+            var shore=shoreObject.AddComponent<GridTile>();board.tiles=new[]{tile,shore};
             foreach(var pose in new[]{Quaternion.identity,Quaternion.Euler(0,0,90)}){
                 near.geometry.rotation=pose;
                 Check((bool)Call(board,"StoneBackedRecoilPair",near,far,dir),"Floating stone-backed pair failed: "+dir+" / "+pose);
             }
+            // Two-cell bridge spans the gap from the player's shore to the backstop.
+            shoreObject.transform.position=Vector3.zero;
+            var deck=MagnetVisuals.Create(root.transform,near.transform.position,MagnetShape.Horseshoe,false,Quaternion.identity,board.cellSize,root.transform);
+            // Deck queries intentionally ignore inactive objects; keep this deck active in the preview scene.
+            deck.transform.SetParent(null,true);
+            UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(deck.gameObject,root.scene);
+            deck.product=MagnetProduct.Bridge;deck.combined=true;deck.walkable=true;deck.bridgeDirection=dir;
+            board.magnets=new[]{near,far,deck};
+            Check((bool)Call(board,"StoneBackedRecoilPair",near,far,dir),"Connected bridge did not support recoil");
+            deck.bridgeDirection=new Vector2Int(-dir.y,dir.x);
+            Check(!(bool)Call(board,"StoneBackedRecoilPair",near,far,dir),"Crosswise bridge supported recoil");
+            deck.bridgeDirection=dir;board.tiles=new[]{tile};
+            Check(!(bool)Call(board,"StoneBackedRecoilPair",near,far,dir),"Unconnected bridge supported recoil");
+            // A single connected bar span can support just the near magnet.
+            deck.product=MagnetProduct.None;deck.shape=MagnetShape.Bar;
+            deck.geometry.rotation=Quaternion.FromToRotation(Vector3.right,new Vector3(dir.x,0,dir.y));
+            var endObject=new GameObject("Bar span end");endObject.transform.SetParent(root.transform);endObject.transform.position=far.transform.position;
+            var end=endObject.AddComponent<GridTile>();board.tiles=new[]{tile,shore,end};
+            near.transform.position+=Vector3.up*.24f;
+            Check((bool)Call(board,"RecoilSupported",near,dir),"Connected bar did not support recoil");
+            Check(!(bool)Call(board,"RecoilSupported",near,new Vector2Int(-dir.y,dir.x)),"Crosswise bar supported recoil");
+            near.transform.position-=Vector3.up*.24f;
+            deck.gameObject.SetActive(false);endObject.SetActive(false);board.magnets=new[]{near,far};
+            shoreObject.transform.position=near.transform.position;board.tiles=new[]{tile,shore};
             far.north=false;
             Check(!(bool)Call(board,"StoneBackedRecoilPair",near,far,dir),"Opposite poles incorrectly triggered recoil");
             far.north=true;tile.blocked=false;
             Check(!(bool)Call(board,"StoneBackedRecoilPair",near,far,dir),"Missing stone incorrectly triggered recoil");
             tile.blocked=true;far.transform.position+=Vector3.up;
             Check(!(bool)Call(board,"StoneBackedRecoilPair",near,far,dir),"Different heights incorrectly triggered recoil");
-            near.gameObject.SetActive(false);far.gameObject.SetActive(false);stone.SetActive(false);
+            near.gameObject.SetActive(false);far.gameObject.SetActive(false);stone.SetActive(false);shoreObject.SetActive(false);
         }
     }
     static void ValidateLocalRecoil(GridPlayground board,GameObject root){
