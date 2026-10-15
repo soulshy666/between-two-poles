@@ -290,6 +290,8 @@ public sealed partial class GridPlayground {
         var magnetEnd=Position(shore,GroundHeight(shore));var playerEnd=Position(inner,GroundHeight(inner));
         var playerStart=player.position;var magnetStart=magnet.transform.position;
         var initialRotation=player.rotation;
+        // SharedPlayer.Bind resets the old board's pose during scene handoff.
+        var arrivalPose=PlayerPushPose.Begin(player);
         BeginRecoilFlight(magnet,origin,Owner(Tile(shore)),true);
         var playerProperties=new MaterialPropertyBlock();player.GetComponentInChildren<Renderer>().GetPropertyBlock(playerProperties);
         var magnetProperties=new MaterialPropertyBlock();magnet.GetComponentInChildren<Renderer>().GetPropertyBlock(magnetProperties);
@@ -306,6 +308,7 @@ public sealed partial class GridPlayground {
             player.position=Vector3.Lerp(playerStart,playerEnd,a);magnet.transform.position=Vector3.Lerp(magnetStart,magnetEnd,a);
             FlightOffset(player,Vector3.Lerp(startPlayerOffset,endPlayerOffset,a));FlightOffset(magnet.transform,Vector3.Lerp(startMagnetOffset,endMagnetOffset,a));
             player.rotation=initialRotation;
+            if(arrivalPose)arrivalPose.SampleRecoilFlight(t,magnet);
             if(!contactHandled&&Vector3.Distance(player.position,playerEnd)<=cellSize){contactHandled=true;LaunchLandingMagnets(magnet,shore,Vector2Int.left);}
             yield return null;
         }
@@ -314,6 +317,7 @@ public sealed partial class GridPlayground {
         var binding=magnet.GetComponent<IslandSurfaceAnchor>();if(binding){binding.center=Owner(Tile(shore));binding.Apply();}
         FlightOffset(player,endPlayerOffset);FlightOffset(magnet.transform,endMagnetOffset);
         SettleFlightView(inner);EndRecoilFlight();NotifyLanding(inner);
+        if(arrivalPose)arrivalPose.End();
         while(knockedFlights.Exists(f=>f.lands))yield return null;
         CaptureInitialState();LastRule="已连续飞抵绿色星球";
     }

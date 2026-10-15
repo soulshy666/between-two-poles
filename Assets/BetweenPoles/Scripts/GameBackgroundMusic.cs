@@ -48,6 +48,7 @@ public sealed class GameBackgroundMusic:MonoBehaviour {
     void Update(){UpdateMusic();}
     void UpdateMusic(){
         if(!source||!source.clip)return;
+        if(ChapterFlightTitle.HoldsMusic){if(!held)source.Pause();held=true;fade=0;source.volume=0;return;}
         bool gameplay=ChapterRecoilTravel.Active;
         if(boards!=null)foreach(var board in boards)
             if(board&&board.gameObject.activeInHierarchy&&!ChapterAtlas.IsInspectionScene(board.gameObject.scene)&&!ChapterRecoilTravel.IsPreparing(board.gameObject.scene)){gameplay=true;break;}

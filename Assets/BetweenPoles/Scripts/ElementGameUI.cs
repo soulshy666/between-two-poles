@@ -116,12 +116,8 @@ public sealed class ElementGameUI:MonoBehaviour {
         if(map&&map.MapSessionActive)return;
         GUI.depth=-20;float k=K;
         if(Paused){
-            var old=GUI.color;Color tint;ColorUtility.TryParseHtmlString(Theme=="ice"?"#060e20":Theme=="grass"?"#07171d":Theme=="earth"?"#140f21":"#190b13",out tint);tint.a=.9f;GUI.color=tint;
-            // One repeating 2x2 texture gives exactly the webpage's checkerboard scrim.
-            if(!checker){checker=new Texture2D(2,2);checker.SetPixels(new[]{Color.white,Color.clear,Color.clear,Color.white});checker.filterMode=FilterMode.Point;checker.wrapMode=TextureWrapMode.Repeat;checker.Apply();}
-            GUI.DrawTextureWithTexCoords(new Rect(0,0,Screen.width,Screen.height),checker,new Rect(0,0,Screen.width/(2f*k),Screen.height/(2f*k)));GUI.color=old;
-            var panel=Asset("pause-panel");if(panel)GUI.DrawTexture(new Rect((Screen.width-panel.width*k)/2f,(Screen.height-panel.height*k)/2f,panel.width*k,panel.height*k),panel);
-            if(Event.current.type==EventType.MouseUp&&Event.current.button==0){SetPaused(false);Event.current.Use();}
+            DrawPausePanel(Screen.width,Screen.height,k,true);
+            return;
         }
         Icon("map",6*k,6*k,Available||Paused,HUDReady||Paused);
         float x=Screen.width-6*k-85*k;
@@ -130,16 +126,37 @@ public sealed class ElementGameUI:MonoBehaviour {
         Icon("sound",x+45*k,6*k);Icon("pause",x+66*k,6*k);
         if(Time.unscaledTime<toastUntil){var t=Asset("toast-"+toast);float tk=TextScale;if(t)GUI.DrawTexture(new Rect(Screen.width-6*k-t.width*tk,50*k,t.width*tk,t.height*tk),t);}
     }
-    static Texture2D checker;
+    bool returningToMenu;
+    void DrawPausePanel(float width,float height,float k,bool interactive){
+        var panel=Asset("pause-panel");
+        float panelHeight=panel?panel.height*k:60*k;
+        float top=(height-panelHeight-30*k)*.5f;
+        if(panel)GUI.DrawTexture(new Rect((width-panel.width*k)*.5f,top,panel.width*k,panelHeight),panel);
+        float buttonWidth=70*k,buttonHeight=18*k;
+        var menu=new Rect((width-buttonWidth)*.5f,top+panelHeight+6*k,buttonWidth,buttonHeight);
+        bool old=GUI.enabled;GUI.enabled=interactive&&!returningToMenu;
+        bool clicked=PixelGameUI.Button(menu,"返回主菜单");GUI.enabled=old;
+        if(!interactive)return;
+        if(clicked){
+            returningToMenu=true;Blip("click");StartCoroutine(ReturnToMenu());
+            return;
+        }
+        // Do not let the new button's press leak into click-anywhere-to-resume.
+        if(Event.current.type==EventType.MouseUp&&Event.current.button==0&&!menu.Contains(Event.current.mousePosition)){
+            SetPaused(false);Event.current.Use();
+        }
+    }
+    System.Collections.IEnumerator ReturnToMenu(){
+        yield return ChapterRecoilTravel.CancelPreloadForMenu();
+        SetPaused(false);
+        yield return SceneManager.LoadSceneAsync("Cover",LoadSceneMode.Single);
+    }
     void DrawEditorPreview(float width,float height){
         float k=Mathf.Clamp(Mathf.FloorToInt(width/460f+.5f),2,4)*UIScale;
         var old=GUI.color;var matrix=GUI.matrix;GUI.color=Color.white;
         try{
             if(editorPanel==EditorPanel.Pause){
-                if(!checker){checker=new Texture2D(2,2){filterMode=FilterMode.Point,wrapMode=TextureWrapMode.Repeat,hideFlags=HideFlags.HideAndDontSave};checker.SetPixels(new[]{Color.white,Color.clear,Color.clear,Color.white});checker.Apply();}
-                Color tint;ColorUtility.TryParseHtmlString(Theme=="ice"?"#060e20":Theme=="grass"?"#07171d":Theme=="earth"?"#140f21":"#190b13",out tint);tint.a=.9f;GUI.color=tint;
-                GUI.DrawTextureWithTexCoords(new Rect(0,0,width,height),checker,new Rect(0,0,width/(2*k),height/(2*k)));GUI.color=Color.white;
-                var panel=Asset("pause-panel");if(panel)GUI.DrawTexture(new Rect((width-panel.width*k)/2,(height-panel.height*k)/2,panel.width*k,panel.height*k),panel);
+                DrawPausePanel(width,height,k,false);
             }
             Draw(new Rect(6*k,6*k,19*k,21*k),"map-normal");
             float x=width-91*k;
