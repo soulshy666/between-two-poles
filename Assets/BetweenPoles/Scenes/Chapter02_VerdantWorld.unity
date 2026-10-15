@@ -2973,10 +2973,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   blocked: 1
-  rockStyle: 0
+  rockStyle: 2
   lowRockVariant: 0
   rockTheme: 2
-  rockYaw: 0
+  rockYaw: 307.2
   goal: 0
   surfaceHeight: 0
 --- !u!1 &68555855
@@ -3676,10 +3676,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   blocked: 1
-  rockStyle: 0
+  rockStyle: 2
   lowRockVariant: 0
   rockTheme: 2
-  rockYaw: 0
+  rockYaw: 298.6
   goal: 0
   surfaceHeight: 0
 --- !u!1 &78055945
@@ -4616,10 +4616,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   blocked: 1
-  rockStyle: 0
+  rockStyle: 2
   lowRockVariant: 0
   rockTheme: 2
-  rockYaw: 0
+  rockYaw: 334.0
   goal: 0
   surfaceHeight: 0
 --- !u!1 &103104542
@@ -5911,10 +5911,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   blocked: 1
-  rockStyle: 0
+  rockStyle: 2
   lowRockVariant: 0
   rockTheme: 2
-  rockYaw: 0
+  rockYaw: 351.5
   goal: 0
   surfaceHeight: 0
 --- !u!1001 &125134142
@@ -6760,10 +6760,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   blocked: 1
-  rockStyle: 0
+  rockStyle: 2
   lowRockVariant: 0
   rockTheme: 2
-  rockYaw: 0
+  rockYaw: 198.6
   goal: 0
   surfaceHeight: 0
 --- !u!1 &139907975
@@ -8305,10 +8305,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   blocked: 1
-  rockStyle: 0
+  rockStyle: 2
   lowRockVariant: 0
   rockTheme: 2
-  rockYaw: 0
+  rockYaw: 46.3
   goal: 0
   surfaceHeight: 0
 --- !u!1 &168266406
@@ -9358,10 +9358,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   blocked: 1
-  rockStyle: 0
+  rockStyle: 2
   lowRockVariant: 0
   rockTheme: 2
-  rockYaw: 0
+  rockYaw: 135.6
   goal: 0
   surfaceHeight: 0
 --- !u!1 &182711241
@@ -9613,10 +9613,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   blocked: 1
-  rockStyle: 0
+  rockStyle: 2
   lowRockVariant: 0
   rockTheme: 2
-  rockYaw: 0
+  rockYaw: 235.0
   goal: 0
   surfaceHeight: 0
 --- !u!1 &186495076
@@ -9868,10 +9868,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   blocked: 1
-  rockStyle: 0
+  rockStyle: 2
   lowRockVariant: 0
   rockTheme: 2
-  rockYaw: 0
+  rockYaw: 324.1
   goal: 0
   surfaceHeight: 0
 --- !u!1 &198913456
@@ -10656,10 +10656,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   blocked: 1
-  rockStyle: 0
+  rockStyle: 2
   lowRockVariant: 0
   rockTheme: 2
-  rockYaw: 0
+  rockYaw: 285.9
   goal: 0
   surfaceHeight: 0
 --- !u!1 &210103927
@@ -11945,10 +11945,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   blocked: 1
-  rockStyle: 0
+  rockStyle: 2
   lowRockVariant: 0
   rockTheme: 2
-  rockYaw: 0
+  rockYaw: 205.0
   goal: 0
   surfaceHeight: 0
 --- !u!1 &234267563
@@ -12933,10 +12933,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   blocked: 1
-  rockStyle: 0
+  rockStyle: 2
   lowRockVariant: 0
   rockTheme: 2
-  rockYaw: 0
+  rockYaw: 198.6
   goal: 0
   surfaceHeight: 0
 --- !u!1 &246800885
@@ -14364,10 +14364,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   blocked: 1
-  rockStyle: 0
+  rockStyle: 2
   lowRockVariant: 0
   rockTheme: 2
-  rockYaw: 0
+  rockYaw: 305.2
   goal: 0
   surfaceHeight: 0
 --- !u!1 &275386779
@@ -18017,10 +18017,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   blocked: 1
-  rockStyle: 0
+  rockStyle: 2
   lowRockVariant: 0
   rockTheme: 2
-  rockYaw: 0
+  rockYaw: 102.2
   goal: 0
   surfaceHeight: 0
 --- !u!1 &347403502
@@ -18293,10 +18293,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   blocked: 1
-  rockStyle: 0
+  rockStyle: 2
   lowRockVariant: 0
   rockTheme: 2
-  rockYaw: 0
+  rockYaw: 163.1
   goal: 0
   surfaceHeight: 0
 --- !u!1 &350460006
@@ -19751,10 +19751,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   blocked: 1
-  rockStyle: 0
+  rockStyle: 2
   lowRockVariant: 0
   rockTheme: 2
-  rockYaw: 0
+  rockYaw: 100.1
   goal: 0
   surfaceHeight: 0
 --- !u!1 &389783245
@@ -20688,10 +20688,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   blocked: 1
-  rockStyle: 0
+  rockStyle: 2
   lowRockVariant: 0
   rockTheme: 2
-  rockYaw: 0
+  rockYaw: 103.7
   goal: 0
   surfaceHeight: 0
 --- !u!1 &402705132
@@ -20775,10 +20775,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   blocked: 1
-  rockStyle: 0
+  rockStyle: 2
   lowRockVariant: 0
   rockTheme: 2
-  rockYaw: 0
+  rockYaw: 237.9
   goal: 0
   surfaceHeight: 0
 --- !u!4 &403296030
@@ -20924,10 +20924,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   blocked: 1
-  rockStyle: 0
+  rockStyle: 2
   lowRockVariant: 0
   rockTheme: 2
-  rockYaw: 0
+  rockYaw: 65.2
   goal: 0
   surfaceHeight: 0
 --- !u!1 &404356115
@@ -23088,10 +23088,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   blocked: 1
-  rockStyle: 0
+  rockStyle: 2
   lowRockVariant: 0
   rockTheme: 2
-  rockYaw: 0
+  rockYaw: 88.2
   goal: 0
   surfaceHeight: 0
 --- !u!1 &452206801
@@ -24285,10 +24285,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   blocked: 1
-  rockStyle: 0
+  rockStyle: 2
   lowRockVariant: 0
   rockTheme: 2
-  rockYaw: 0
+  rockYaw: 282.5
   goal: 0
   surfaceHeight: 0
 --- !u!1 &482927585
@@ -24336,10 +24336,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   blocked: 1
-  rockStyle: 0
+  rockStyle: 2
   lowRockVariant: 0
   rockTheme: 2
-  rockYaw: 0
+  rockYaw: 128.6
   goal: 0
   surfaceHeight: 0
 --- !u!1 &483971551
@@ -25009,10 +25009,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   blocked: 1
-  rockStyle: 0
+  rockStyle: 2
   lowRockVariant: 0
   rockTheme: 2
-  rockYaw: 0
+  rockYaw: 15.1
   goal: 0
   surfaceHeight: 0
 --- !u!1 &505292736
@@ -29037,10 +29037,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   blocked: 1
-  rockStyle: 0
+  rockStyle: 2
   lowRockVariant: 0
   rockTheme: 2
-  rockYaw: 0
+  rockYaw: 48.2
   goal: 0
   surfaceHeight: 0
 --- !u!1 &563399880
@@ -30576,10 +30576,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   blocked: 1
-  rockStyle: 0
+  rockStyle: 2
   lowRockVariant: 0
   rockTheme: 2
-  rockYaw: 0
+  rockYaw: 335.0
   goal: 0
   surfaceHeight: 0
 --- !u!1 &588845992
@@ -30729,10 +30729,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   blocked: 1
-  rockStyle: 0
+  rockStyle: 2
   lowRockVariant: 0
   rockTheme: 2
-  rockYaw: 0
+  rockYaw: 53.7
   goal: 0
   surfaceHeight: 0
 --- !u!1 &592062362
@@ -30831,10 +30831,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   blocked: 1
-  rockStyle: 0
+  rockStyle: 2
   lowRockVariant: 0
   rockTheme: 2
-  rockYaw: 0
+  rockYaw: 274.2
   goal: 0
   surfaceHeight: 0
 --- !u!1 &594928464
@@ -31378,10 +31378,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   blocked: 1
-  rockStyle: 0
+  rockStyle: 2
   lowRockVariant: 0
   rockTheme: 2
-  rockYaw: 0
+  rockYaw: 307.1
   goal: 0
   surfaceHeight: 0
 --- !u!1 &610031365
@@ -32052,10 +32052,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   blocked: 1
-  rockStyle: 0
+  rockStyle: 2
   lowRockVariant: 0
   rockTheme: 2
-  rockYaw: 0
+  rockYaw: 72.7
   goal: 0
   surfaceHeight: 0
 --- !u!1 &624126872
@@ -34660,10 +34660,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   blocked: 1
-  rockStyle: 0
+  rockStyle: 2
   lowRockVariant: 0
   rockTheme: 2
-  rockYaw: 0
+  rockYaw: 298.3
   goal: 0
   surfaceHeight: 0
 --- !u!1 &665978281
@@ -36019,10 +36019,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   blocked: 1
-  rockStyle: 0
+  rockStyle: 2
   lowRockVariant: 0
   rockTheme: 2
-  rockYaw: 0
+  rockYaw: 341.3
   goal: 0
   surfaceHeight: 0
 --- !u!1 &706316358
@@ -36485,10 +36485,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   blocked: 1
-  rockStyle: 0
+  rockStyle: 2
   lowRockVariant: 0
   rockTheme: 2
-  rockYaw: 0
+  rockYaw: 9.9
   goal: 0
   surfaceHeight: 0
 --- !u!1 &711354233
@@ -37228,10 +37228,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   blocked: 1
-  rockStyle: 0
+  rockStyle: 2
   lowRockVariant: 0
   rockTheme: 2
-  rockYaw: 0
+  rockYaw: 4.8
   goal: 0
   surfaceHeight: 0
 --- !u!1 &727796739
@@ -38145,10 +38145,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   blocked: 1
-  rockStyle: 0
+  rockStyle: 2
   lowRockVariant: 0
   rockTheme: 2
-  rockYaw: 0
+  rockYaw: 96.3
   goal: 0
   surfaceHeight: 0
 --- !u!1 &745163355
@@ -38676,10 +38676,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   blocked: 1
-  rockStyle: 0
+  rockStyle: 2
   lowRockVariant: 0
   rockTheme: 2
-  rockYaw: 0
+  rockYaw: 350.1
   goal: 0
   surfaceHeight: 0
 --- !u!1 &751560377
@@ -38963,10 +38963,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   blocked: 1
-  rockStyle: 0
+  rockStyle: 2
   lowRockVariant: 0
   rockTheme: 2
-  rockYaw: 0
+  rockYaw: 348.4
   goal: 0
   surfaceHeight: 0
 --- !u!1 &755532407
@@ -40857,10 +40857,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   blocked: 1
-  rockStyle: 0
+  rockStyle: 2
   lowRockVariant: 0
   rockTheme: 2
-  rockYaw: 0
+  rockYaw: 269.2
   goal: 0
   surfaceHeight: 0
 --- !u!1 &794697235
@@ -51959,10 +51959,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   blocked: 1
-  rockStyle: 0
+  rockStyle: 2
   lowRockVariant: 0
   rockTheme: 2
-  rockYaw: 0
+  rockYaw: 55.5
   goal: 0
   surfaceHeight: 0
 --- !u!1 &983317785
@@ -55515,10 +55515,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   blocked: 1
-  rockStyle: 0
+  rockStyle: 2
   lowRockVariant: 0
   rockTheme: 2
-  rockYaw: 0
+  rockYaw: 302.1
   goal: 0
   surfaceHeight: 0
 --- !u!1 &1055393781
@@ -56882,10 +56882,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   blocked: 1
-  rockStyle: 0
+  rockStyle: 2
   lowRockVariant: 0
   rockTheme: 2
-  rockYaw: 0
+  rockYaw: 234.0
   goal: 0
   surfaceHeight: 0
 --- !u!1 &1072519500
@@ -57208,10 +57208,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   blocked: 1
-  rockStyle: 0
+  rockStyle: 2
   lowRockVariant: 0
   rockTheme: 2
-  rockYaw: 0
+  rockYaw: 206.6
   goal: 0
   surfaceHeight: 0
 --- !u!1 &1081131226
@@ -60578,10 +60578,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   blocked: 1
-  rockStyle: 0
+  rockStyle: 2
   lowRockVariant: 0
   rockTheme: 2
-  rockYaw: 0
+  rockYaw: 236.5
   goal: 0
   surfaceHeight: 0
 --- !u!4 &1124566482
@@ -61644,10 +61644,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   blocked: 1
-  rockStyle: 0
+  rockStyle: 2
   lowRockVariant: 0
   rockTheme: 2
-  rockYaw: 0
+  rockYaw: 346.3
   goal: 0
   surfaceHeight: 0
 --- !u!1 &1145574167
@@ -61746,10 +61746,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   blocked: 1
-  rockStyle: 0
+  rockStyle: 2
   lowRockVariant: 0
   rockTheme: 2
-  rockYaw: 0
+  rockYaw: 284.3
   goal: 0
   surfaceHeight: 0
 --- !u!1 &1145923139
@@ -62404,10 +62404,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   blocked: 1
-  rockStyle: 0
+  rockStyle: 2
   lowRockVariant: 0
   rockTheme: 2
-  rockYaw: 0
+  rockYaw: 344.7
   goal: 0
   surfaceHeight: 0
 --- !u!1 &1157197999
@@ -63016,10 +63016,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   blocked: 1
-  rockStyle: 0
+  rockStyle: 2
   lowRockVariant: 0
   rockTheme: 2
-  rockYaw: 0
+  rockYaw: 271.0
   goal: 0
   surfaceHeight: 0
 --- !u!1 &1170638990
@@ -65097,10 +65097,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   blocked: 1
-  rockStyle: 0
+  rockStyle: 2
   lowRockVariant: 0
   rockTheme: 2
-  rockYaw: 0
+  rockYaw: 322.8
   goal: 0
   surfaceHeight: 0
 --- !u!4 &1218447582
@@ -67636,10 +67636,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   blocked: 1
-  rockStyle: 0
+  rockStyle: 2
   lowRockVariant: 0
   rockTheme: 2
-  rockYaw: 0
+  rockYaw: 139.6
   goal: 0
   surfaceHeight: 0
 --- !u!1 &1283408971
@@ -67942,10 +67942,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   blocked: 1
-  rockStyle: 0
+  rockStyle: 2
   lowRockVariant: 0
   rockTheme: 2
-  rockYaw: 0
+  rockYaw: 307.8
   goal: 0
   surfaceHeight: 0
 --- !u!1 &1289006230
@@ -69362,10 +69362,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   blocked: 1
-  rockStyle: 0
+  rockStyle: 2
   lowRockVariant: 0
   rockTheme: 2
-  rockYaw: 0
+  rockYaw: 299.1
   goal: 0
   surfaceHeight: 0
 --- !u!1 &1313507741
@@ -72040,10 +72040,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   blocked: 1
-  rockStyle: 0
+  rockStyle: 2
   lowRockVariant: 0
   rockTheme: 2
-  rockYaw: 0
+  rockYaw: 108.2
   goal: 0
   surfaceHeight: 0
 --- !u!1 &1393278302
@@ -74957,10 +74957,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   blocked: 1
-  rockStyle: 0
+  rockStyle: 2
   lowRockVariant: 0
   rockTheme: 2
-  rockYaw: 0
+  rockYaw: 137.1
   goal: 0
   surfaceHeight: 0
 --- !u!1 &1460204700
@@ -75008,10 +75008,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   blocked: 1
-  rockStyle: 0
+  rockStyle: 2
   lowRockVariant: 0
   rockTheme: 2
-  rockYaw: 0
+  rockYaw: 290.9
   goal: 0
   surfaceHeight: 0
 --- !u!1 &1460610263
@@ -77103,10 +77103,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   blocked: 1
-  rockStyle: 0
+  rockStyle: 2
   lowRockVariant: 0
   rockTheme: 2
-  rockYaw: 0
+  rockYaw: 182.9
   goal: 0
   surfaceHeight: 0
 --- !u!1 &1498934281
@@ -78866,10 +78866,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   blocked: 1
-  rockStyle: 0
+  rockStyle: 2
   lowRockVariant: 0
   rockTheme: 2
-  rockYaw: 0
+  rockYaw: 144.4
   goal: 0
   surfaceHeight: 0
 --- !u!1 &1533674351
@@ -79342,10 +79342,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   blocked: 1
-  rockStyle: 0
+  rockStyle: 2
   lowRockVariant: 0
   rockTheme: 2
-  rockYaw: 0
+  rockYaw: 178.6
   goal: 0
   surfaceHeight: 0
 --- !u!1 &1541817155
@@ -82225,10 +82225,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   blocked: 1
-  rockStyle: 0
+  rockStyle: 2
   lowRockVariant: 0
   rockTheme: 2
-  rockYaw: 0
+  rockYaw: 283.6
   goal: 0
   surfaceHeight: 0
 --- !u!1 &1597126103
@@ -83425,10 +83425,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   blocked: 1
-  rockStyle: 0
+  rockStyle: 2
   lowRockVariant: 0
   rockTheme: 2
-  rockYaw: 0
+  rockYaw: 285.8
   goal: 0
   surfaceHeight: 0
 --- !u!1 &1623611656
@@ -90251,10 +90251,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   blocked: 1
-  rockStyle: 0
+  rockStyle: 2
   lowRockVariant: 0
   rockTheme: 2
-  rockYaw: 0
+  rockYaw: 16.5
   goal: 0
   surfaceHeight: 0
 --- !u!1 &1730939312
@@ -90772,10 +90772,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   blocked: 1
-  rockStyle: 0
+  rockStyle: 2
   lowRockVariant: 0
   rockTheme: 2
-  rockYaw: 0
+  rockYaw: 145.0
   goal: 0
   surfaceHeight: 0
 --- !u!1001 &1740496629
@@ -91132,10 +91132,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   blocked: 1
-  rockStyle: 0
+  rockStyle: 2
   lowRockVariant: 0
   rockTheme: 2
-  rockYaw: 0
+  rockYaw: 132.0
   goal: 0
   surfaceHeight: 0
 --- !u!1 &1746355522
@@ -97116,10 +97116,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   blocked: 1
-  rockStyle: 0
+  rockStyle: 2
   lowRockVariant: 0
   rockTheme: 2
-  rockYaw: 0
+  rockYaw: 188.5
   goal: 0
   surfaceHeight: 0
 --- !u!1 &1868100644
@@ -97667,10 +97667,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   blocked: 1
-  rockStyle: 0
+  rockStyle: 2
   lowRockVariant: 0
   rockTheme: 2
-  rockYaw: 0
+  rockYaw: 162.3
   goal: 0
   surfaceHeight: 0
 --- !u!1 &1885370478
@@ -97906,10 +97906,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   blocked: 1
-  rockStyle: 0
+  rockStyle: 2
   lowRockVariant: 0
   rockTheme: 2
-  rockYaw: 0
+  rockYaw: 25.8
   goal: 0
   surfaceHeight: 0
 --- !u!1 &1887263056
@@ -99247,10 +99247,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   blocked: 1
-  rockStyle: 0
+  rockStyle: 2
   lowRockVariant: 0
   rockTheme: 2
-  rockYaw: 0
+  rockYaw: 304.6
   goal: 0
   surfaceHeight: 0
 --- !u!1 &1915246470
@@ -99986,10 +99986,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   blocked: 1
-  rockStyle: 0
+  rockStyle: 2
   lowRockVariant: 0
   rockTheme: 2
-  rockYaw: 0
+  rockYaw: 195.2
   goal: 0
   surfaceHeight: 0
 --- !u!1 &1930036919
@@ -103099,10 +103099,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   blocked: 1
-  rockStyle: 0
+  rockStyle: 2
   lowRockVariant: 0
   rockTheme: 2
-  rockYaw: 0
+  rockYaw: 193.9
   goal: 0
   surfaceHeight: 0
 --- !u!1 &2008032032
@@ -106148,10 +106148,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   blocked: 1
-  rockStyle: 0
+  rockStyle: 2
   lowRockVariant: 0
   rockTheme: 2
-  rockYaw: 0
+  rockYaw: 208.9
   goal: 0
   surfaceHeight: 0
 --- !u!1 &2076196657
@@ -107396,10 +107396,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   blocked: 1
-  rockStyle: 0
+  rockStyle: 2
   lowRockVariant: 0
   rockTheme: 2
-  rockYaw: 0
+  rockYaw: 112.1
   goal: 0
   surfaceHeight: 0
 --- !u!1 &2102553917
@@ -108045,10 +108045,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   blocked: 1
-  rockStyle: 0
+  rockStyle: 2
   lowRockVariant: 0
   rockTheme: 2
-  rockYaw: 0
+  rockYaw: 174.7
   goal: 0
   surfaceHeight: 0
 --- !u!1 &2111939609

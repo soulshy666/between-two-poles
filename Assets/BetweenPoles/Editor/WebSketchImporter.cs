@@ -253,7 +253,17 @@ public static class WebSketchImporter {
             if(p.kind=="player")continue;var island=rooms[p.room].center.parent;
             if(p.kind=="rock"||p.kind=="goal"){
                 var o=Child(p.kind,island);o.transform.position=Pos(p.cell);Box(p.kind,o.transform,new Vector3(0,p.kind=="rock"?.4f:.12f,0),p.kind=="rock"?new Vector3(1,.8f,1):new Vector3(.7f,.24f,.7f),p.kind=="rock"?rock:gold);
-                if(p.kind=="rock")tiles[p.cell].blocked=true;else{tiles[p.cell].goal=true;board.goalLight=o.GetComponentInChildren<Renderer>();board.goalCompleteMaterial=blue;}
+                if(p.kind=="rock"){
+                    var stone=tiles[p.cell];stone.blocked=true;
+                    if(scene.name.StartsWith("Chapter0")){
+                        stone.rockStyle=2;stone.lowRockVariant=0;
+                        // Stable per-cell orientation, persisted with the scene.
+                        // Reimporting must not restore default round, unrotated rocks.
+                        uint hash=unchecked((uint)p.cell.x*73856093u^(uint)p.cell.y*19349663u^(uint)stone.rockTheme*83492791u);
+                        hash^=hash>>16;hash=unchecked(hash*2246822519u);hash^=hash>>13;
+                        stone.rockYaw=(hash%3600u)*.1f;
+                    }
+                }else{tiles[p.cell].goal=true;board.goalLight=o.GetComponentInChildren<Renderer>();board.goalCompleteMaterial=blue;}
                 var binding=Undo.AddComponent<IslandSurfaceAnchor>(o);binding.center=rooms[p.room].center;
                 rooms[p.room].surfaces=rooms[p.room].surfaces.Concat(o.GetComponentsInChildren<Renderer>()).ToArray();continue;
             }
@@ -274,7 +284,9 @@ public static class WebSketchImporter {
             }
             if(p.kind=="bar"||p.kind=="u"){
                 string prefab="Assets/BetweenPoles/Prefabs/"+(p.kind=="bar"?"Bar ":"U ")+(p.pole=="S"?"S":"N")+".prefab";
-                var o=(GameObject)PrefabUtility.InstantiatePrefab(AssetDatabase.LoadAssetAtPath<GameObject>(prefab),scene);Undo.RegisterCreatedObjectUndo(o,"创建磁铁");o.transform.SetParent(root.transform);o.transform.position=Pos(p.cell);o.transform.rotation=Quaternion.Euler(0,p.angle,0);
+                // Web U icons open downward (-Z after coordinate conversion); Unity U prefabs open along +Z.
+                int yaw=(p.angle+(p.kind=="u"?180:0))%360;
+                var o=(GameObject)PrefabUtility.InstantiatePrefab(AssetDatabase.LoadAssetAtPath<GameObject>(prefab),scene);Undo.RegisterCreatedObjectUndo(o,"创建磁铁");o.transform.SetParent(root.transform);o.transform.position=Pos(p.cell);o.transform.rotation=Quaternion.Euler(0,yaw,0);
                 foreach(var renderer in o.GetComponentsInChildren<Renderer>())renderer.sharedMaterial=p.pole=="S"?blue:red;
                 var piece=o.GetComponent<MagnetPiece>();if(p.vertical!=0){piece.geometry.localRotation=Quaternion.Euler(0,0,p.vertical);MagnetVisuals.Ground(piece);}
                 var binding=Undo.AddComponent<IslandSurfaceAnchor>(o);binding.center=rooms[p.room].center;magnets.Add(piece);
