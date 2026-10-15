@@ -274,7 +274,9 @@ public static class WebSketchImporter {
             }
             if(p.kind=="bar"||p.kind=="u"){
                 string prefab="Assets/BetweenPoles/Prefabs/"+(p.kind=="bar"?"Bar ":"U ")+(p.pole=="S"?"S":"N")+".prefab";
-                var o=(GameObject)PrefabUtility.InstantiatePrefab(AssetDatabase.LoadAssetAtPath<GameObject>(prefab),scene);Undo.RegisterCreatedObjectUndo(o,"创建磁铁");o.transform.SetParent(root.transform);o.transform.position=Pos(p.cell);o.transform.rotation=Quaternion.Euler(0,p.angle,0);
+                // Web U icons open downward (-Z after coordinate conversion); Unity U prefabs open along +Z.
+                int yaw=(p.angle+(p.kind=="u"?180:0))%360;
+                var o=(GameObject)PrefabUtility.InstantiatePrefab(AssetDatabase.LoadAssetAtPath<GameObject>(prefab),scene);Undo.RegisterCreatedObjectUndo(o,"创建磁铁");o.transform.SetParent(root.transform);o.transform.position=Pos(p.cell);o.transform.rotation=Quaternion.Euler(0,yaw,0);
                 foreach(var renderer in o.GetComponentsInChildren<Renderer>())renderer.sharedMaterial=p.pole=="S"?blue:red;
                 var piece=o.GetComponent<MagnetPiece>();if(p.vertical!=0){piece.geometry.localRotation=Quaternion.Euler(0,0,p.vertical);MagnetVisuals.Ground(piece);}
                 var binding=Undo.AddComponent<IslandSurfaceAnchor>(o);binding.center=rooms[p.room].center;magnets.Add(piece);
