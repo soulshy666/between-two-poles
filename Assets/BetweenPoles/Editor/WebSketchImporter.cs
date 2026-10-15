@@ -81,7 +81,8 @@ public static class WebSketchImporter {
         for(int ri=0;ri<data.rooms.Count;ri++){
             var room=data.rooms[ri];var list=placements[room.id] as JArray;if(list==null)continue;
             foreach(JObject p in list){if(!itemMap.TryGetValue((string)p["itemId"]??"",out var it))throw new Exception("摆放引用了不存在的物品");string kind=Kind(it);
-                if(!new[]{"bar","u","wide","bridge","rock","player","goal","collectible","collection","artifact","display","blackhole"}.Contains(kind))throw new Exception("暂不支持物品“"+(string)it["name"]+"”的游戏规则。请先移除其摆放；当前支持石头、长条、U型、加宽条、两格桥、出生点、终点、收藏品和黑洞。");
+                if(kind=="unknown"&&(string)it["name"]=="圆环")kind="ring";
+                if(!new[]{"bar","u","ring","wide","bridge","rock","player","goal","collectible","collection","artifact","display","blackhole"}.Contains(kind))throw new Exception("暂不支持物品“"+(string)it["name"]+"”的游戏规则。请先移除其摆放；当前支持石头、长条、U型、圆环、加宽条、两格桥、出生点、终点、收藏品和黑洞。");
                 if(kind=="collection"||kind=="artifact"||kind=="display")kind="collectible";
                 string direction=(string)it["magnet"]?["direction"]??"0";
                 int angle=(int.TryParse(direction,out int a)?a:0)+(p["rotation"]==null?0:Int(p["rotation"],"物品旋转"));if(angle%90!=0)throw new Exception("物品方向必须是90度的倍数");angle=(angle%360+360)%360;
@@ -97,15 +98,20 @@ public static class WebSketchImporter {
             }
         }
         if(players>1||goals>1)throw new Exception("只允许一个出生点和一个终点");
-        int origin=data.rooms.FindIndex(r=>r.id==(string)root["originId"]);
-        if(origin<0)origin=data.rooms.FindIndex(r=>r.offset==Vector2Int.zero);
-        if(origin<0)origin=0;
-        if(players==0||data.start!=origin){
-            var available=data.rooms[origin].cells.Where(c=>!used.Contains(c)).ToList();
-            if(available.Count==0)throw new Exception("（0，0）原点房间没有安全空地，请在原点房间放置出生点或空出一格。");
-            data.spawn=available[0];data.warnings.Add(players==0?"未设置出生点：使用（0，0）原点房间的安全空格。":"出生点不在（0，0）原点房间：已使用原点房间的安全空格作为初始位置。");
+        // Room number, not originId or map coordinates, determines the starting room.
+        int firstRoom=data.rooms.FindIndex(r=>r.roomNumber==1);
+        if(firstRoom<0){
+            if(data.rooms.Any(r=>r.roomNumber>0))throw new Exception("关卡缺少1号房间，请设置1号房间后再导入。");
+            // Legacy layouts have no room numbers; their first listed room is room 1.
+            firstRoom=0;
+            data.warnings.Add("JSON 未设置房间编号：将列表中的第一个房间作为1号出生房间。");
         }
-        data.start=origin;
+        if(players==0||data.start!=firstRoom){
+            var available=data.rooms[firstRoom].cells.Where(c=>!used.Contains(c)).ToList();
+            if(available.Count==0)throw new Exception("1号房间没有安全空地，请在1号房间放置出生点或空出一格。");
+            data.spawn=available[0];data.warnings.Add(players==0?"未设置出生点：使用1号房间的安全空格。":"出生点不在1号房间：已强制使用1号房间的安全空格作为初始位置。");
+        }
+        data.start=firstRoom;
         if(goals==0)data.warnings.Add("未设置终点：可游玩测试，但没有通关目标。");
 
         BuildNeighbors(data,occupied);
@@ -296,10 +302,22 @@ public static class WebSketchImporter {
                 var dir=new Vector2Int(Mathf.RoundToInt(axis.x),Mathf.RoundToInt(axis.z));
                 var home=p.cell;if(p.kind=="bridge"){if(dir.x<0)home.x++;if(dir.y>0)home.y--;}
                 var o=Child(p.kind+" · 已拼接",root.transform);o.transform.position=Pos(home);
-                var m=Undo.AddComponent<MagnetPiece>(o);m.shape=MagnetShape.Bar;m.north=p.pole!="S";m.bridgeDirection=dir;
+                var m=Undo.AddComponent<MagnetPiece>(o);m.shape=p.kind=="ring"?MagnetShape.Horseshoe:MagnetShape.Bar;m.north=p.pole!="S";m.bridgeDirection=dir;
                 m.geometry=Child("初始姿态",o.transform).transform;
                 var binding=Undo.AddComponent<IslandSurfaceAnchor>(o);binding.center=rooms[p.room].center;
-                MagnetVisuals.Product(m,p.kind=="bridge"?MagnetProduct.Bridge:MagnetProduct.WideBar,Cell,yaw,m.north);
+                MagnetVisuals.Product(m,p.kind=="ring"?MagnetProduct.Ring:p.kind=="bridge"?MagnetProduct.Bridge:MagnetProduct.WideBar,Cell,yaw,m.north);
+                if(p.kind=="ring"){
+                    // Match the web editor's local vertical rotation, then apply its yaw through the root.
+                    m.geometry.localRotation=Quaternion.Euler(0,0,p.vertical);
+                    MagnetVisuals.Ground(m);m.walkable=!p.upright;
+                    if(m.walkable&&!tiles.ContainsKey(p.cell)){
+                        // A flat space ring is a floor at shore height, not a raised obstacle.
+                        float top=float.NegativeInfinity;
+                        foreach(var filter in m.geometry.GetComponentsInChildren<MeshFilter>())
+                            foreach(var vertex in filter.sharedMesh.vertices)top=Mathf.Max(top,filter.transform.TransformPoint(vertex).y);
+                        if(!float.IsInfinity(top))m.geometry.position+=Vector3.up*(m.transform.position.y-top);
+                    }
+                }
                 Undo.RegisterCreatedObjectUndo(m.geometry.gameObject,"创建共用磁铁模型");
                 // Runtime factories share transient materials; persist copies for a saved scene.
                 var savedMaterials=new Dictionary<Material,Material>();
