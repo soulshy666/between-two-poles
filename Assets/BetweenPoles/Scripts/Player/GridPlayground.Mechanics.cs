@@ -30,14 +30,21 @@ public sealed partial class GridPlayground {
             ||Cell(far.transform)!=Cell(near.transform)+direction
             ||!SameHeight(near.transform.position.y,far.transform.position.y))return false;
         var stop=Tile(Cell(far.transform)+direction);
-        return stop&&stop.blocked&&RecoilPairHasGround(near,far);
+        return stop&&stop.blocked&&RecoilPairHasGround(near,far,direction);
     }
-    bool RecoilPairHasGround(MagnetPiece near,MagnetPiece far){
+    bool RecoilPairHasGround(MagnetPiece near,MagnetPiece far,Vector2Int direction){
         if(near.shape!=MagnetShape.Bar||far.shape!=MagnetShape.Bar)return true;
         // The backstop and the player's floor do not support the magnets themselves.
-        var nearFloor=Tile(Cell(near.transform));var farFloor=Tile(Cell(far.transform));
-        return (nearFloor&&!nearFloor.blocked&&SameHeight(nearFloor.surfaceHeight,near.transform.position.y))
-            ||(farFloor&&!farFloor.blocked&&SameHeight(farFloor.surfaceHeight,far.transform.position.y));
+        return RecoilSupported(near,direction)||RecoilSupported(far,direction);
+    }
+    bool RecoilSupported(MagnetPiece magnet,Vector2Int direction){
+        var cell=Cell(magnet.transform);var floor=Tile(cell);
+        if(floor&&!floor.blocked&&SameHeight(floor.surfaceHeight,magnet.transform.position.y))return true;
+        var deck=Deck(cell,magnet);
+        if(!deck||MagnetStillAnimating(deck)||!SameHeight(DeckHeight(deck),magnet.transform.position.y))return false;
+        if(deck.product==MagnetProduct.Ring)return RingShore(deck);
+        // A completed, correctly oriented span carries the reaction force to its shores.
+        return AlongDeck(deck,direction)&&WideBarConnected(deck);
     }
     Vector2Int PushLanding(Vector2Int vacated,Vector2Int from){
         var moving=Piece(vacated);var deck=Deck(vacated,moving);float height;
@@ -241,7 +248,7 @@ public sealed partial class GridPlayground {
                         Busy=true;StartMovement(Repel(m,far,nearPath,farPath,PushLanding(next,from)));LastRule="同极排斥：各翻滚一格，空格中保持悬停";return true;
                     }
                     if(beyondTile&&beyondTile.blocked){
-                        if(!RecoilPairHasGround(m,far))return Reject("两块长条都悬空，无法反冲；至少一块长条下方需要地板支撑");
+                        if(!RecoilPairHasGround(m,far,dir))return Reject("两块长条都缺少支撑，无法反冲；至少一块下方需要地板或方向正确且接通的桥面");
                         Busy=true;StartCoroutine(Recoil(m,dir,from));LastRule="远端受石头阻挡：磁铁弹回撞击主角，一起反冲";return true;
                     }
                     return Reject("远端没有落脚位，无法推动；反冲需要远端石头阻挡");
