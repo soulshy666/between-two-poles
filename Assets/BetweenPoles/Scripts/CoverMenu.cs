@@ -138,15 +138,14 @@ public sealed class CoverMenu:MonoBehaviour {
    GUI.color=new Color(1,1,1,h);GUI.DrawTexture(new Rect(rect.x-14-8*(1-h),rect.y+32,10,14),triangle);GUI.color=Color.white;
   }
   if(scanlines){GUI.color=new Color(0,0,0,.085f);for(int yLine=0;yLine<768;yLine+=3)GUI.DrawTexture(new Rect(0,yLine,1376,1),Texture2D.whiteTexture);GUI.color=Color.white;}
-  var text=new GUIStyle(GUI.skin.label){font=font,fontSize=26,alignment=TextAnchor.MiddleLeft};text.normal.textColor=new Color(.96f,.94f,.90f);
-  var button=new GUIStyle(GUI.skin.button){font=font,fontSize=25};
   if(settings||exitPrompt){
    if(settings){
-    GUI.color=new Color(0,0,0,.75f);GUI.DrawTexture(new Rect(0,0,1376,768),Texture2D.whiteTexture);GUI.color=Color.white;
-    GUI.Box(new Rect(428,225,520,320),GUIContent.none);
-    GUI.Label(new Rect(460,245,450,48),"设置",text);
+    ExitText(new Rect(428,280,520,60),"设置",32);
+    ExitText(new Rect(558,365,260,48),"声音  "+Mathf.RoundToInt(AudioListener.volume*100)+"%",26);
+    if(ExitChoice(new Rect(478,365,80,48),"−"))AudioListener.volume=Mathf.Clamp01(AudioListener.volume-.1f);
+    if(ExitChoice(new Rect(818,365,80,48),"+"))AudioListener.volume=Mathf.Clamp01(AudioListener.volume+.1f);
+    if(ExitChoice(new Rect(608,455,160,48),"返回"))settings=false;
    }
-   if(settings){GUI.Label(new Rect(460,315,140,40),"总音量",text);AudioListener.volume=GUI.HorizontalSlider(new Rect(625,330,260,25),AudioListener.volume,0,1);GUI.Label(new Rect(460,375,170,40),"扫描线",text);if(GUI.Button(new Rect(700,375,185,42),scanlines?"开":"关",button))scanlines=!scanlines;if(GUI.Button(new Rect(720,470,165,45),"返回",button))settings=false;}
    else{
     ExitText(new Rect(428,310,520,60),"确定要退出游戏吗？",32);
     if(ExitChoice(new Rect(490,410,160,48),"取消"))exitPrompt=false;
