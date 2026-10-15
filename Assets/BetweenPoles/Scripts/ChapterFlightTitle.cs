@@ -35,7 +35,7 @@ public sealed class ChapterFlightTitle:MonoBehaviour {
     public static void Preload(){
         for(int i=0;i<4;i++)if(!letters[i])letters[i]=Resources.Load<Texture2D>("ChapterFlightTitle/letter-"+i);
         if(!subtitle)subtitle=Resources.Load<Texture2D>("ChapterFlightTitle/subtitle");
-        if(!score)score=Resources.Load<AudioClip>("ChapterFlightTitle/title-sfx");
+        if(!score)score=Resources.Load<AudioClip>("ChapterFlightTitle/flight-score");
         if(score)score.LoadAudioData();
     }
     public void Begin(MagnetPiece actor,CurvedTrialCamera camera){
