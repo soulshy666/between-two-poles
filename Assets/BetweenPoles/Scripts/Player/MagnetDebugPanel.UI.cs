@@ -38,7 +38,13 @@ public sealed partial class MagnetDebugPanel {
         Fill(new Rect(0,62,280,height-62),paper);Fill(new Rect(280,62,4,height-62),Color.black);
         Fill(new Rect(0,62,280,42),ink);Label(new Rect(18,66,240,34),section==0?"/ 测试布局":section==1?"/ 物品样式":"/ 格子操作",Color.white,17);
         var lab=board.GetComponent<MagnetTestLayouts>();
-        if(section==0&&lab){string[] names={"冰面宽桥","悬空十字","圆环","反冲","单层磁流","两格桥","十字拨动","两层磁流","竖立接收 · 十字","竖立接收 · 宽桥","两黑洞传送","黑洞 · 平躺磁铁","黑洞 · 竖直磁铁","黑洞 · 出口组合登高","黑洞 · 石头反弹登高"};layoutScroll=GUI.BeginScrollView(new Rect(8,114,264,414),layoutScroll,new Rect(0,0,242,names.Length*38));for(int i=0;i<names.Length;i++)if(Button(new Rect(8,i*38,230,33),names[i])){lab.Load(i);pan=Vector2Int.zero;SelectCell(board.PlayerCell);status=lab.instruction;}GUI.EndScrollView();Label(new Rect(16,540,244,160),lab.instruction,ink);}
+        if(section==0&&lab){
+            string[] names={"冰面宽桥","悬空十字","圆环","反冲","单层磁流","两格桥","十字拨动","两层磁流","竖立接收 · 十字","竖立接收 · 宽桥","两黑洞传送","黑洞 · 平躺磁铁","黑洞 · 竖直磁铁","黑洞 · 出口组合登高","黑洞 · 石头反弹登高",
+                "圆环 · 连滚与跟随","圆环 · 撞石回弹","圆环 · 动量传递","圆环 · 接收受阻","圆环 · 异轴撞倒","圆环 · 平躺阻挡","圆环 · 撞倒长条","圆环 · 长条受阻","圆环 · 长条倒入太空","圆环 · 太空圆环平台","圆环 · 五种磁铁障碍"};
+            layoutScroll=GUI.BeginScrollView(new Rect(8,114,264,414),layoutScroll,new Rect(0,0,242,names.Length*38));
+            for(int i=0;i<names.Length;i++)if(Button(new Rect(8,i*38,230,33),names[i])){lab.Load(i);pan=Vector2Int.zero;SelectCell(board.PlayerCell);status=lab.instruction;}
+            GUI.EndScrollView();Label(new Rect(16,540,244,160),lab.instruction,ink);
+        }
         if(section==1){for(int row=0;row<14;row++){
             bool stone=row>=8&&row<=10;
             int stoneStyle=row==8?2:row==9?0:1;

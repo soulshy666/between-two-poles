@@ -75,7 +75,12 @@ public sealed partial class GridPlayground {
         if(!Busy)RefreshPlayerSupport();
         var s=new WorldState{pieces=new Snapshot[magnets.Length],arrivals=recoilArrivals.ToArray(),playerPosition=player.position,playerRotation=player.rotation,island=currentIsland,entryPosition=islandEntry,entryRotation=islandEntryRotation,goal=ReachedGoal,goalMaterial=goalLight?goalLight.sharedMaterial:null};
         s.support=standingSurface;s.knockPoints=knockCheckpoints.ToArray();s.knockFlights=knockedFlights.ToArray();
-        for(int i=0;i<magnets.Length;i++){s.pieces[i]=SavePiece(magnets[i]);recordedGeometry.Add(s.pieces[i].geometry);}return s;
+        for(int i=0;i<magnets.Length;i++){
+            s.pieces[i]=SavePiece(magnets[i]);
+            // Subsequent player actions undo to the completed ring push, not a mid-roll pose.
+            foreach(var flight in liveRings)if(flight.piece==magnets[i]){s.pieces[i]=flight.destination;break;}
+            recordedGeometry.Add(s.pieces[i].geometry);
+        }return s;
     }
     void TrackIsland(GridTile tile){
         var owner=Owner(tile);if(owner==currentIsland)return;

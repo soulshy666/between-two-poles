@@ -134,6 +134,40 @@ public sealed partial class GridPlayground {
         AssemblyContact(incoming,receiver);
         yield return null;
     }
+    static bool OpposedSideRingDock(Quaternion incoming,Quaternion receiver,Vector2Int direction){
+        var push=new Vector3(direction.x,0,direction.y);
+        return Vector3.Dot(incoming*Vector3.forward,receiver*Vector3.forward)<-.9999f
+            &&Mathf.Abs(Vector3.Dot(incoming*Vector3.forward,push))<.0001f;
+    }
+    IEnumerator AnimateOpposedSideRingDock(MagnetPiece incoming,MagnetPiece receiver,
+        Quaternion incomingPose,Quaternion receiverPose,Vector3 incomingScale,Vector3 receiverScale,
+        Bounds startIncoming,Bounds startReceiver,Bounds endIncoming,Bounds endReceiver,System.Action<float> follow){
+        float seconds=AttractionDuration(Mathf.Max(1.1f,joinSeconds));
+        // Move in the board plane: the receiver's opening points toward the incoming half.
+        var opening=receiverPose*Vector3.forward;opening.y=0;opening.Normalize();
+        float incomingRadius=Vector3.Dot(new Vector3(Mathf.Abs(opening.x),0,Mathf.Abs(opening.z)),endIncoming.extents);
+        float receiverRadius=Vector3.Dot(new Vector3(Mathf.Abs(opening.x),0,Mathf.Abs(opening.z)),endReceiver.extents);
+        float clearance=Mathf.Max(.04f,incomingRadius+receiverRadius+.04f-Vector3.Dot(endIncoming.center-endReceiver.center,opening));
+        var approach=endIncoming.center+opening*clearance;
+        var lane=startIncoming.center+opening*Vector3.Dot(approach-startIncoming.center,opening);
+        for(float elapsed=0;elapsed<seconds;elapsed+=MovementDeltaTime){
+            float p=Mathf.Clamp01(elapsed/seconds);
+            // Separate the arcs first, then slide through a clear lane, then close the sockets.
+            float yieldProgress=Mathf.SmoothStep(0,1,Mathf.Clamp01(p/.20f));
+            float sidestep=Mathf.SmoothStep(0,1,Mathf.Clamp01(p/.30f));
+            float slide=Mathf.SmoothStep(0,1,Mathf.InverseLerp(.30f,.85f,p));
+            float close=Mathf.SmoothStep(0,1,Mathf.InverseLerp(.85f,1,p));
+            var center=Vector3.Lerp(Vector3.Lerp(startIncoming.center,lane,sidestep),approach,slide);
+            center=Vector3.Lerp(center,endIncoming.center,close);
+            PlaceAssemblyBody(receiver,receiverPose,receiverScale,Vector3.Lerp(startReceiver.center,endReceiver.center,yieldProgress));
+            PlaceAssemblyBody(incoming,incomingPose,incomingScale,center);
+            follow?.Invoke(slide);yield return null;
+        }
+        PlaceAssemblyBody(receiver,receiverPose,receiverScale,endReceiver.center);
+        PlaceAssemblyBody(incoming,incomingPose,incomingScale,endIncoming.center);
+        follow?.Invoke(1);AssemblyContact(incoming,receiver);
+        yield return null;
+    }
     static bool AxialRingDock(Quaternion incoming,Quaternion receiver,Vector2Int direction){
         var push=new Vector3(direction.x,0,direction.y);
         return Mathf.Abs(Vector3.Dot(incoming*Vector3.forward,push))>.95f&&Mathf.Abs(Vector3.Dot(receiver*Vector3.forward,push))>.95f;
@@ -354,6 +388,11 @@ public sealed partial class GridPlayground {
         var forward=new Vector3(direction.x,0,direction.y);var lateral=Vector3.Cross(Vector3.up,forward);
         if(product==MagnetProduct.Ring){
             var push=new Vector3(direction.x,0,direction.y);
+            if(OpposedSideRingDock(poseIncoming,poseReceiver,direction)){
+                yield return AnimateOpposedSideRingDock(incoming,receiver,poseIncoming,poseReceiver,
+                    scaleIncoming,scaleReceiver,startIncoming,startReceiver,endIncoming,endReceiver,onSlideProgress);
+                yield break;
+            }
             if(SideBySideRingDock(poseIncoming,poseReceiver,direction)){
                 yield return AnimateSideBySideRingDock(incoming,receiver,direction,poseIncoming,poseReceiver,
                     scaleIncoming,scaleReceiver,startIncoming,startReceiver,endIncoming,endReceiver,onSlideProgress);

@@ -114,8 +114,10 @@ namespace BetweenPoles.EditorTools {
                     near.geometry.rotation=facing*Quaternion.Euler(0,a*90,0)*Quaternion.Euler(0,0,nearUpsideDown?180:0);
                     far.geometry.rotation=facing*Quaternion.Euler(0,b*90,0)*Quaternion.Euler(0,0,farUpsideDown?180:0);
                     float degrees;var arrival=MagnetPiece.Rolled(near.shape,near.Pose,push,out degrees);
-                    var expected=a==0&&b==2?MagnetProduct.Ring:MagnetProduct.None;
-                    Check(GridPlayground.Recipe(near,arrival,far,true,push)==expected,"Strict ring alignment: "+push+" / "+a+" / "+b);
+                    bool front=a==0&&b==2;
+                    bool opposedSide=(a==1&&b==3)||(a==3&&b==1);
+                    var expected=front||opposedSide?MagnetProduct.Ring:MagnetProduct.None;
+                    Check(GridPlayground.Recipe(near,arrival,far,true,push)==expected,"Front/side ring alignment: "+push+" / "+a+" / "+b);
                     Check(GridPlayground.Recipe(near,arrival,far,false,push)==expected,"Floating receiver changed alignment rule");
                     Check(GridPlayground.Recipe(near,arrival,far,true,push)==expected,"All scenes must use facing openings");
                     far.north=true;

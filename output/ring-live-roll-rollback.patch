@@ -1,0 +1,224 @@
+diff --git b/Assets/BetweenPoles/Scripts/GridPlayground.cs a/Assets/BetweenPoles/Scripts/GridPlayground.cs
+index b673148..18ce01e 100644
+--- b/Assets/BetweenPoles/Scripts/GridPlayground.cs
++++ a/Assets/BetweenPoles/Scripts/GridPlayground.cs
+@@ -81,12 +81,8 @@ public sealed partial class GridPlayground:MonoBehaviour {
+     IEnumerator PlayMovement(){
+         while(AdvanceMovement()){
+             if(pendingRingRelease!=null){
+-                var flight=pendingRingRelease;pendingRingRelease=null;
+-                var remaining=new Stack<IEnumerator>(movementStack.ToArray());
+-                // Stack.ToArray is top-first; preserve the original coroutine nesting.
+-                remaining=new Stack<IEnumerator>(remaining);
+-                movementStack.Clear();movementPlayback=null;
+-                flight.playback=StartCoroutine(ContinueLiveRing(flight,remaining));yield break;
++                var route=pendingRingRelease;pendingRingRelease=null;
++                FinishPushWithPresentation(float.MaxValue,route);yield break;
+             }
+             yield return null;
+         }
+diff --git b/Assets/BetweenPoles/Scripts/Player/GridPlayground.History.cs a/Assets/BetweenPoles/Scripts/Player/GridPlayground.History.cs
+index c65c97e..2d3c1eb 100644
+--- b/Assets/BetweenPoles/Scripts/Player/GridPlayground.History.cs
++++ a/Assets/BetweenPoles/Scripts/Player/GridPlayground.History.cs
+@@ -75,12 +75,7 @@ public sealed partial class GridPlayground {
+         if(!Busy)RefreshPlayerSupport();
+         var s=new WorldState{pieces=new Snapshot[magnets.Length],arrivals=recoilArrivals.ToArray(),playerPosition=player.position,playerRotation=player.rotation,island=currentIsland,entryPosition=islandEntry,entryRotation=islandEntryRotation,goal=ReachedGoal,goalMaterial=goalLight?goalLight.sharedMaterial:null};
+         s.support=standingSurface;s.knockPoints=knockCheckpoints.ToArray();s.knockFlights=knockedFlights.ToArray();
+-        for(int i=0;i<magnets.Length;i++){
+-            s.pieces[i]=SavePiece(magnets[i]);
+-            // Subsequent player actions undo to the completed ring push, not a mid-roll pose.
+-            foreach(var flight in liveRings)if(flight.piece==magnets[i]){s.pieces[i]=flight.destination;break;}
+-            recordedGeometry.Add(s.pieces[i].geometry);
+-        }return s;
++        for(int i=0;i<magnets.Length;i++){s.pieces[i]=SavePiece(magnets[i]);recordedGeometry.Add(s.pieces[i].geometry);}return s;
+     }
+     void TrackIsland(GridTile tile){
+         var owner=Owner(tile);if(owner==currentIsland)return;
+diff --git b/Assets/BetweenPoles/Scripts/Player/GridPlayground.PushPresentation.cs a/Assets/BetweenPoles/Scripts/Player/GridPlayground.PushPresentation.cs
+index fa0dcff..cafed4e 100644
+--- b/Assets/BetweenPoles/Scripts/Player/GridPlayground.PushPresentation.cs
++++ a/Assets/BetweenPoles/Scripts/Player/GridPlayground.PushPresentation.cs
+@@ -56,55 +56,8 @@ public sealed partial class GridPlayground {
+         public readonly Dictionary<Renderer,bool> hidden=new Dictionary<Renderer,bool>();
+     }
+     readonly List<PushPresentation> pushPresentations=new List<PushPresentation>();
+-    sealed class LiveRing {
+-        public MagnetPiece piece;
+-        public Snapshot destination;
+-        public Coroutine playback;
+-        public readonly HashSet<Vector2Int> route=new HashSet<Vector2Int>();
+-    }
+-    readonly List<LiveRing> liveRings=new List<LiveRing>();
+-    LiveRing pendingRingRelease;
+-    LiveRing PrepareLiveRing(MagnetPiece ring,Vector2Int origin,Vector2Int direction,int cells,Vector3 end,Quaternion pose,bool space){
+-        var position=ring.transform.position;var localPosition=ring.geometry.localPosition;var rotation=ring.geometry.rotation;bool walkable=ring.walkable;
+-        Snapshot destination;
+-        // Evaluate only the final pose once, without simulating or copying the remaining frames.
+-        try{
+-            ring.transform.position=end;ring.geometry.rotation=pose;MagnetVisuals.Ground(ring);
+-            ring.walkable=MagnetPiece.FlatU(pose);
+-            if(space)ring.geometry.position+=Vector3.up*(end.y-MagnetGeometryTop(ring));
+-            destination=SavePiece(ring);
+-        }finally{
+-            ring.transform.position=position;ring.geometry.localPosition=localPosition;ring.geometry.rotation=rotation;ring.walkable=walkable;
+-        }
+-        var flight=new LiveRing{piece=ring,destination=destination};
+-        for(int i=1;i<=cells;i++)flight.route.Add(origin+direction*i);
+-        liveRings.Add(flight);return flight;
+-    }
+-    IEnumerator ContinueLiveRing(LiveRing flight,Stack<IEnumerator> actions){
+-        try{
+-            // The handoff frame already advanced the ring; resume on the next frame.
+-            yield return null;
+-            while(actions.Count>0){
+-                var action=actions.Peek();
+-                if(!action.MoveNext()){actions.Pop();(action as System.IDisposable)?.Dispose();continue;}
+-                if(action.Current is IEnumerator child){actions.Push(child);continue;}
+-                yield return null;
+-            }
+-        }finally{
+-            CommitLiveRing(flight);liveRings.Remove(flight);
+-        }
+-    }
+-    void CommitLiveRing(LiveRing flight){
+-        if(!flight.piece||!flight.piece.geometry)return;
+-        var ring=flight.piece;var final=flight.destination;
+-        ring.transform.SetPositionAndRotation(final.position,final.rotation);
+-        ring.geometry.localPosition=final.geoPosition;ring.geometry.localRotation=final.pose;
+-        ring.walkable=final.walkable;
+-    }
+-    bool RingRouteReserved(Vector2Int cell){
+-        foreach(var flight in liveRings)if(flight.route.Contains(cell))return true;
+-        foreach(var p in pushPresentations)if(p.reservedCells.Contains(cell))return true;return false;
+-    }
++    Vector2Int[] pendingRingRelease;
++    bool RingRouteReserved(Vector2Int cell){foreach(var p in pushPresentations)if(p.reservedCells.Contains(cell))return true;return false;}
+     void HideCommittedGeometry(PushPresentation presentation){
+         foreach(var track in presentation.tracks){
+             if(!track.piece||!track.piece.geometry)continue;
+@@ -122,11 +75,6 @@ public sealed partial class GridPlayground {
+     }
+     void ClearPushPresentations(){
+         pendingRingRelease=null;
+-        foreach(var flight in liveRings.ToArray()){
+-            if(flight.playback!=null)StopCoroutine(flight.playback);
+-            CommitLiveRing(flight);
+-        }
+-        liveRings.Clear();
+         RestoreMagnetHover(null);barRocks.Clear();
+         foreach(var presentation in pushPresentations.ToArray())RemovePushPresentation(presentation);
+         foreach(var effect in contactSparks)if(effect){effect.gameObject.SetActive(false);Destroy(effect.gameObject);}
+@@ -135,7 +83,6 @@ public sealed partial class GridPlayground {
+             if(camera.board==this)camera.CancelMergeShake();
+     }
+     bool MagnetStillAnimating(MagnetPiece piece){
+-        foreach(var flight in liveRings)if(flight.piece==piece)return true;
+         foreach(var presentation in pushPresentations)
+             foreach(var track in presentation.tracks)if(track.piece==piece)return true;
+         return false;
+diff --git b/Assets/BetweenPoles/Scripts/Player/GridPlayground.RingMovement.cs a/Assets/BetweenPoles/Scripts/Player/GridPlayground.RingMovement.cs
+index 5792f36..94f7435 100644
+--- b/Assets/BetweenPoles/Scripts/Player/GridPlayground.RingMovement.cs
++++ a/Assets/BetweenPoles/Scripts/Player/GridPlayground.RingMovement.cs
+@@ -68,7 +68,6 @@ public sealed partial class GridPlayground {
+         if(tip){flowingPush=true;pushFlowProgress=0;if(pushFlowSpeed<=0)pushFlowSpeed=1/seconds;}
+         float playerSeconds=shoveSeconds;
+         bool releasedPush=false;
+-        bool detached=false;
+         ring.walkable=false;player.rotation=Quaternion.LookRotation(forward);
+         bool lifting=tip&&!falling&&!slideOff;
+         var style=lifting?PlayerPushPose.FlowPushStyle.LiftBar:PlayerPushPose.FlowPushStyle.ShoveBar;
+@@ -78,7 +77,7 @@ public sealed partial class GridPlayground {
+         float elapsed=0;
+         while(tip?pushFlowProgress<1:elapsed<seconds){
+             float remainingTime=0;
+-            float dt=tip?AdvancePushFlow(1/seconds,out remainingTime):detached?Time.deltaTime:MovementDeltaTime;
++            float dt=tip?AdvancePushFlow(1/seconds,out remainingTime):MovementDeltaTime;
+             float sample=tip?pushFlowProgress*seconds:Mathf.Min(seconds,elapsed+dt);
+             float progress=Mathf.Clamp01(sample/seconds);
+             if(tip)progress=falling?progress*progress:progress*progress*(2.47f-1.47f*progress);
+@@ -109,23 +108,20 @@ public sealed partial class GridPlayground {
+             float residual=inheritedRock*(1-Mathf.SmoothStep(0,1,Mathf.Clamp01(sample/.1f)));
+             if(!intoSpace&&Mathf.Abs(residual)>.001f)ApplyBarRock(ring,axis,residual);
+             var previous=player.position;
+-            if(!detached)player.position=Vector3.Lerp(playerStart,playerEnd,pushProgress);
++            player.position=Vector3.Lerp(playerStart,playerEnd,pushProgress);
+             if(!releasedPush){
+                 pushPose.AdvanceFlowPush(Vector3.Distance(previous,player.position),dt,
+                     lifting?pushProgress:ShoveBarPoseProgress(pushProgress));
+                 if(!tip&&pushProgress>=1){
+                     pushPose.ReleaseFlowPush();releasedPush=true;
+                     if(!recordingPush&&!finishingMovement&&!BlackHolePortal.At(this,origin+dir*cells)){
+-                        pendingRingRelease=PrepareLiveRing(ring,origin,dir,cells,end,intoSpace?floatingPose:rolledPose,intoSpace);
+-                        detached=true;
+-                        EndPushInterrupt();player.position=playerEnd;NotifyLanding(origin);Busy=false;
++                        pendingRingRelease=new Vector2Int[cells];
++                        for(int i=0;i<cells;i++)pendingRingRelease[i]=origin+dir*(i+1);
+                     }
+                 }
+             }
+             if(tip&&pushFlowProgress>=1){pushFlowCarryTime=Mathf.Max(0,dt-remainingTime);break;}
+             elapsed+=dt;
+-            // Even a short roll must yield once so the driver can transfer ownership.
+-            if(detached&&pendingRingRelease!=null){yield return null;continue;}
+             if(!tip&&elapsed>=seconds)break;
+             yield return null;
+         }
+@@ -133,8 +129,8 @@ public sealed partial class GridPlayground {
+         if(!slideOff){ring.geometry.rotation=rolledPose;MagnetVisuals.Ground(ring);}
+         ring.walkable=MagnetPiece.FlatU(ring.Pose);
+         if(intoSpace){
+-            if(!detached)pushPose.ReleaseFlowPush();
+-            yield return RingFloatAfterLeavingShore(ring,ring.Pose,floatingPose,detached);
++            pushPose.ReleaseFlowPush();
++            yield return RingFloatAfterLeavingShore(ring,ring.Pose,floatingPose);
+         }
+         if(tip&&!intoSpace&&!BlackHolePortal.At(this,origin+dir*cells)&&!recordingPush&&!finishingMovement){
+             if(falling)StartBarTouchdown(ring,axis,0);
+@@ -143,8 +139,7 @@ public sealed partial class GridPlayground {
+         float ignoredHeight;
+         if(!tip&&!intoSpace&&!BlackHolePortal.At(this,origin+dir*cells)&&!BlackHolePortal.At(this,origin+dir*(cells+1))
+             &&!RingCanEnter(ring,origin+dir*cells,end.y,origin+dir*(cells+1),out ignoredHeight))
+-            yield return RingStoneRebound(ring,forward,axis,ringSpeed,realtime:detached);
+-        if(detached)yield break;
++            yield return RingStoneRebound(ring,forward,axis,ringSpeed);
+         yield return SettleMagnetArrival(ring,path[cells-1]);
+         EndPushInterrupt();player.position=playerEnd;NotifyLanding(origin);Busy=false;
+         continuePushOnComplete=tip&&!recordingPush&&!finishingMovement;
+@@ -158,7 +153,7 @@ public sealed partial class GridPlayground {
+         pose.ReleaseFlowPush();EndPushInterrupt();Busy=false;
+ 
+     }
+-    IEnumerator RingFloatAfterLeavingShore(MagnetPiece ring,Quaternion upright,Quaternion flat,bool realtime=false){
++    IEnumerator RingFloatAfterLeavingShore(MagnetPiece ring,Quaternion upright,Quaternion flat){
+         // Translation has fully cleared the bank before any sinking or flattening.
+         float shore=ring.transform.position.y,initialTop=MagnetGeometryTop(ring);
+         float submergedTop=shore-cellSize*.16f;
+@@ -166,7 +161,7 @@ public sealed partial class GridPlayground {
+         float duration=sinkSeconds+turnSeconds+riseSeconds;
+         ring.walkable=false;
+         for(float elapsed=0;elapsed<duration;){
+-            elapsed=Mathf.Min(duration,elapsed+(realtime?Time.deltaTime:MovementDeltaTime));
++            elapsed=Mathf.Min(duration,elapsed+MovementDeltaTime);
+             float turn=Mathf.SmoothStep(0,1,Mathf.Clamp01((elapsed-sinkSeconds)/turnSeconds));
+             ring.geometry.rotation=Quaternion.Slerp(upright,flat,turn);
+             MagnetVisuals.Ground(ring);
+@@ -181,7 +176,7 @@ public sealed partial class GridPlayground {
+         ring.geometry.position+=Vector3.up*(shore-MagnetGeometryTop(ring));
+         ring.walkable=true;
+     }
+-    IEnumerator RingStoneRebound(MagnetPiece ring,Vector3 forward,Vector3 axis,float speed,PlayerPushPose shove=null,bool realtime=false){
++    IEnumerator RingStoneRebound(MagnetPiece ring,Vector3 forward,Vector3 axis,float speed,PlayerPushPose shove=null){
+         // Only the displayed body crosses the stopping point; occupancy and the
+         // final coloured face remain the result of the validated grid roll.
+         var position=ring.geometry.position;var rotation=ring.Pose;
+@@ -209,7 +204,7 @@ public sealed partial class GridPlayground {
+         float duration=contactSeconds+returnSeconds;
+         try{
+             for(float elapsed=0;elapsed<duration;){
+-                float dt=Mathf.Min(duration-elapsed,realtime?Time.deltaTime:MovementDeltaTime);elapsed+=dt;
++                float dt=Mathf.Min(duration-elapsed,MovementDeltaTime);elapsed+=dt;
+                 if(shove)shove.AdvanceFlowPush(cellSize*dt/duration,dt,ShoveBarPoseProgress(elapsed/duration));
+                 float offset;
+                 if(elapsed<contactSeconds){float p=elapsed/contactSeconds;offset=distance*p*(2-p);}

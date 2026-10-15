@@ -51,6 +51,7 @@ public sealed partial class GridPlayground:MonoBehaviour {
     float walkCurrentSpeed,walkTapTime;
     Vector3 walkOrigin,walkDestination;
     bool interruptiblePush,pushFeedbackOnly;
+    bool rollingRingShove;
     Vector2Int pushDirection;
     WorldState pushUndo;
     bool flowingPush,continuePushOnComplete;
@@ -81,8 +82,12 @@ public sealed partial class GridPlayground:MonoBehaviour {
     IEnumerator PlayMovement(){
         while(AdvanceMovement()){
             if(pendingRingRelease!=null){
-                var route=pendingRingRelease;pendingRingRelease=null;
-                FinishPushWithPresentation(float.MaxValue,route);yield break;
+                var flight=pendingRingRelease;pendingRingRelease=null;
+                var remaining=new Stack<IEnumerator>(movementStack.ToArray());
+                // Stack.ToArray is top-first; preserve the original coroutine nesting.
+                remaining=new Stack<IEnumerator>(remaining);
+                movementStack.Clear();movementPlayback=null;
+                flight.playback=StartCoroutine(ContinueLiveRing(flight,remaining));yield break;
             }
             yield return null;
         }
@@ -368,9 +373,11 @@ public sealed partial class GridPlayground:MonoBehaviour {
     }
     void ClearWalkInterrupt(){reversibleWalk=false;completingWalkForTurn=false;curvedWalkRequested=false;walkTapSpeed=0;}
     void BeginPushInterrupt(Vector2Int direction,bool feedbackOnly=false,bool playPushSound=true){pushHoverParticipants.Clear();if(!feedbackOnly&&playPushSound)PlayMagnetPushSound();interruptiblePush=true;pushFeedbackOnly=feedbackOnly;pushDirection=direction;pushUndo=null;}
-    void EndPushInterrupt(){pushHoverParticipants.Clear();interruptiblePush=false;pushFeedbackOnly=false;pushUndo=null;flowingPush=false;}
+    void EndPushInterrupt(){pushHoverParticipants.Clear();interruptiblePush=false;pushFeedbackOnly=false;pushUndo=null;flowingPush=false;rollingRingShove=false;}
     bool CanInterruptPush(Vector2Int direction,bool freshPress=false){
-        return Busy&&interruptiblePush&&(pushUndo!=null||pushFeedbackOnly)
+        // A rolling ring releases the player through its live handoff. Recording it
+        // on a rapid tap would instead wait for the entire remaining roll playback.
+        return !rollingRingShove&&Busy&&interruptiblePush&&(pushUndo!=null||pushFeedbackOnly)
             &&(direction!=pushDirection||(freshPress&&!pushFeedbackOnly&&!flowingPush))&&Mathf.Abs(direction.x)+Mathf.Abs(direction.y)==1;
     }
     bool InterruptPush(Vector2Int direction){
