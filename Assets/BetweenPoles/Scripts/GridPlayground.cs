@@ -42,6 +42,7 @@ public sealed partial class GridPlayground:MonoBehaviour {
     readonly Queue<BufferedStep> bufferedSteps=new Queue<BufferedStep>();
     const float InputBufferSeconds=.6f;
     Vector2Int heldDirection;
+    MobileDirectionPad mobilePad;
     float nextHeldStep;
     bool reversibleWalk;
     bool completingWalkForTurn;
@@ -130,6 +131,8 @@ public sealed partial class GridPlayground:MonoBehaviour {
     void Awake(){
         if(ChapterAtlas.IsInspectionScene(gameObject.scene)){enabled=false;return;}
         SharedPlayer.Prepare(this);
+        mobilePad=GetComponent<MobileDirectionPad>();
+        if(!mobilePad&&(Application.isMobilePlatform||Application.isEditor))mobilePad=gameObject.AddComponent<MobileDirectionPad>();
         if(player)PlayerPushPose.EnsureIdle(player);
         CaptureInitialState();
     }
@@ -203,6 +206,7 @@ public sealed partial class GridPlayground:MonoBehaviour {
         else if(Input.GetKeyDown(KeyCode.A)||Input.GetKeyDown(KeyCode.LeftArrow))direction=Vector2Int.left;
         else if(Input.GetKeyDown(KeyCode.W)||Input.GetKeyDown(KeyCode.UpArrow))direction=Vector2Int.up;
         else if(Input.GetKeyDown(KeyCode.S)||Input.GetKeyDown(KeyCode.DownArrow))direction=Vector2Int.down;
+        if(mobilePad&&mobilePad.Pressed!=Vector2Int.zero)direction=mobilePad.Pressed;
         if(direction!=Vector2Int.zero){heldDirection=direction;nextHeldStep=Time.unscaledTime+walkSeconds;}
         else if(heldDirection!=Vector2Int.zero&&!DirectionHeld(heldDirection)){
             // The most recently pressed direction wins; releasing it resumes a
@@ -220,14 +224,16 @@ public sealed partial class GridPlayground:MonoBehaviour {
             TryStep(heldDirection);nextHeldStep=Mathf.Max(nextHeldStep,Time.unscaledTime+.1f);
         }
     }
-    static bool DirectionHeld(Vector2Int direction){
+    bool DirectionHeld(Vector2Int direction){
+        if(direction!=Vector2Int.zero&&mobilePad&&mobilePad.Held==direction)return true;
         if(direction==Vector2Int.right)return Input.GetKey(KeyCode.D)||Input.GetKey(KeyCode.RightArrow);
         if(direction==Vector2Int.left)return Input.GetKey(KeyCode.A)||Input.GetKey(KeyCode.LeftArrow);
         if(direction==Vector2Int.up)return Input.GetKey(KeyCode.W)||Input.GetKey(KeyCode.UpArrow);
         if(direction==Vector2Int.down)return Input.GetKey(KeyCode.S)||Input.GetKey(KeyCode.DownArrow);
         return false;
     }
-    static bool DirectionPressed(Vector2Int direction){
+    bool DirectionPressed(Vector2Int direction){
+        if(direction!=Vector2Int.zero&&mobilePad&&mobilePad.Pressed==direction)return true;
         if(direction==Vector2Int.right)return Input.GetKeyDown(KeyCode.D)||Input.GetKeyDown(KeyCode.RightArrow);
         if(direction==Vector2Int.left)return Input.GetKeyDown(KeyCode.A)||Input.GetKeyDown(KeyCode.LeftArrow);
         if(direction==Vector2Int.up)return Input.GetKeyDown(KeyCode.W)||Input.GetKeyDown(KeyCode.UpArrow);
