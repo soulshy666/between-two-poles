@@ -1,0 +1,1 @@
+PASS: cardinal touch regions, neutral center, drag outside, diagonal restriction, movement-controller held/press integration, focus/background release, landscape settings, build scene paths. Device touch and gameplay still require Android testing.
