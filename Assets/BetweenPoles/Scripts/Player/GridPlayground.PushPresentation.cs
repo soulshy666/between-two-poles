@@ -56,8 +56,64 @@ public sealed partial class GridPlayground {
         public readonly Dictionary<Renderer,bool> hidden=new Dictionary<Renderer,bool>();
     }
     readonly List<PushPresentation> pushPresentations=new List<PushPresentation>();
-    Vector2Int[] pendingRingRelease;
-    bool RingRouteReserved(Vector2Int cell){foreach(var p in pushPresentations)if(p.reservedCells.Contains(cell))return true;return false;}
+    sealed class LiveRing {
+        public MagnetPiece piece;
+        public Snapshot destination;
+        public Coroutine playback;
+        public Vector2Int direction;
+        public readonly HashSet<Vector2Int> route=new HashSet<Vector2Int>();
+    }
+    readonly List<LiveRing> liveRings=new List<LiveRing>();
+    LiveRing pendingRingRelease;
+    LiveRing PrepareLiveRing(MagnetPiece ring,Vector2Int origin,Vector2Int direction,int cells,Vector3 end,Quaternion pose,bool space){
+        var position=ring.transform.position;var localPosition=ring.geometry.localPosition;var rotation=ring.geometry.rotation;bool walkable=ring.walkable;
+        Snapshot destination;
+        // Evaluate only the final pose once, without simulating or copying the remaining frames.
+        try{
+            ring.transform.position=end;ring.geometry.rotation=pose;MagnetVisuals.Ground(ring);
+            ring.walkable=MagnetPiece.FlatU(pose);
+            if(space)ring.geometry.position+=Vector3.up*(end.y-MagnetGeometryTop(ring));
+            destination=SavePiece(ring);
+        }finally{
+            ring.transform.position=position;ring.geometry.localPosition=localPosition;ring.geometry.rotation=rotation;ring.walkable=walkable;
+        }
+        var flight=new LiveRing{piece=ring,destination=destination,direction=direction};
+        for(int i=1;i<=cells;i++)flight.route.Add(origin+direction*i);
+        liveRings.Add(flight);return flight;
+    }
+    IEnumerator ContinueLiveRing(LiveRing flight,Stack<IEnumerator> actions){
+        try{
+            // The handoff frame already advanced the ring; resume on the next frame.
+            yield return null;
+            while(actions.Count>0){
+                var action=actions.Peek();
+                if(!action.MoveNext()){actions.Pop();(action as System.IDisposable)?.Dispose();continue;}
+                if(action.Current is IEnumerator child){actions.Push(child);continue;}
+                yield return null;
+            }
+        }finally{
+            CommitLiveRing(flight);liveRings.Remove(flight);
+        }
+    }
+    void CommitLiveRing(LiveRing flight){
+        if(!flight.piece||!flight.piece.geometry)return;
+        var ring=flight.piece;var final=flight.destination;
+        ring.transform.SetPositionAndRotation(final.position,final.rotation);
+        ring.geometry.localPosition=final.geoPosition;ring.geometry.localRotation=final.pose;
+        ring.walkable=final.walkable;
+    }
+    bool RingRouteReserved(Vector2Int cell){
+        foreach(var flight in liveRings){
+            if(!flight.piece||!flight.route.Contains(cell))continue;
+            var center=flight.piece.transform.position;
+            float ahead=(cell.x*cellSize-center.x)*flight.direction.x
+                +(cell.y*cellSize-center.z)*flight.direction.y;
+            // Release passed cells as soon as the ring clears their centre footprint.
+            // Keep the current and future cells protected against crossing traffic.
+            if(ahead>=-cellSize*.5f)return true;
+        }
+        foreach(var p in pushPresentations)if(p.reservedCells.Contains(cell))return true;return false;
+    }
     void HideCommittedGeometry(PushPresentation presentation){
         foreach(var track in presentation.tracks){
             if(!track.piece||!track.piece.geometry)continue;
@@ -73,8 +129,13 @@ public sealed partial class GridPlayground {
         if(presentation.root){presentation.root.SetActive(false);Destroy(presentation.root);}
         pushPresentations.Remove(presentation);
     }
-    void ClearPushPresentations(){
+    internal void ClearPushPresentations(){
         pendingRingRelease=null;
+        foreach(var flight in liveRings.ToArray()){
+            if(flight.playback!=null)StopCoroutine(flight.playback);
+            CommitLiveRing(flight);
+        }
+        liveRings.Clear();
         RestoreMagnetHover(null);barRocks.Clear();
         foreach(var presentation in pushPresentations.ToArray())RemovePushPresentation(presentation);
         foreach(var effect in contactSparks)if(effect){effect.gameObject.SetActive(false);Destroy(effect.gameObject);}
@@ -83,6 +144,7 @@ public sealed partial class GridPlayground {
             if(camera.board==this)camera.CancelMergeShake();
     }
     bool MagnetStillAnimating(MagnetPiece piece){
+        foreach(var flight in liveRings)if(flight.piece==piece)return true;
         foreach(var presentation in pushPresentations)
             foreach(var track in presentation.tracks)if(track.piece==piece)return true;
         return false;

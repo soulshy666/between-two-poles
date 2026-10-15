@@ -49,8 +49,9 @@ public sealed partial class GridPlayground {
         var direction=new Vector3(push.x,0,push.y);
         // Use the pre-push openings: docking slides the facing ends together,
         // rather than flipping an incorrectly oriented U into a valid recipe.
-        return Vector3.Dot(incoming*Vector3.forward,direction)>.9999f
-            &&Vector3.Dot(receiver*Vector3.forward,-direction)>.9999f;
+        return (Vector3.Dot(incoming*Vector3.forward,direction)>.9999f
+            &&Vector3.Dot(receiver*Vector3.forward,-direction)>.9999f)
+            || OpposedSideRingDock(incoming,receiver,push);
     }
     public static MagnetProduct Recipe(MagnetPiece incoming,Quaternion arrival,MagnetPiece target,bool receiverSupported,Vector2Int push) {
         // Docking to a U socket preserves the material's pre-push posture.
@@ -235,7 +236,7 @@ public sealed partial class GridPlayground {
                 var result=Recipe(m,arrival,far,receiverSupported,dir);
                 if(result==MagnetProduct.None&&m.shape==MagnetShape.Horseshoe
                     &&far.shape==MagnetShape.Horseshoe&&!far.combined&&far.product==MagnetProduct.None&&m.north!=far.north)
-                    return Reject("圆环合成需要两个异极 U 型磁铁平躺、开口相对，并沿端点对齐的方向推动");
+                    return Reject("圆环合成需要两个异极 U 型磁铁平躺、开口反向，从开口正面或侧面接合；背部相撞不能合成");
                 if(result==MagnetProduct.None)return Reject("磁铁姿态不符合配方，保留原状态");
                 var bridgeDir=far.bridgeDirection;
                 if(result==MagnetProduct.BridgeHalf){
