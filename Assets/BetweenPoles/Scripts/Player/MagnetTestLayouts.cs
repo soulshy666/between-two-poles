@@ -28,6 +28,8 @@ public sealed class MagnetTestLayouts:MonoBehaviour {
     void OnDestroy(){if(portalMaterial)Destroy(portalMaterial);}
     public void Load(int preset){
         if(!Application.isPlaying||board.Busy||BlackHoleTravel.Selecting||BlackHoleTravel.InTransit)return;
+        // Background rings can still be moving after the player's shove ends.
+        board.ClearPushPresentations();
         foreach(var portal in Portals(board)){portal.gameObject.SetActive(false);Destroy(portal.gameObject);}
         if(originalTiles==null){originalTiles=board.tiles;var anchor=center.parent;originalSurfaces=anchor.GetComponentsInChildren<Renderer>(true);}
         if(runtimeRoot){runtimeRoot.SetActive(false);Destroy(runtimeRoot);}
@@ -38,12 +40,14 @@ public sealed class MagnetTestLayouts:MonoBehaviour {
         var floorMat=new Material(Shader.Find("BetweenPoles/PaintedIceTrial"));floorMat.color=new Color(.76f,.88f,.94f);floorMat.SetFloat("_Grid",1);floorMat.SetFloat("_Painted",1);editableFloorMaterial=floorMat;
         for(int z=-3;z<=3;z++)for(int x=-4;x<=4;x++){
             if((preset==5&&z==0&&(x==0||x==1))||(preset==1&&x==0&&z==0))continue;
+            if(z==0&&((preset==23&&x==1)||(preset==24&&x==0)))continue;
             var g=new GameObject("测试格 "+x+","+z);g.transform.SetParent(runtimeRoot.transform,false);g.transform.position=new Vector3(x*board.cellSize,0,z*board.cellSize);
             var t=g.AddComponent<GridTile>();float height=(preset==13||preset==14)&&x==4&&z==0?board.LayerHeight:preset==4&&x==1&&z==0?board.LayerHeight:preset==7&&x==0&&z==1?2*board.LayerHeight:0;t.surfaceHeight=height;
             var box=GameObject.CreatePrimitive(PrimitiveType.Cube);box.transform.SetParent(g.transform,false);box.transform.localPosition=Vector3.up*(height*.5f-.08f);box.transform.localScale=new Vector3(board.cellSize-.02f,height+.16f,board.cellSize-.02f);Destroy(box.GetComponent<Collider>());box.GetComponent<Renderer>().sharedMaterial=floorMat;
             var binding=g.AddComponent<IslandSurfaceAnchor>();binding.center=center;binding.Apply();tiles.Add(t);
         }
         board.tiles=tiles.ToArray();
+        board.InvalidateTileLookup();
         System.Func<int,int,MagnetShape,bool,Quaternion,MagnetPiece> add=(x,z,shape,north,pose)=>{var m=MagnetVisuals.Create(runtimeRoot.transform,new Vector3(x*board.cellSize,0,z*board.cellSize),shape,north,pose,board.cellSize,center);pieces.Add(m);return m;};
         Quaternion flat=Quaternion.identity,vertical=Quaternion.Euler(0,0,90),alongZ=Quaternion.Euler(0,90,0);
         var playerCell=new Vector2Int(-2,0);
@@ -70,6 +74,58 @@ public sealed class MagnetTestLayouts:MonoBehaviour {
         if(preset==6||preset==7){var m=add(0,0,MagnetShape.Bar,true,flat);MagnetVisuals.Product(m,MagnetProduct.Cross,board.cellSize,flat,true);
             if(preset==6){add(1,0,MagnetShape.Bar,true,vertical);playerCell=new Vector2Int(-1,0);instruction="向右推十字：十字不移位，右边竖直长条向外拨一格。";}
             else{add(-1,0,MagnetShape.Horseshoe,true,Quaternion.Euler(0,90,0));add(1,0,MagnetShape.Horseshoe,false,Quaternion.Euler(0,-90,0));playerCell=new Vector2Int(0,-1);instruction="左右异极 U 开口相向：十字持续转动。向上走入磁流，再向上走到两层高台。";}
+        }
+        if(preset>=15&&preset<=25){
+            System.Func<int,int,Quaternion,MagnetPiece> ring=(x,z,pose)=>{
+                var m=add(x,z,MagnetShape.Horseshoe,true,flat);
+                MagnetVisuals.Product(m,MagnetProduct.Ring,board.cellSize,flat,true);
+                m.geometry.rotation=pose;MagnetVisuals.Ground(m);m.walkable=MagnetPiece.FlatU(m.Pose);
+                return m;
+            };
+            System.Action<int,int> rock=(x,z)=>{var tile=board.TileAt(new Vector2Int(x,z));tile.blocked=true;tile.rockStyle=2;};
+            Quaternion rolling=Quaternion.Euler(90,0,0);
+            playerCell=new Vector2Int(-4,0);ring(-3,0,rolling);
+            switch(preset){
+                case 15:
+                    instruction="向右推一次：圆环连续滚到岸边。滚远一格后可跟随移动；快速连按右，检查人物是否卡住。";break;
+                case 16:
+                    rock(2,0);instruction="向右推：圆环撞右侧石头，反向转一点后停在石头左边一格。";break;
+                case 17:
+                    ring(0,0,rolling);rock(4,0);instruction="向右推：动量传给中间圆环，前一个回弹停下；第二个继续滚动，撞右侧石头停止。";break;
+                case 18:
+                    ring(0,0,rolling);rock(1,0);instruction="向右推：接收圆环背后是石头，不能滚走；它应向右轻滚、回弹归位，来撞的圆环也回弹停止。";break;
+                case 19:
+                    ring(0,0,vertical);instruction="向右推：撞击轮轴不同的竖直圆环，将它向右撞倒一格并平躺；来撞的圆环停止。";break;
+                case 20:
+                    ring(0,0,flat);instruction="向右推：冰面上的平躺圆环是障碍；来撞的圆环像撞石头一样回弹停下。";break;
+                case 21:
+                    add(0,0,MagnetShape.Bar,false,vertical);instruction="向右推：竖直长条向右倒一格，变成平躺长条；来撞的圆环停止。";break;
+                case 22:
+                    add(0,0,MagnetShape.Bar,false,vertical);rock(1,0);instruction="向右推：长条背后有石头，不能倒下；长条沿撞击方向晃动后站稳，圆环回弹停止。";break;
+                case 23:
+                    add(0,0,MagnetShape.Bar,false,vertical);instruction="向右推：长条被撞倒到右侧空隙，平躺浮在太空中；圆环留在岸上停止。";break;
+                case 24:
+                    var platform=ring(0,0,flat);
+                    float top=float.NegativeInfinity;
+                    foreach(var mesh in platform.geometry.GetComponentsInChildren<MeshFilter>())
+                        foreach(var vertex in mesh.sharedMesh.vertices)top=Mathf.Max(top,mesh.transform.TransformPoint(vertex).y);
+                    platform.geometry.position+=Vector3.up*(platform.transform.position.y-top);
+                    rock(3,0);instruction="向右推：圆环应滚过空隙中的平躺圆环平台，进入右岸，再撞石头停下；玩家也能走过平台。";break;
+                case 25:
+                    // Each row is independent; the player can reach it via the left column.
+                    add(0,0,MagnetShape.Bar,false,flat);
+                    ring(-3,1,rolling);add(0,1,MagnetShape.Horseshoe,false,flat);
+                    for(int row=-2;row<=2;row++){
+                        if(row==0||row==1)continue;
+                        ring(-3,row,rolling);
+                        var obstacle=add(0,row,MagnetShape.Bar,false,flat);
+                        obstacle.bridgeDirection=Vector2Int.right;
+                        MagnetVisuals.Product(obstacle,row==-2?MagnetProduct.WideBar:row==-1?MagnetProduct.Cross:MagnetProduct.Bridge,board.cellSize,flat,true);
+                        MagnetVisuals.Ground(obstacle);
+                    }
+                    instruction="沿最左列上下换行，再向右推。中行是平躺长条；上方两行是单 U、桥，下方两行是十字、宽条。各行都应像撞石头一样回弹停止。";break;
+            }
+            board.player.rotation=Quaternion.LookRotation(Vector3.right);
         }
         board.magnets=pieces.ToArray();board.player.position=new Vector3(playerCell.x*board.cellSize,0,playerCell.y*board.cellSize);
         // CaptureInitialState rebuilds edge artwork, which calls FiveIslandWindow.Show.

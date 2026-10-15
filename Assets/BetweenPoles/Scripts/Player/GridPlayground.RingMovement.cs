@@ -3,6 +3,14 @@ using UnityEngine;
 namespace BetweenPoles {
 public sealed partial class GridPlayground {
     bool RingCanEnter(MagnetPiece ring,Vector2Int from,float height,Vector2Int cell,out float landing){
+        // Only a settled flat space ring acts as terrain. All other magnetic
+        // bodies, including walkable bridges and wide bars, stop a rolling ring.
+        foreach(var other in magnets){
+            if(!other||other==ring||!other.enabled||!other.gameObject.activeInHierarchy||!other.Occupies(cell,cellSize))continue;
+            bool floor=SpaceRing(other)&&other.walkable&&MagnetPiece.FlatU(other.Pose)
+                &&!MagnetStillAnimating(other)&&SameHeight(DeckHeight(other),height);
+            if(!floor){landing=height;return false;}
+        }
         return TravelSurface(from,height,cell,ring,out landing)
             &&!TransportObstacle(cell,ring)&&cell!=PlayerCell;
     }
@@ -32,6 +40,7 @@ public sealed partial class GridPlayground {
     }
     IEnumerator MoveRing(MagnetPiece ring,Vector2Int dir,Vector2Int origin,int cells,bool tip){
         BeginPushInterrupt(dir);
+        rollingRingShove=!tip;
         // Keep the shared push interruption and visible catch-up path available.
         pushHoverParticipants.Add(ring);
         Vector3 start=ring.transform.position;
@@ -68,6 +77,7 @@ public sealed partial class GridPlayground {
         if(tip){flowingPush=true;pushFlowProgress=0;if(pushFlowSpeed<=0)pushFlowSpeed=1/seconds;}
         float playerSeconds=shoveSeconds;
         bool releasedPush=false;
+        bool detached=false;
         ring.walkable=false;player.rotation=Quaternion.LookRotation(forward);
         bool lifting=tip&&!falling&&!slideOff;
         var style=lifting?PlayerPushPose.FlowPushStyle.LiftBar:PlayerPushPose.FlowPushStyle.ShoveBar;
@@ -77,7 +87,7 @@ public sealed partial class GridPlayground {
         float elapsed=0;
         while(tip?pushFlowProgress<1:elapsed<seconds){
             float remainingTime=0;
-            float dt=tip?AdvancePushFlow(1/seconds,out remainingTime):MovementDeltaTime;
+            float dt=tip?AdvancePushFlow(1/seconds,out remainingTime):detached?Time.deltaTime:MovementDeltaTime;
             float sample=tip?pushFlowProgress*seconds:Mathf.Min(seconds,elapsed+dt);
             float progress=Mathf.Clamp01(sample/seconds);
             if(tip)progress=falling?progress*progress:progress*progress*(2.47f-1.47f*progress);
@@ -108,20 +118,23 @@ public sealed partial class GridPlayground {
             float residual=inheritedRock*(1-Mathf.SmoothStep(0,1,Mathf.Clamp01(sample/.1f)));
             if(!intoSpace&&Mathf.Abs(residual)>.001f)ApplyBarRock(ring,axis,residual);
             var previous=player.position;
-            player.position=Vector3.Lerp(playerStart,playerEnd,pushProgress);
+            if(!detached)player.position=Vector3.Lerp(playerStart,playerEnd,pushProgress);
             if(!releasedPush){
                 pushPose.AdvanceFlowPush(Vector3.Distance(previous,player.position),dt,
                     lifting?pushProgress:ShoveBarPoseProgress(pushProgress));
                 if(!tip&&pushProgress>=1){
                     pushPose.ReleaseFlowPush();releasedPush=true;
                     if(!recordingPush&&!finishingMovement&&!BlackHolePortal.At(this,origin+dir*cells)){
-                        pendingRingRelease=new Vector2Int[cells];
-                        for(int i=0;i<cells;i++)pendingRingRelease[i]=origin+dir*(i+1);
+                        pendingRingRelease=PrepareLiveRing(ring,origin,dir,cells,end,intoSpace?floatingPose:rolledPose,intoSpace);
+                        detached=true;
+                        EndPushInterrupt();player.position=playerEnd;NotifyLanding(origin);Busy=false;
                     }
                 }
             }
             if(tip&&pushFlowProgress>=1){pushFlowCarryTime=Mathf.Max(0,dt-remainingTime);break;}
             elapsed+=dt;
+            // Even a short roll must yield once so the driver can transfer ownership.
+            if(detached&&pendingRingRelease!=null){yield return null;continue;}
             if(!tip&&elapsed>=seconds)break;
             yield return null;
         }
@@ -129,8 +142,8 @@ public sealed partial class GridPlayground {
         if(!slideOff){ring.geometry.rotation=rolledPose;MagnetVisuals.Ground(ring);}
         ring.walkable=MagnetPiece.FlatU(ring.Pose);
         if(intoSpace){
-            pushPose.ReleaseFlowPush();
-            yield return RingFloatAfterLeavingShore(ring,ring.Pose,floatingPose);
+            if(!detached)pushPose.ReleaseFlowPush();
+            yield return RingFloatAfterLeavingShore(ring,ring.Pose,floatingPose,detached);
         }
         if(tip&&!intoSpace&&!BlackHolePortal.At(this,origin+dir*cells)&&!recordingPush&&!finishingMovement){
             if(falling)StartBarTouchdown(ring,axis,0);
@@ -139,7 +152,8 @@ public sealed partial class GridPlayground {
         float ignoredHeight;
         if(!tip&&!intoSpace&&!BlackHolePortal.At(this,origin+dir*cells)&&!BlackHolePortal.At(this,origin+dir*(cells+1))
             &&!RingCanEnter(ring,origin+dir*cells,end.y,origin+dir*(cells+1),out ignoredHeight))
-            yield return RingStoneRebound(ring,forward,axis,ringSpeed);
+            yield return RingStoneRebound(ring,forward,axis,ringSpeed,realtime:detached,transferMomentum:true);
+        if(detached)yield break;
         yield return SettleMagnetArrival(ring,path[cells-1]);
         EndPushInterrupt();player.position=playerEnd;NotifyLanding(origin);Busy=false;
         continuePushOnComplete=tip&&!recordingPush&&!finishingMovement;
@@ -153,7 +167,7 @@ public sealed partial class GridPlayground {
         pose.ReleaseFlowPush();EndPushInterrupt();Busy=false;
 
     }
-    IEnumerator RingFloatAfterLeavingShore(MagnetPiece ring,Quaternion upright,Quaternion flat){
+    IEnumerator RingFloatAfterLeavingShore(MagnetPiece ring,Quaternion upright,Quaternion flat,bool realtime=false){
         // Translation has fully cleared the bank before any sinking or flattening.
         float shore=ring.transform.position.y,initialTop=MagnetGeometryTop(ring);
         float submergedTop=shore-cellSize*.16f;
@@ -161,7 +175,7 @@ public sealed partial class GridPlayground {
         float duration=sinkSeconds+turnSeconds+riseSeconds;
         ring.walkable=false;
         for(float elapsed=0;elapsed<duration;){
-            elapsed=Mathf.Min(duration,elapsed+MovementDeltaTime);
+            elapsed=Mathf.Min(duration,elapsed+(realtime?Time.deltaTime:MovementDeltaTime));
             float turn=Mathf.SmoothStep(0,1,Mathf.Clamp01((elapsed-sinkSeconds)/turnSeconds));
             ring.geometry.rotation=Quaternion.Slerp(upright,flat,turn);
             MagnetVisuals.Ground(ring);
@@ -176,12 +190,12 @@ public sealed partial class GridPlayground {
         ring.geometry.position+=Vector3.up*(shore-MagnetGeometryTop(ring));
         ring.walkable=true;
     }
-    IEnumerator RingStoneRebound(MagnetPiece ring,Vector3 forward,Vector3 axis,float speed,PlayerPushPose shove=null){
+    IEnumerator RingStoneRebound(MagnetPiece ring,Vector3 forward,Vector3 axis,float speed,PlayerPushPose shove=null,bool realtime=false,bool transferMomentum=false){
         // Only the displayed body crosses the stopping point; occupancy and the
         // final coloured face remain the result of the validated grid roll.
         var position=ring.geometry.position;var rotation=ring.Pose;
         var ahead=Cell(ring.transform)+new Vector2Int(Mathf.RoundToInt(forward.x),Mathf.RoundToInt(forward.z));
-        var obstacle=TransportObstacle(ahead,ring);var tile=Tile(ahead);
+        var obstacle=Piece(ahead,ring);if(!obstacle)obstacle=TransportObstacle(ahead,ring);var tile=Tile(ahead);
         var bounds=AssemblyBounds(AssemblyBodies(ring.geometry));
         float radius=Mathf.Abs(forward.x)*bounds.extents.x+Mathf.Abs(forward.z)*bounds.extents.z;
         float near=cellSize*.5f;
@@ -202,9 +216,10 @@ public sealed partial class GridPlayground {
         // with the normal shove's strongest effort, rather than following it.
         if(shove){contactSeconds=Mathf.Max(.01f,barPushSeconds)*.5f;returnSeconds=contactSeconds;}
         float duration=contactSeconds+returnSeconds;
+        bool contacted=false;
         try{
             for(float elapsed=0;elapsed<duration;){
-                float dt=Mathf.Min(duration-elapsed,MovementDeltaTime);elapsed+=dt;
+                float dt=Mathf.Min(duration-elapsed,realtime?Time.deltaTime:MovementDeltaTime);elapsed+=dt;
                 if(shove)shove.AdvanceFlowPush(cellSize*dt/duration,dt,ShoveBarPoseProgress(elapsed/duration));
                 float offset;
                 if(elapsed<contactSeconds){float p=elapsed/contactSeconds;offset=distance*p*(2-p);}
@@ -212,11 +227,133 @@ public sealed partial class GridPlayground {
                 ring.geometry.rotation=Quaternion.AngleAxis(180*offset/cellSize,axis)*rotation;
                 MagnetVisuals.Ground(ring);
                 ring.geometry.position+=forward*offset;
+                if(!contacted&&elapsed>=contactSeconds){
+                    contacted=true;
+                    if(transferMomentum&&!recordingPush&&!finishingMovement)
+                        TryTransferRingMomentum(ring,obstacle,new Vector2Int(Mathf.RoundToInt(forward.x),Mathf.RoundToInt(forward.z)),speed);
+                }
                 if(elapsed>=duration)break;
                 yield return null;
             }
         }finally{
             if(ring&&ring.geometry){ring.geometry.SetPositionAndRotation(position,rotation);}
+        }
+    }
+    void TryTransferRingMomentum(MagnetPiece source,MagnetPiece target,Vector2Int direction,float speed){
+        var forward=new Vector3(direction.x,0,direction.y);
+        if(target&&target.product==MagnetProduct.None&&!target.combined&&target.shape==MagnetShape.Bar
+            &&MagnetPiece.VerticalBar(target.Pose)){
+            TryToppleBarFromRing(source,target,direction);
+            return;
+        }
+        if(!target||target.product!=MagnetProduct.Ring||MagnetPiece.FlatU(target.Pose)
+            ||MagnetStillAnimating(target)||!Supported(target)
+            ||!SameHeight(source.transform.position.y,target.transform.position.y))return;
+        if(Mathf.Abs(Vector3.Dot(target.Pose*Vector3.up,forward))>.95f){
+            TryToppleBarFromRing(source,target,direction);
+            return;
+        }
+        if(Mathf.Abs(Vector3.Dot(target.Pose*Vector3.up,forward))>.05f)return;
+        var origin=Cell(target.transform);
+        var path=new System.Collections.Generic.List<Vector3>{target.transform.position};
+        float height=target.transform.position.y;
+        // Portal entry needs its own cargo transaction; keep this transfer on the board.
+        for(int i=1;i<=tiles.Length+magnets.Length*2;i++){
+            var previous=origin+direction*(i-1);var next=origin+direction*i;float landing;
+            if(BlackHolePortal.At(this,next)||!RingCanEnter(target,previous,height,next,out landing))break;
+            path.Add(Position(next,landing));height=landing;
+            if(!Floor(next)&&!Deck(next,target))break;
+        }
+        int cells=path.Count-1;
+        if(cells==0){
+            // A blocked receiver still reacts to impact, without changing its grid
+            // occupancy or propagating momentum through the obstacle behind it.
+            var reaction=new LiveRing{piece=target,destination=SavePiece(target),direction=direction};
+            reaction.route.Add(origin);liveRings.Add(reaction);
+            var blockedActions=new System.Collections.Generic.Stack<IEnumerator>();
+            blockedActions.Push(RingStoneRebound(target,forward,new Vector3(direction.y,0,-direction.x),speed,realtime:true));
+            reaction.playback=StartCoroutine(ContinueLiveRing(reaction,blockedActions));
+            return;
+        }
+        var pose=target.Pose;var axis=new Vector3(direction.y,0,-direction.x);
+        var endPose=Quaternion.AngleAxis(180*cells,axis)*pose;
+        bool space=!Tile(origin+direction*cells)&&!Deck(origin+direction*cells,target);
+        var flat=Quaternion.FromToRotation(endPose*Vector3.up,Vector3.up)*endPose;
+        var flight=PrepareLiveRing(target,origin,direction,cells,path[cells],space?flat:endPose,space);
+        var actions=new System.Collections.Generic.Stack<IEnumerator>();
+        actions.Push(RollTransferredRing(target,direction,path.ToArray(),pose,endPose,flat,space,speed));
+        target.walkable=false;
+        flight.playback=StartCoroutine(ContinueLiveRing(flight,actions));
+    }
+    void TryToppleBarFromRing(MagnetPiece source,MagnetPiece bar,Vector2Int direction){
+        if(MagnetStillAnimating(bar)||!Supported(bar)
+            ||!SameHeight(source.transform.position.y,bar.transform.position.y))return;
+        var origin=Cell(bar.transform);var next=origin+direction;
+        var start=bar.transform.position;var pose=bar.Pose;
+        var axis=new Vector3(direction.y,0,-direction.x);
+        float landing=start.y;
+        bool canFall=next!=PlayerCell&&!BlackHolePortal.At(this,next)&&!Piece(next,bar)
+            &&TravelSurface(origin,start.y,next,bar,out landing)&&!TransportObstacle(next,bar);
+        LiveRing reaction;
+        var actions=new System.Collections.Generic.Stack<IEnumerator>();
+        if(canFall){
+            var end=Position(next,landing);var endPose=Quaternion.AngleAxis(90,axis)*pose;
+            bool isRing=bar.product==MagnetProduct.Ring;
+            bool space=isRing&&!Tile(next)&&!Deck(next,bar);
+            reaction=PrepareLiveRing(bar,origin,direction,1,end,endPose,space);
+            // Reuse the independent impact playback/undo lifecycle, not ring walkability.
+            reaction.destination.walkable=isRing;
+            reaction.route.Add(origin);
+            actions.Push(AnimateRingBarImpact(bar,start,end,pose,axis,true));
+        }else{
+            reaction=new LiveRing{piece=bar,destination=SavePiece(bar),direction=direction};
+            reaction.route.Add(origin);liveRings.Add(reaction);
+            actions.Push(AnimateRingBarImpact(bar,start,start,pose,axis,false));
+        }
+        reaction.playback=StartCoroutine(ContinueLiveRing(reaction,actions));
+    }
+    IEnumerator AnimateRingBarImpact(MagnetPiece bar,Vector3 start,Vector3 end,Quaternion pose,Vector3 axis,bool falling){
+        float seconds=falling?Mathf.Max(.3f,barPushSeconds):.48f;
+        for(float elapsed=0;elapsed<seconds;){
+            elapsed=Mathf.Min(seconds,elapsed+Time.deltaTime);
+            float p=elapsed/seconds;
+            float angle;
+            if(falling){
+                float fall=p*p;
+                angle=90*fall;
+                bar.transform.position=Vector3.Lerp(start,end,Mathf.SmoothStep(0,1,fall));
+            }else{
+                // First lean with the impact, then swing back with decaying amplitude.
+                angle=7*Mathf.Sin(p*Mathf.PI*3)*(1-p)*(1-p);
+            }
+            bar.geometry.rotation=Quaternion.AngleAxis(angle,axis)*pose;
+            MagnetVisuals.Ground(bar);
+            yield return null;
+        }
+        bar.transform.position=end;
+        bar.geometry.rotation=falling?Quaternion.AngleAxis(90,axis)*pose:pose;
+        MagnetVisuals.Ground(bar);
+        if(falling&&bar.product==MagnetProduct.Ring&&SpaceRing(bar)&&!Deck(Cell(bar.transform),bar)){
+            var flat=bar.Pose;
+            yield return RingFloatAfterLeavingShore(bar,flat,flat,true);
+        }
+    }
+    IEnumerator RollTransferredRing(MagnetPiece ring,Vector2Int direction,Vector3[] path,Quaternion pose,Quaternion endPose,Quaternion flat,bool space,float speed){
+        int cells=path.Length-1;var axis=new Vector3(direction.y,0,-direction.x);
+        float seconds=cells*cellSize/Mathf.Max(.01f,speed);
+        for(float elapsed=0;elapsed<seconds;){
+            elapsed=Mathf.Min(seconds,elapsed+Time.deltaTime);
+            float distance=elapsed/seconds*cells;int segment=Mathf.Min(cells-1,Mathf.FloorToInt(distance));
+            ring.transform.position=Vector3.Lerp(path[segment],path[segment+1],distance-segment);
+            ring.geometry.rotation=Quaternion.AngleAxis(180*distance,axis)*pose;MagnetVisuals.Ground(ring);
+            yield return null;
+        }
+        ring.transform.position=path[cells];ring.geometry.rotation=endPose;MagnetVisuals.Ground(ring);
+        if(space)yield return RingFloatAfterLeavingShore(ring,endPose,flat,true);
+        else{
+            float height;var end=Cell(ring.transform);
+            if(!RingCanEnter(ring,end,path[cells].y,end+direction,out height))
+                yield return RingStoneRebound(ring,new Vector3(direction.x,0,direction.y),axis,speed,realtime:true,transferMomentum:true);
         }
     }
 }
