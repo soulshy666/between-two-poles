@@ -9,17 +9,19 @@ public sealed partial class GridPlayground {
     void UpdateBridgeJunctionLinks(){
         liveJunctionLinks.Clear();
         for(int i=0;i<magnets.Length;i++){
-            var a=magnets[i];if(!JunctionBar(a))continue;
+            var a=magnets[i];if(!JunctionBar(a)&&!RingShore(a))continue;
             for(int j=i+1;j<magnets.Length;j++){
-                var b=magnets[j];if(!JunctionBar(b)||(!GapWideBar(a)&&!GapWideBar(b)))continue;
+                var b=magnets[j];if((!JunctionBar(b)&&!RingShore(b))||(!GapWideBar(a)&&!GapWideBar(b)))continue;
                 var from=Cell(a.transform);var to=Cell(b.transform);var dir=to-from;
-                if(Mathf.Abs(dir.x)+Mathf.Abs(dir.y)!=1||AlongDeck(a,dir)==AlongDeck(b,dir)
+                bool ringA=RingShore(a),ringB=RingShore(b);
+                bool sockets=ringA?AlongDeck(b,dir):ringB?AlongDeck(a,dir):AlongDeck(a,dir)!=AlongDeck(b,dir);
+                if(Mathf.Abs(dir.x)+Mathf.Abs(dir.y)!=1||!sockets
                     ||!SameHeight(DeckHeight(a),DeckHeight(b))||!BridgePassage(from,to))continue;
                 if(MagnetStillAnimating(a)||MagnetStillAnimating(b))continue;
                 var key=new Vector2Int(a.GetInstanceID(),b.GetInstanceID());liveJunctionLinks.Add(key);
                 var direction=new Vector3(dir.x,0,dir.y);
-                float start=AlongDeck(a,dir)?cellSize*.5f:.24f;
-                float finish=cellSize-(AlongDeck(b,dir)?cellSize*.5f:.24f);
+                float start=ringA?.48f:AlongDeck(a,dir)?cellSize*.5f:.24f;
+                float finish=cellSize-(ringB?.48f:AlongDeck(b,dir)?cellSize*.5f:.24f);
                 Transform link;
                 if(!junctionLinks.TryGetValue(key,out link)||!link){
                     link=new GameObject("宽条桥接缝电磁波").transform;

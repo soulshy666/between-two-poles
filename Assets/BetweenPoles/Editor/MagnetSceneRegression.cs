@@ -116,7 +116,8 @@ namespace BetweenPoles.EditorTools {
                     float degrees;var arrival=MagnetPiece.Rolled(near.shape,near.Pose,push,out degrees);
                     bool front=a==0&&b==2;
                     bool opposedSide=(a==1&&b==3)||(a==3&&b==1);
-                    var expected=front||opposedSide?MagnetProduct.Ring:MagnetProduct.None;
+                    bool stacked=Vector3.Dot(arrival*Vector3.forward,far.Pose*Vector3.forward)>.95f;
+                    var expected=stacked?MagnetProduct.ThickU:front||opposedSide?MagnetProduct.Ring:MagnetProduct.None;
                     Check(GridPlayground.Recipe(near,arrival,far,true,push)==expected,"Front/side ring alignment: "+push+" / "+a+" / "+b);
                     Check(GridPlayground.Recipe(near,arrival,far,false,push)==expected,"Floating receiver changed alignment rule");
                     Check(GridPlayground.Recipe(near,arrival,far,true,push)==expected,"All scenes must use facing openings");

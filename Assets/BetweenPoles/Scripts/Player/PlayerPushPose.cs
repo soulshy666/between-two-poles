@@ -13,6 +13,7 @@ public sealed partial class PlayerPushPose:MonoBehaviour {
     float nextWalkSoundDistance;
     bool flowPushing,flowReleaseRequested;
     float flowDistance,flowCellSize,flowEffort,flowRelease=1;
+    float flowReleaseSeconds=.12f;
     public enum FlowPushStyle { Standard, LiftBar, ShoveBar }
     FlowPushStyle flowStyle;
     struct FlowStance {
@@ -65,10 +66,13 @@ public sealed partial class PlayerPushPose:MonoBehaviour {
         pose.flowStartStance=FlowStance.Blend(default(FlowStance),pose.flowStance,pose.flowRelease);
         pose.flowStyle=style;
         pose.flowPushing=true;pose.flowReleaseRequested=false;pose.pushing=true;pose.walking=false;
-        pose.flowCellSize=Mathf.Max(.01f,cellSize);pose.flowRelease=1;
+        pose.flowCellSize=Mathf.Max(.01f,cellSize);pose.flowRelease=1;pose.flowReleaseSeconds=.12f;
         return pose;
     }
-    public void ReleaseFlowPush(){if(flowPushing)flowReleaseRequested=true;}
+    public void ReleaseFlowPush(float seconds=.12f){
+        if(!flowPushing)return;
+        flowReleaseSeconds=Mathf.Max(.01f,seconds);flowReleaseRequested=true;
+    }
     public void AdvanceFlowPush(float distance,float seconds,float progress=0){
         flowDistance+=distance;
         flowEffort=Mathf.MoveTowards(flowEffort,1,seconds/.07f);
@@ -393,7 +397,7 @@ public sealed partial class PlayerPushPose:MonoBehaviour {
         if(collectingStarPose)return;
         if(readingMap){SampleMap(mapProgress);return;}
         if(flowPushing&&(flowReleaseRequested||!board||!board.Busy)){
-            flowRelease=Mathf.MoveTowards(flowRelease,0,Time.deltaTime/.12f);
+            flowRelease=Mathf.MoveTowards(flowRelease,0,Time.deltaTime/flowReleaseSeconds);
             ApplyFlowStance(flowStance,flowRelease);
             if(flowRelease<=0)End();
             return;

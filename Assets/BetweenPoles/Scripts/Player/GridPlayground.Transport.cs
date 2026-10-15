@@ -20,6 +20,10 @@ public sealed partial class GridPlayground {
             // A rock blocks ground walking, but its solid shore still anchors
             // a completed span. Access from its top is checked by TryStepCore.
             if(tile)return SameHeight(tile.surfaceHeight,baseHeight)||SameHeight(tile.surfaceHeight,top);
+            // Settled space rings are shores in every direction, even though
+            // rings remain pushable objects elsewhere in the movement system.
+            foreach(var ring in magnets)if(RingShore(ring)&&ring.Occupies(cell,cellSize)
+                &&SameHeight(DeckHeight(ring),top))return true;
             var deck=Deck(cell,bridge,true);
             if(!deck||visiting.Contains(deck)||!SameHeight(DeckHeight(deck),top)
                 ||(deck.product!=MagnetProduct.WideBar&&deck.product!=MagnetProduct.Bridge
@@ -59,6 +63,10 @@ public sealed partial class GridPlayground {
     }
     bool SpaceRing(MagnetPiece ring){
         return ring&&ring.product==MagnetProduct.Ring&&!Tile(Cell(ring.transform));
+    }
+    bool RingShore(MagnetPiece ring){
+        return SpaceRing(ring)&&ring.enabled&&ring.gameObject.activeInHierarchy&&ring.geometry
+            &&ring.walkable&&MagnetPiece.FlatU(ring.Pose)&&!MagnetStillAnimating(ring);
     }
     bool ShoreLevelBridge(MagnetPiece deck){
         if(!deck||!deck.walkable)return false;

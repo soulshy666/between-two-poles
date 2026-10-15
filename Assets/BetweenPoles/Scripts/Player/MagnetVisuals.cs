@@ -116,6 +116,10 @@ public static class MagnetVisuals {
         if(product==MagnetProduct.WideBar){Box(g,new Vector3(0,.12f,-.12f),new Vector3(cell,.24f,.24f),north);Box(g,new Vector3(0,.12f,.12f),new Vector3(cell,.24f,.24f),!north);}
         // The receiver retains its U opening; the incoming U closes that opening.
         if(product==MagnetProduct.Ring){Arc(g,north,180,360);Arc(g,!north,0,180);RingSurface(g);}
+        if(product==MagnetProduct.ThickU){
+            var bottom=Group(g,"接收 U · 下层");Arc(bottom,north,180,360);
+            var top=Group(g,"推入 U · 上层");top.localPosition=Vector3.up*.24f;Arc(top,!north,180,360);
+        }
         if(product==MagnetProduct.Cross){Box(g,new Vector3(0,.12f,0),new Vector3(cell,.24f,.24f),north);Box(g,new Vector3(0,.36f,0),new Vector3(.24f,.24f,cell),!north);}
         if(product==MagnetProduct.Lift){Arc(g,baseNorth,180,360);Box(g,new Vector3(0,cell*.5f,0),new Vector3(.24f,cell,.24f),!baseNorth);}
         if(product==MagnetProduct.Bridge||product==MagnetProduct.BridgeHalf){

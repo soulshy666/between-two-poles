@@ -6,6 +6,7 @@ public sealed partial class GridPlayground {
     Vector3 blockedUNudgeDirection;
     float blockedUNudgeOffset;
     public void BeginBlockedUNudge(MagnetPiece magnet,Vector2Int direction){
+        if(!Supported(magnet))return;
         blockedUNudge=magnet;blockedUNudgeDirection=new Vector3(direction.x,0,direction.y);blockedUNudgeOffset=0;
     }
     public void SampleBlockedUNudge(float time){
