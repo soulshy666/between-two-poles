@@ -136,10 +136,13 @@ public sealed class ElementGameUI:MonoBehaviour {
     void DrawPausePanel(float width,float height,float k,bool interactive){
         var panel=Asset("pause-panel");
         float panelHeight=panel?panel.height*k:60*k;
-        float top=(height-panelHeight-30*k)*.5f;
+        float top=(height-panelHeight-46*k)*.5f;
         if(panel)GUI.DrawTexture(new Rect((width-panel.width*k)*.5f,top,panel.width*k,panelHeight),panel);
         float buttonWidth=70*k,buttonHeight=18*k;
-        var menu=new Rect((width-buttonWidth)*.5f,top+panelHeight+6*k,buttonWidth,buttonHeight);
+        var timeRect=new Rect((width-110*k)*.5f,top+panelHeight+3*k,110*k,15*k);
+        Panel(timeRect);
+        GUI.Label(timeRect,"游玩时长  "+SessionPlayTime.Display,PixelGameUI.Text(Mathf.RoundToInt(5*k),TextAnchor.MiddleCenter));
+        var menu=new Rect((width-buttonWidth)*.5f,top+panelHeight+22*k,buttonWidth,buttonHeight);
         bool old=GUI.enabled;GUI.enabled=interactive&&!returningToMenu;
         bool clicked=PixelGameUI.Button(menu,"返回主菜单");GUI.enabled=old;
         if(!interactive)return;

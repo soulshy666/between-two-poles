@@ -16,6 +16,7 @@ public sealed partial class BlackHoleTravel {
     float navigationStartSize;
     public bool PlayerReturnRequested {get;private set;}
     bool playerReturnPressed;
+    bool navigationMapPresentation;
     public void BeginInspection(GridPlayground board,bool preserveCurrentView=false){
         inspectionBoard=board;
         Vector3 position;
@@ -69,6 +70,7 @@ public sealed partial class BlackHoleTravel {
         return room==origin.Room||SessionExploration.GetInt(ChapterAtlas.Key(origin.gameObject.scene.path,room),0)>0;
     }
     void BeginNavigation(GridPlayground board,bool mapPresentation=true){
+        navigationMapPresentation=mapPresentation;
         navigationRenderers.Clear();
         foreach(var camera in FindObjectsOfType<IslandCamera>())if(camera.enabled&&camera.board==board){navigationCamera=camera;break;}
         if(!navigationCamera)throw new System.InvalidOperationException("黑洞总览找不到当前关卡镜头");
@@ -284,6 +286,17 @@ public sealed partial class BlackHoleTravel {
     }
     void OnGUI(){
         DrawUnknownIslands();
+        if(navigationCamera&&navigationWindow&&navigationMapPresentation){
+            int unlocked=0,total=0;
+            foreach(var room in navigationWindow.rooms){if(!room.center)continue;total++;if(VisitedRoom(room.id)||VisitedRoom(room.center.name))unlocked++;}
+            var style=PixelGameUI.Text(Mathf.RoundToInt(9*ElementGameUI.K),TextAnchor.MiddleCenter);
+            style.normal.textColor=new Color(.94f,.97f,1);
+            var safe=Screen.safeArea;float top=Screen.height-safe.yMax+6*ElementGameUI.K;
+            var rect=new Rect(safe.center.x-100,top,200,12*ElementGameUI.K);
+            var shadow=new GUIStyle(style);shadow.normal.textColor=new Color(0,0,0,.75f);
+            GUI.Label(new Rect(rect.x+2,rect.y+2,rect.width,rect.height),unlocked+"/"+total,shadow);
+            GUI.Label(rect,unlocked+"/"+total,style);
+        }
         if(inspectionBoard){if(inspectionPosition.HasValue)DrawOriginIndicator();return;}
         if(testPortals==null||busy||!Selecting)return;
         DrawOriginIndicator();
