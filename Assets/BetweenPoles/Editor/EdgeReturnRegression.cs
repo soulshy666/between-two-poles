@@ -57,6 +57,9 @@ namespace BetweenPoles.EditorTools {
             var root=new GameObject("Edge return regression");root.SetActive(false);int cases=0;
             try{
                 for(int rotation=0;rotation<4;rotation++)for(int color=0;color<2;color++)for(int shape=0;shape<2;shape++)for(int scenario=0;scenario<5;scenario++){
+                    // Stone-backed recoil is covered by WalkResponseRegression;
+                    // this runner drains grid movement rather than recoil flight coroutines.
+                    if(scenario==2)continue;
                     var host=new GameObject("Case");host.transform.SetParent(root.transform,false);
                     var b=host.AddComponent<GridPlayground>();b.enabled=false;
                     var axis=Quaternion.Euler(0,rotation*90,0)*Vector3.right;
@@ -91,8 +94,13 @@ namespace BetweenPoles.EditorTools {
                     }
                     foreach(var other in magnets)other.north=far.north;
                     CheckRender(b,far);
+                    if(scenario==1&&near.shape==MagnetShape.Bar){
+                        near.geometry.rotation=Quaternion.Euler(0,0,90);MagnetVisuals.Ground(near);
+                        b.CaptureInitialState();
+                    }
+                    bool spaceRepel=scenario==1&&near.shape==MagnetShape.Bar;
                     bool accepted=b.TryStep(dir);
-                    Check(accepted==(scenario==0),"Acceptance mismatch scenario="+scenario+" "+b.LastRule);
+                    Check(accepted==(scenario==0||spaceRepel),"Acceptance mismatch scenario="+scenario+" "+b.LastRule);
                     b.StopAllCoroutines();
                     typeof(GridPlayground).GetField("recordingPush",Flags).SetValue(b,true);
                     int samples=0;
@@ -103,6 +111,12 @@ namespace BetweenPoles.EditorTools {
                     }
                     typeof(GridPlayground).GetField("recordingPush",Flags).SetValue(b,false);
                     Call(b,"FinishMovement");
+                    if(spaceRepel){
+                        Check(Vector3.Distance(near.transform.position,axis*3)<.001f&&Vector3.Distance(far.transform.position,axis*4.5f)<.001f,"Space repulsion landing mismatch");
+                        Check(!MagnetPiece.VerticalBar(near.Pose),"Near standing bar did not topple");
+                        Check(Vector3.Distance(b.player.position,axis*1.5f)<.001f,"Player followed bars into space");
+                        Check(b.UndoStep()&&MagnetPiece.VerticalBar(near.Pose),"Space repulsion undo lost original posture");
+                    }
                     if(scenario==0){
                         Check(Vector3.Distance(near.transform.position,axis*3)<.001f&&Vector3.Distance(far.transform.position,axis*4.5f)<.001f,"Magnet landing mismatch");
                         Check(Vector3.Distance(b.player.position,axis*1.5f)<.001f,"Player entered gap");

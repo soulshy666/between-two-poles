@@ -118,8 +118,8 @@ namespace BetweenPoles.EditorTools {
                     bool opposedSide=(a==1&&b==3)||(a==3&&b==1);
                     // Same-facing lateral U's and back-to-back axial U's stack;
                     // front-to-front sockets always form a ring, despite their rolled pose.
-                    bool flipCatch=a==b&&(a==0||a==2);
-                    bool stacked=(a==b&&(a==1||a==3))||(a==2&&b==0);
+                    bool flipCatch=a==2&&b==2;
+                    bool stacked=(a==b&&a!=2)||(a==2&&b==0);
                     var expected=front||opposedSide||flipCatch?MagnetProduct.Ring:stacked?MagnetProduct.ThickU:MagnetProduct.None;
                     Check(GridPlayground.Recipe(near,arrival,far,true,push)==expected,"Front/side ring alignment: "+push+" / "+a+" / "+b);
                     Check(GridPlayground.Recipe(near,arrival,far,false,push)==expected,"Floating receiver changed alignment rule");
@@ -129,6 +129,65 @@ namespace BetweenPoles.EditorTools {
                     far.north=false;cases++;
                 }
                 Debug.Log("PASS: "+cases+" ring orientation cases; unified recipes, both flat faces, supported/floating receiver and same poles.");
+            }finally{EditorSceneManager.ClosePreviewScene(scene);}
+        }
+        [MenuItem("两极之间/验证条形磁铁翻转合成")]
+        static void ValidateTippingBarRecipes(){
+            var scene=EditorSceneManager.NewPreviewScene();
+            try{
+                var root=new GameObject("Tipping bar recipes");root.SetActive(false);SceneManager.MoveGameObjectToScene(root,scene);
+                var bar=MagnetVisuals.Create(root.transform,Vector3.zero,MagnetShape.Bar,true,Quaternion.identity,1.5f,root.transform);
+                var u=MagnetVisuals.Create(root.transform,Vector3.zero,MagnetShape.Horseshoe,false,Quaternion.identity,1.5f,root.transform);
+                foreach(var dir in new[]{Vector2Int.right,Vector2Int.left,Vector2Int.up,Vector2Int.down})
+                foreach(bool supported in new[]{false,true}){
+                    var yaw=Quaternion.FromToRotation(Vector3.right,new Vector3(dir.x,0,dir.y));
+                    u.geometry.rotation=Quaternion.LookRotation(new Vector3(dir.x,0,dir.y));
+                    foreach(bool standing in new[]{false,true}){
+                        bar.geometry.rotation=yaw*Quaternion.Euler(0,0,standing?90:0);
+                        float degrees;var arrival=MagnetPiece.Rolled(bar.shape,bar.Pose,dir,out degrees);
+                        var expected=standing?MagnetProduct.BridgeHalf:MagnetProduct.Lift;
+                        Check(GridPlayground.Recipe(bar,arrival,u,supported,dir)==expected,"Tipping bar recipe failed: "+dir+" / "+standing);
+                        u.north=true;
+                        Check(GridPlayground.Recipe(bar,arrival,u,supported,dir)==MagnetProduct.None,"Same poles assembled");u.north=false;
+                    }
+                }
+                u.product=MagnetProduct.BridgeHalf;u.combined=true;
+                foreach(var dir in new[]{Vector2Int.right,Vector2Int.left,Vector2Int.up,Vector2Int.down}){
+                    bar.geometry.rotation=Quaternion.Euler(0,0,90);
+                    float degrees;var arrival=MagnetPiece.Rolled(bar.shape,bar.Pose,dir,out degrees);
+                    Check(GridPlayground.Recipe(bar,arrival,u,false,dir)==MagnetProduct.Bridge,"Standing second rail failed to complete bridge: "+dir);
+                }
+                Debug.Log("PASS: bar tipping recipes and standing second rail in four directions.");
+            }finally{EditorSceneManager.ClosePreviewScene(scene);}
+        }
+        [MenuItem("两极之间/验证圆环平台上的圆环推动")]
+        static void ValidateRingOnRing(){
+            var scene=EditorSceneManager.NewPreviewScene();
+            try{
+                foreach(var dir in new[]{Vector2Int.right,Vector2Int.left,Vector2Int.up,Vector2Int.down}){
+                    var root=new GameObject("Ring on ring regression");root.SetActive(false);SceneManager.MoveGameObjectToScene(root,scene);
+                    var board=root.AddComponent<GridPlayground>();board.enabled=false;
+                    var forward=new Vector3(dir.x,0,dir.y);
+                    board.player=new GameObject("Player").transform;board.player.SetParent(root.transform);board.player.position=-forward*board.cellSize;
+                    var shore=new GameObject("Shore");shore.transform.SetParent(root.transform);shore.transform.position=board.player.position;
+                    board.tiles=new[]{shore.AddComponent<GridTile>()};
+                    var platform=MagnetVisuals.Create(root.transform,Vector3.zero,MagnetShape.Horseshoe,true,Quaternion.identity,board.cellSize,root.transform);
+                    MagnetVisuals.Product(platform,MagnetProduct.Ring,board.cellSize,Quaternion.identity,true);
+                    var wheel=MagnetVisuals.Create(root.transform,Vector3.zero,MagnetShape.Horseshoe,false,Quaternion.identity,board.cellSize,root.transform);
+                    var pose=Quaternion.FromToRotation(Vector3.up,new Vector3(dir.y,0,-dir.x));
+                    MagnetVisuals.Product(wheel,MagnetProduct.Ring,board.cellSize,pose,false);wheel.walkable=false;
+                    board.magnets=new[]{platform,wheel};root.SetActive(true);
+                    typeof(GridPlayground).GetField("recordingPush",Flags).SetValue(board,true);
+                    Check(board.MagnetAt(Vector2Int.zero)==wheel,"Platform hid upright occupant");
+                    Check(board.TryStep(dir),"Upright ring on space platform cannot be pushed: "+board.LastRule);
+                    typeof(GridPlayground).GetMethod("FinishMovement",Flags).Invoke(board,null);
+                    Check(Vector3.Distance(wheel.transform.position,forward*board.cellSize)<.001f,"Upper ring missed next space cell");
+                    Check(platform.transform.position.sqrMagnitude<.001f&&platform.walkable,"Supporting ring moved");
+                    Check(MagnetPiece.FlatU(wheel.Pose)&&wheel.walkable,"Ring failed to become terrain in empty space");
+                    Check(board.player.position.sqrMagnitude<.001f,"Player did not step onto vacated platform");
+                    UnityEngine.Object.DestroyImmediate(root);
+                }
+                Debug.Log("PASS: ring on ring push, platform preservation, player landing and space flattening in four directions.");
             }finally{EditorSceneManager.ClosePreviewScene(scene);}
         }
         static string Fingerprint(Transform geometry){

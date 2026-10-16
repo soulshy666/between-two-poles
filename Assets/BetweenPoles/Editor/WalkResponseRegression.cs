@@ -185,9 +185,9 @@ namespace BetweenPoles.EditorTools {
             var stone=new GameObject("Recoil backstop");stone.transform.SetParent(root.transform);
             stone.transform.position=new Vector3(dir.x,0,dir.y)*board.cellSize*3;
             var tile=stone.AddComponent<GridTile>();tile.blocked=true;
-            // A stone alone cannot anchor two floating bars.
+            // A stone backstop permits recoil even with two floating bars.
             board.tiles=new[]{tile};board.magnets=new[]{near,far};
-            Check(!(bool)Call(board,"StoneBackedRecoilPair",near,far,dir),"Unsupported pair recoiled");
+            Check((bool)Call(board,"StoneBackedRecoilPair",near,far,dir),"Floating pair failed to recoil");
             var shoreObject=new GameObject("Recoil support");shoreObject.transform.SetParent(root.transform);
             shoreObject.transform.position=near.transform.position;
             var shore=shoreObject.AddComponent<GridTile>();board.tiles=new[]{tile,shore};
@@ -205,18 +205,15 @@ namespace BetweenPoles.EditorTools {
             board.magnets=new[]{near,far,deck};
             Check((bool)Call(board,"StoneBackedRecoilPair",near,far,dir),"Connected bridge did not support recoil");
             deck.bridgeDirection=new Vector2Int(-dir.y,dir.x);
-            Check(!(bool)Call(board,"StoneBackedRecoilPair",near,far,dir),"Crosswise bridge supported recoil");
+            Check((bool)Call(board,"StoneBackedRecoilPair",near,far,dir),"Crosswise bridge blocked stone-backed recoil");
             deck.bridgeDirection=dir;board.tiles=new[]{tile};
-            Check(!(bool)Call(board,"StoneBackedRecoilPair",near,far,dir),"Unconnected bridge supported recoil");
+            Check((bool)Call(board,"StoneBackedRecoilPair",near,far,dir),"Unconnected bridge blocked stone-backed recoil");
             // A single connected bar span can support just the near magnet.
             deck.product=MagnetProduct.None;deck.shape=MagnetShape.Bar;
             deck.geometry.rotation=Quaternion.FromToRotation(Vector3.right,new Vector3(dir.x,0,dir.y));
             var endObject=new GameObject("Bar span end");endObject.transform.SetParent(root.transform);endObject.transform.position=far.transform.position;
             var end=endObject.AddComponent<GridTile>();board.tiles=new[]{tile,shore,end};
-            near.transform.position+=Vector3.up*.24f;
-            Check((bool)Call(board,"RecoilSupported",near,dir),"Connected bar did not support recoil");
-            Check(!(bool)Call(board,"RecoilSupported",near,new Vector2Int(-dir.y,dir.x)),"Crosswise bar supported recoil");
-            near.transform.position-=Vector3.up*.24f;
+            Check((bool)Call(board,"StoneBackedRecoilPair",near,far,dir),"Bar deck blocked stone-backed recoil");
             deck.gameObject.SetActive(false);endObject.SetActive(false);board.magnets=new[]{near,far};
             shoreObject.transform.position=near.transform.position;board.tiles=new[]{tile,shore};
             far.north=false;

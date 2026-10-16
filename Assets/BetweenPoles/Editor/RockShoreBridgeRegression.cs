@@ -50,6 +50,19 @@ public static class RockShoreBridgeRegression {
                 Check((bool)Call(b,"BridgePassage",dir,dir*2,null),"Bridge-to-island path blocked");
                 var side=new Vector2Int(-dir.y,dir.x);Check(!(bool)Call(b,"BridgePassage",dir,dir+side,null),"Side entry allowed");
                 b.tiles=new[]{tile};b.InvalidateTileLookup();Check(!(bool)Call(b,"WideBarConnected",bridge)&&(bool)Call(b,"ShouldHover",bridge),"Missing far shore still connected");
+                Check((bool)Call(b,"BridgePassage",Vector2Int.zero,dir,null),"Floating wide bar rejected along its length");
+                Check(!(bool)Call(b,"BridgePassage",dir,dir+side,null),"Floating wide bar allowed sideways exit");
+                var nextPlatform=MagnetVisuals.Create(root.transform,axis*3,MagnetShape.Bar,false,yaw,1.5f,root.transform);
+                MagnetVisuals.Product(nextPlatform,MagnetProduct.WideBar,1.5f,yaw,false);
+                var cargo=MagnetVisuals.Create(root.transform,axis*1.5f,MagnetShape.Horseshoe,true,Quaternion.identity,1.5f,root.transform);
+                b.magnets=new[]{bridge,nextPlatform,cargo};
+                Check((bool)Call(b,"Supported",cargo),"Floating wide bar failed to support cargo");
+                Check((bool)Call(b,"BridgePassage",dir,dir*2,cargo),"Consecutive floating wide bars blocked cargo");
+                var destination=b.InspectMagnetDestination(dir,0,dir*2,cargo);
+                Check(destination.kind==GridPlayground.MagnetLandingKind.Deck,"Next floating wide bar is not a cargo deck");
+                nextPlatform.product=MagnetProduct.None;nextPlatform.combined=false;nextPlatform.walkable=false;
+                Check(b.InspectMagnetDestination(dir,0,dir*2,cargo).kind==GridPlayground.MagnetLandingKind.Magnet,"Single floating bar became a platform");
+                nextPlatform.gameObject.SetActive(false);cargo.gameObject.SetActive(false);b.magnets=new[]{bridge};
                 // Stand on a flat single on land: use its top, not the land below,
                 // as the takeoff height for an adjacent rock.
                 bridge.gameObject.SetActive(false);

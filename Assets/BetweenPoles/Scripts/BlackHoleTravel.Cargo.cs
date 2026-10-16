@@ -9,6 +9,8 @@ public sealed partial class BlackHoleTravel {
         public MagnetPiece receiver;
         public MagnetPiece displaced;
         public MagnetPiece exitKickTarget;
+        public MagnetPiece kickReceiver;
+        public MagnetProduct kickProduct;
         public Vector3 displacedPosition;
         public MagnetProduct product;
     }
@@ -102,6 +104,17 @@ public sealed partial class BlackHoleTravel {
     static bool PlanExitKick(GridPlayground board,MagnetPiece cargo,Vector2Int cell,Vector2Int direction,float height,ref ExitPlan plan){
         var arrival=board.InspectMagnetDestination(cell,height,cell+direction,cargo);
         plan.kicked=arrival.position;
+        if(arrival.kind==GridPlayground.MagnetLandingKind.Magnet){
+            var receiver=arrival.obstacle;
+            if(cargo.product!=MagnetProduct.None||cargo.shape!=MagnetShape.Bar
+                ||!MagnetPiece.VerticalBar(cargo.Pose)||!receiver||receiver.shape!=MagnetShape.Bar
+                ||receiver.combined||receiver.product!=MagnetProduct.None||receiver.north==cargo.north
+                ||MagnetPiece.VerticalBar(receiver.Pose)||Mathf.Abs(receiver.transform.position.y-height)>.01f)return false;
+            float degrees;var fallen=MagnetPiece.Rolled(cargo.shape,cargo.Pose,direction,out degrees);
+            var product=GridPlayground.Recipe(cargo,fallen,receiver,board.TileAt(cell+direction),direction);
+            if(product!=MagnetProduct.WideBar)return false;
+            plan.kickReceiver=receiver;plan.kickProduct=product;return true;
+        }
         if(arrival.kind!=GridPlayground.MagnetLandingKind.Blocked)return arrival.kind!=GridPlayground.MagnetLandingKind.Magnet;
         var solid=board.TileAt(cell+direction);
         // A solid next cell stops the tip, but does not prevent the initial ejection.
@@ -244,16 +257,14 @@ public sealed partial class BlackHoleTravel {
         var launch=landing;
         try{
             geometry.position=restPosition+Vector3.up*offset;
-            bool landingPlayed=false;
             for(float t=0;t<1.05f;t+=AnimationDeltaTime){
-                PlayPlayerLandingAhead(portalAudio,t,1.05f,ref landingPlayed);
                 float a=Mathf.Clamp01(t/1.05f);player.localScale=scale*Mathf.Clamp01(a*5);
                 player.position=ThrownPosition(hole,landing,a);
                 // Blend into the same prone pose used by the recovery, without a pose reset.
                 pose.SampleUnstablePortalArrival(a);yield return null;
             }
             player.localScale=scale;player.position=landing;
-            PlayPlayerLandingAhead(portalAudio,1.05f,1.05f,ref landingPlayed);
+            if(portalAudio)portalAudio.Land(false);
             // Impact and spring compression share one displacement: the prone
             // actor stays in contact with the magnetic surface until release.
             float depth=board.cellSize*.32f;
@@ -312,21 +323,30 @@ public sealed partial class BlackHoleTravel {
                     var kickPose=PlayerPushPose.Begin(player);
                     var portalAudio=PortalAudio.For(player);if(portalAudio)portalAudio.Exit(false);
                     var landing=PortalProneLanding(player,kickPose,plan.player,playerScale);
-                    bool landingPlayed=false;
+                    // The same docking animation used by a normal push tips the bar
+                    // into its receiver while the actor lands in the vacated cell.
+                    var assembly=plan.kickReceiver?board.AssemblePortalCargo(cargo,plan.kickReceiver,direction,plan.kickProduct):null;
+                    var motions=new System.Collections.Generic.Stack<IEnumerator>();
+                    if(assembly!=null)motions.Push(assembly);
                     for(float t=0;t<.8f;t+=AnimationDeltaTime){
-                        PlayPlayerLandingAhead(portalAudio,t,.8f,ref landingPlayed);
                         float a=Mathf.SmoothStep(0,1,t/.8f);
+                        if(assembly!=null){
+                            while(motions.Count>0){var motion=motions.Peek();if(!motion.MoveNext()){motions.Pop();continue;}if(motion.Current is IEnumerator child){motions.Push(child);continue;}break;}
+                        }else{
                         cargo.transform.position=Vector3.Lerp(plan.magnet,plan.kicked,a);
-                        cargo.geometry.rotation=Quaternion.Slerp(pose,fallen,a);MagnetVisuals.Ground(cargo);kickPose.SamplePortalFlight(a);
+                        cargo.geometry.rotation=Quaternion.Slerp(pose,fallen,a);MagnetVisuals.Ground(cargo);
+                        }
+                        kickPose.SamplePortalFlight(a);
                         player.position=ThrownPosition(portalPosition,landing,a);yield return null;
                     }
+                    if(assembly==null){
                     cargo.transform.position=plan.kicked;cargo.geometry.rotation=fallen;MagnetVisuals.Ground(cargo);
                     if(cargo.product==MagnetProduct.Ring)cargo.walkable=MagnetPiece.FlatU(cargo.Pose);
-
-
+                    }
                     player.position=landing;kickPose.SamplePortalProne();
-                    PlayPlayerLandingAhead(portalAudio,.8f,.8f,ref landingPlayed);
-                    yield return board.SettleMagnetArrival(cargo,plan.magnet,true);
+                    if(portalAudio)portalAudio.Land(false);
+                    while(motions.Count>0){var motion=motions.Peek();if(!motion.MoveNext()){motions.Pop();continue;}if(motion.Current is IEnumerator child){motions.Push(child);continue;}yield return null;}
+                    if(assembly==null)yield return board.SettleMagnetArrival(cargo,plan.magnet,true);
                     player.position=landing;yield return RecoverPlayer(player,plan.player);
     }
     IEnumerator BlockedKickRebound(Transform player,MagnetPiece cargo,Vector3 hole,Vector2Int direction,ExitPlan plan,Quaternion original,Vector3 scale,GridPlayground board){
@@ -509,20 +529,14 @@ public sealed partial class BlackHoleTravel {
         var flight=PlayerPushPose.Begin(player);
         var portalAudio=PortalAudio.For(player);if(portalAudio)portalAudio.Exit(false);
         var landing=PortalProneLanding(player,flight,end,scale);
-        bool landingPlayed=false;
         for(float t=0;t<1.05f;t+=AnimationDeltaTime){
-            PlayPlayerLandingAhead(portalAudio,t,1.05f,ref landingPlayed);
             float a=t/1.05f;player.localScale=scale*Mathf.Lerp(.05f,1,Mathf.Clamp01(a*5));
             player.position=ThrownPosition(start,landing,a);flight.SamplePortalFlight(a);yield return null;
         }
         player.localScale=scale;player.position=landing;
-        PlayPlayerLandingAhead(portalAudio,1.05f,1.05f,ref landingPlayed);
+        // New animation meets the prone landing at progress 1; recovery starts afterwards.
+        if(portalAudio)portalAudio.Land(false);
         yield return RecoverPlayer(player,end);
-    }
-    // Follow animation time (including pause/skip), with one short output-latency lead.
-    static void PlayPlayerLandingAhead(PortalAudio audio,float elapsed,float duration,ref bool played){
-        if(played||elapsed<duration-.10f)return;
-        played=true;if(audio)audio.Land(false);
     }
     static Vector3 PortalProneLanding(Transform player,PlayerPushPose pose,Vector3 centre,Vector3 scale){
         var savedScale=player.localScale;player.localScale=scale;

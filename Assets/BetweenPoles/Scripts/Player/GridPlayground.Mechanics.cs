@@ -30,21 +30,8 @@ public sealed partial class GridPlayground {
             ||Cell(far.transform)!=Cell(near.transform)+direction
             ||!SameHeight(near.transform.position.y,far.transform.position.y))return false;
         var stop=Tile(Cell(far.transform)+direction);
-        return stop&&stop.blocked&&RecoilPairHasGround(near,far,direction);
-    }
-    bool RecoilPairHasGround(MagnetPiece near,MagnetPiece far,Vector2Int direction){
-        if(near.shape!=MagnetShape.Bar||far.shape!=MagnetShape.Bar)return true;
-        // The backstop and the player's floor do not support the magnets themselves.
-        return RecoilSupported(near,direction)||RecoilSupported(far,direction);
-    }
-    bool RecoilSupported(MagnetPiece magnet,Vector2Int direction){
-        var cell=Cell(magnet.transform);var floor=Tile(cell);
-        if(floor&&!floor.blocked&&SameHeight(floor.surfaceHeight,magnet.transform.position.y))return true;
-        var deck=Deck(cell,magnet);
-        if(!deck||MagnetStillAnimating(deck)||!SameHeight(DeckHeight(deck),magnet.transform.position.y))return false;
-        if(deck.product==MagnetProduct.Ring)return RingShore(deck);
-        // A completed, correctly oriented span carries the reaction force to its shores.
-        return AlongDeck(deck,direction)&&WideBarConnected(deck);
+        // The stone backstop is sufficient, even when both magnets float in space.
+        return stop&&stop.blocked;
     }
     Vector2Int PushLanding(Vector2Int vacated,Vector2Int from){
         var moving=Piece(vacated);var deck=Deck(vacated,moving);float height;
@@ -71,7 +58,10 @@ public sealed partial class GridPlayground {
         // Docking to a U socket preserves the material's pre-push posture.
         // The remaining bridge socket accepts either pole; a thrown flat bar
         // aligns to the missing rail regardless of its horizontal approach axis.
-        if(target.product==MagnetProduct.BridgeHalf)return incoming.shape==MagnetShape.Bar&&Mathf.Abs((incoming.Pose*Vector3.right).y)<.05f?MagnetProduct.Bridge:MagnetProduct.None;
+        if(target.product==MagnetProduct.BridgeHalf)return incoming.shape==MagnetShape.Bar
+            &&(Mathf.Abs((incoming.Pose*Vector3.right).y)<.05f
+                ||(MagnetPiece.VerticalBar(incoming.Pose)&&Mathf.Abs((arrival*Vector3.right).y)<.05f))
+            ?MagnetProduct.Bridge:MagnetProduct.None;
         if(target.combined||incoming.north==target.north)return MagnetProduct.None;
         if(incoming.shape==target.shape){
             if(incoming.shape==MagnetShape.Horseshoe){
@@ -101,10 +91,10 @@ public sealed partial class GridPlayground {
                 return MagnetProduct.Cross;
             return receiverStanding==incomingStanding?MagnetProduct.WideBar:MagnetProduct.Cross;
         }
-        // Mixed materials slide into the receiver; free-cell rolling must not
-        // turn a flat bar into a lift or tip a flat U out of a valid recipe.
+        // A pushed bar first tips in the push direction, then docks with the U.
+        // A pushed U still uses the stationary bar's existing posture.
         Quaternion u=incoming.shape==MagnetShape.Horseshoe?incoming.Pose:target.Pose;
-        Quaternion bar=incoming.shape==MagnetShape.Bar?incoming.Pose:target.Pose;
+        Quaternion bar=incoming.shape==MagnetShape.Bar?arrival:target.Pose;
         if(!MagnetPiece.FlatU(u))return MagnetProduct.None;
         if(MagnetPiece.VerticalBar(bar))return MagnetProduct.Lift;
         return Mathf.Abs((bar*Vector3.right).y)<.05f?MagnetProduct.BridgeHalf:MagnetProduct.None;
@@ -172,7 +162,7 @@ public sealed partial class GridPlayground {
             return Reject("陆地上的两格桥是障碍，只能走上边缘外的桥段");
         if(IsWreckCell(next))return Reject("飞船残骸挡住了这个格子");
         if(m&&MagnetStillAnimating(m))return Reject("磁铁正在完成上一次推动，请稍候再接触");
-        if(!BridgePassage(from,next))return Reject("宽条桥必须沿长边两端接通，只能从两端通过");
+        if(!BridgePassage(from,next))return Reject("宽条平台只能沿长边通过；单条桥还需要两端接通");
         RefreshPlayerSupport();
         bool deviceEntry=m&&(m.product==MagnetProduct.Lift||(m.product==MagnetProduct.Cross&&RotorActive(m)))
             &&(SameHeight(player.position.y,m.transform.position.y)
@@ -200,7 +190,7 @@ public sealed partial class GridPlayground {
             Busy=true;StartMovement(WalkOffObject(next,destinationTop));LastRule="在相邻顶面之间跳跃移动";return true;
         }
         if(tile&&tile.blocked){PlayerPushPose.BeginStonePush(player,tile,dir,DirectionPressed(dir));return Reject("石头推不动，用力推动后摊手");}
-        if(m&&m.product==MagnetProduct.Ring&&!SpaceRing(m)&&CanReachMagnet(m))
+        if(m&&m.product==MagnetProduct.Ring&&!RingShore(m)&&CanReachMagnet(m))
             return BeginPushRing(m,dir,next);
         if(m&&m.product==MagnetProduct.Cross){
             if(RotorActive(m))return BeginLift(m,2,dir);
@@ -212,14 +202,14 @@ public sealed partial class GridPlayground {
             if(!m.CanBePushed)return Reject("只有单个磁铁可以推动；合成后固定在原格");
             if(!CanReachMagnet(m))return Reject("需要站在同一层推动");
             var target=next+dir;var far=TransportObstacle(target,m);var land=Tile(target);float targetHeight;
-            // A stone-backed same-pole pair can recoil with either bar on ground.
+            // A stone-backed same-pole pair can recoil even with both bars floating.
             // All other direct pushes still require support under the near piece.
             bool stoneBackedRecoil=StoneBackedRecoilPair(m,far,dir);
             if(!Supported(m)&&!stoneBackedRecoil)return Reject("边缘外的磁铁无法直接推动，请从岸上推来磁铁与它组合，或用同极磁铁将它排斥回陆地");
             var portal=BlackHolePortal.At(this,target);if(portal)return BeginPortalPush(m,portal,dir);
             if(far&&MagnetStillAnimating(far))return Reject("目标磁铁正在完成上一次推动");
             if(land&&land.blocked)return Reject("目标格被石头占据");
-            if(!BridgePassage(next,target,m))return Reject("宽条桥必须沿长边两端接通，只能从两端通过");
+            if(!BridgePassage(next,target,m))return Reject("宽条平台只能沿长边通过；单条桥还需要两端接通");
             if(!TravelSurface(next,m.transform.position.y,target,m,out targetHeight))return Reject("不能将磁铁推上高台");
             float degrees;var arrival=MagnetPiece.Rolled(m.shape,m.Pose,dir,out degrees);
             if(far){
@@ -230,9 +220,9 @@ public sealed partial class GridPlayground {
                     if(stoneBackedRecoil){
                         Busy=true;StartCoroutine(Recoil(m,dir,from));LastRule="远端受石头阻挡：磁铁弹回撞击主角，一起反冲";return true;
                     }
-                    // A hovering receiver may return to a free, level shore. It
-                    // still blocks pushes farther into open space without a backstop.
-                    var edgeChain=CanRepelBackToLand(far,dir)?null:EdgeRepelChain(m,far,dir);
+                    // A supported bar can also drive its same-pole neighbor one cell
+                    // farther into space; both then keep the normal rolled posture.
+                    var edgeChain=CanRepelBackToLand(far,dir)||CanRepelBarIntoSpace(m,far,dir)?null:EdgeRepelChain(m,far,dir);
                     if(edgeChain!=null){
                         Busy=true;StartMovement(EdgeRepelFeedback(edgeChain,dir));
                         return Reject("边缘同极斥力回弹：无法继续向外推动");
@@ -248,7 +238,6 @@ public sealed partial class GridPlayground {
                         Busy=true;StartMovement(Repel(m,far,nearPath,farPath,PushLanding(next,from)));LastRule="同极排斥：各翻滚一格，空格中保持悬停";return true;
                     }
                     if(beyondTile&&beyondTile.blocked){
-                        if(!RecoilPairHasGround(m,far,dir))return Reject("两块长条都缺少支撑，无法反冲；至少一块下方需要地板或方向正确且接通的桥面");
                         Busy=true;StartCoroutine(Recoil(m,dir,from));LastRule="远端受石头阻挡：磁铁弹回撞击主角，一起反冲";return true;
                     }
                     return Reject("远端没有落脚位，无法推动；反冲需要远端石头阻挡");
@@ -551,6 +540,13 @@ public sealed partial class GridPlayground {
             &&TravelSurface(from,far.transform.position.y,to,far,out height)
             &&SameHeight(height,far.transform.position.y);
     }
+    bool CanRepelBarIntoSpace(MagnetPiece near,MagnetPiece far,Vector2Int direction){
+        if(near.shape!=MagnetShape.Bar||far.shape!=MagnetShape.Bar||!Supported(near)||Supported(far))return false;
+        var from=Cell(far.transform);var to=from+direction;float height;
+        return !Tile(to)&&!Deck(to,far)&&!TransportObstacle(to,far)&&to!=PlayerCell
+            &&TravelSurface(from,far.transform.position.y,to,far,out height)
+            &&SameHeight(height,far.transform.position.y);
+    }
     IEnumerator EdgeRepelFeedback(List<MagnetPiece> chain,Vector2Int direction){
         // A rejected push has no undo entry, but its visual remainder can still
         // be replayed independently when the player walks away.
@@ -653,7 +649,8 @@ public sealed partial class GridPlayground {
         bool tippedIncoming=product==MagnetProduct.Cross&&MagnetPiece.VerticalBar(old);
         Quaternion receiverStart=target.Pose;
         bool liftDock=product==MagnetProduct.ThickU
-            ||(product==MagnetProduct.Ring&&SameFacingAxialRingDock(old,receiverStart,dir));
+            ||(product==MagnetProduct.Ring&&SameFacingAxialRingDock(old,receiverStart,dir))
+            ||(product==MagnetProduct.Lift&&incoming.shape==MagnetShape.Bar&&!MagnetPiece.VerticalBar(old));
         Vector3 receiverBodyCenter=AssemblyBounds(AssemblyBodies(target.geometry)).center;
         Quaternion receiverEnd=tippedReceiver?ReceiverLandingPose(target,dir):receiverStart;
         Quaternion yaw=Yaw(receiverEnd*Vector3.right);
@@ -683,7 +680,7 @@ public sealed partial class GridPlayground {
             ?PlayerPushPose.BeginFlowPush(player,cellSize,PlayerPushPose.FlowPushStyle.LiftBar):PlayerPushPose.Begin(player);
         if(!portal)player.rotation=Quaternion.LookRotation(new Vector3(dir.x,0,dir.y));
         // Every recipe drives the player during docking, not with a later Walk.
-        bool throwing=(product==MagnetProduct.BridgeHalf||product==MagnetProduct.Bridge||product==MagnetProduct.Lift)&&incoming.shape==MagnetShape.Bar;
+        bool throwing=product==MagnetProduct.Bridge&&incoming.shape==MagnetShape.Bar&&!MagnetPiece.VerticalBar(old);
         System.Action<float> follow=progress=>{
             if(portal)return;
             float travel=throwing?Mathf.SmoothStep(0,1,Mathf.InverseLerp(.3f,1,progress)):progress;

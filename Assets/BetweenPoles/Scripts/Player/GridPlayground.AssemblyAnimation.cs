@@ -174,7 +174,8 @@ public sealed partial class GridPlayground {
     }
     static bool SameFacingAxialRingDock(Quaternion incoming,Quaternion receiver,Vector2Int direction){
         return AxialRingDock(incoming,receiver,direction)
-            &&Vector3.Dot(incoming*Vector3.forward,receiver*Vector3.forward)>.95f;
+            &&Vector3.Dot(incoming*Vector3.forward,receiver*Vector3.forward)>.95f
+            &&Vector3.Dot(incoming*Vector3.forward,new Vector3(direction.x,0,direction.y))<-.95f;
     }
     IEnumerator AnimateFlipCatchRingDock(MagnetPiece incoming,MagnetPiece receiver,Vector2Int direction,
         Quaternion incomingPose,Quaternion receiverPose,Vector3 incomingScale,Vector3 receiverScale,
@@ -389,6 +390,34 @@ public sealed partial class GridPlayground {
             &&Mathf.Abs(Vector3.Dot(poseReceiver*Vector3.right,endPoseReceiver*Vector3.right))>.95f)
             endPoseReceiver=poseReceiver;
         var scaleIncoming=incoming.geometry.localScale;var scaleReceiver=receiver.geometry.localScale;
+        if((product==MagnetProduct.BridgeHalf||product==MagnetProduct.Lift
+            ||(product==MagnetProduct.Bridge&&MagnetPiece.VerticalBar(poseIncoming)))&&incoming.shape==MagnetShape.Bar){
+            var push=new Vector3(direction.x,0,direction.y);
+            var axis=new Vector3(direction.y,0,-direction.x);
+            float reach=Mathf.Abs(push.x)*startIncoming.extents.x+Mathf.Abs(push.z)*startIncoming.extents.z;
+            var pivot=startIncoming.center+push*reach-Vector3.up*startIncoming.extents.y;
+            var lever=startIncoming.center-pivot;
+            var tipped=Quaternion.AngleAxis(90,axis)*poseIncoming;
+            // A bar is symmetric end-to-end: choose the closest socket orientation.
+            if(Quaternion.Angle(tipped,endPoseIncoming*Quaternion.Euler(0,0,180))<Quaternion.Angle(tipped,endPoseIncoming))
+                endPoseIncoming*=Quaternion.Euler(0,0,180);
+            var landing=pivot+Quaternion.AngleAxis(90,axis)*lever;
+            float duration=Mathf.Max(.8f,barPushSeconds)/Mathf.Clamp(attractionAnimationSpeed,1f,2f);
+            for(float elapsed=0;elapsed<duration;elapsed+=MovementDeltaTime){
+                float p=Mathf.Clamp01(elapsed/duration);
+                float tip=Mathf.SmoothStep(0,1,Mathf.Clamp01(p/.72f));
+                float dock=Mathf.SmoothStep(0,1,Mathf.InverseLerp(.55f,1,p));
+                var turn=Quaternion.AngleAxis(90*tip,axis);
+                var center=pivot+turn*lever+(endIncoming.center-landing)*dock;
+                var pose=Quaternion.Slerp(Quaternion.identity,endPoseIncoming*Quaternion.Inverse(tipped),dock)*turn*poseIncoming;
+                PlaceAssemblyBody(incoming,pose,scaleIncoming,center);
+                PlaceAssemblyBody(receiver,poseReceiver,scaleReceiver,Vector3.Lerp(startReceiver.center,endReceiver.center,dock));
+                onSlideProgress?.Invoke(p);yield return null;
+            }
+            PlaceAssemblyBody(incoming,endPoseIncoming,scaleIncoming,endIncoming.center);
+            PlaceAssemblyBody(receiver,poseReceiver,scaleReceiver,endReceiver.center);
+            onSlideProgress?.Invoke(1);AssemblyContact(incoming,receiver);yield return null;yield break;
+        }
         if((product==MagnetProduct.BridgeHalf||product==MagnetProduct.Bridge||product==MagnetProduct.Lift)&&incoming.shape==MagnetShape.Bar){
             // Lift vertically before crossing the U, align above it, and descend
             // only once over the final rail or lift-column socket. The vertical
@@ -419,6 +448,25 @@ public sealed partial class GridPlayground {
         var rollAxis=new Vector3(direction.y,0,-direction.x);
         if(product==MagnetProduct.ThickU){
             float duration=Mathf.Max(.8f,barPushSeconds)/Mathf.Clamp(attractionAnimationSpeed,1f,2f);
+            if(Vector3.Dot(poseIncoming*Vector3.forward,poseReceiver*Vector3.forward)>.95f){
+                // Matching openings already align: lift the entire U, carry it
+                // over the stationary receiver, then settle onto the upper layer.
+                float clearance=Mathf.Max(startIncoming.center.y,endIncoming.center.y)
+                    +Mathf.Max(cellSize*.28f,startIncoming.extents.y+startReceiver.extents.y);
+                for(float elapsed=0;elapsed<duration;elapsed+=MovementDeltaTime){
+                    float p=Mathf.Clamp01(elapsed/duration);
+                    float lift=Mathf.SmoothStep(0,1,Mathf.InverseLerp(0,.3f,p));
+                    float travel=Mathf.SmoothStep(0,1,Mathf.InverseLerp(.3f,.82f,p));
+                    float land=Mathf.SmoothStep(0,1,Mathf.InverseLerp(.72f,1,p));
+                    var center=Vector3.Lerp(startIncoming.center,endIncoming.center,travel);
+                    center.y=p<.3f?Mathf.Lerp(startIncoming.center.y,clearance,lift)
+                        :Mathf.Lerp(clearance,endIncoming.center.y,land)+Mathf.Sin(travel*Mathf.PI)*cellSize*.12f;
+                    PlaceAssemblyBody(incoming,poseIncoming,scaleIncoming,center);
+                    onSlideProgress?.Invoke(p);yield return null;
+                }
+                PlaceAssemblyBody(incoming,poseIncoming,scaleIncoming,endIncoming.center);
+                onSlideProgress?.Invoke(1);AssemblyContact(incoming,receiver);yield return null;yield break;
+            }
             var push=new Vector3(direction.x,0,direction.y);
             float reach=Mathf.Abs(push.x)*startIncoming.extents.x+Mathf.Abs(push.z)*startIncoming.extents.z;
             // Lift the edge nearest the player around the opposite lower edge.

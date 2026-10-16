@@ -33,6 +33,17 @@ static partial class BlackHoleTestRegression {
                     BlackHoleTravel.ExitPlan kickPlan;
                     Check(BlackHoleTravel.PlanExit(target,dir,null,out kickPlan)&&kickPlan.exitKickTarget==receiver&&kickPlan.kick,"Existing upright exit magnet was not selected for kick");
                     Check(Vector3.Distance(kickPlan.player,exit.transform.position)<.001f,"Player planned to stand on upright magnet");
+                    var savedMagnets=b.magnets;var savedTiles=b.tiles;
+                    var partner=MagnetVisuals.Create(root.transform,new Vector3(dir.x,0,dir.y)*b.cellSize*2,MagnetShape.Bar,!receiver.north,yaw,b.cellSize,root.transform);
+                    b.magnets=new List<MagnetPiece>(savedMagnets){partner}.ToArray();
+                    var partnerFloor=b.TileAt(dir*2);
+                    b.tiles=Array.FindAll(savedTiles,t=>t!=partnerFloor);b.InvalidateTileLookup();
+                    Check(BlackHoleTravel.PlanExit(target,dir,null,out kickPlan)&&kickPlan.kickReceiver==partner
+                        &&kickPlan.kickProduct==MagnetProduct.WideBar,"Exit kick failed to combine with floating opposite bar");
+                    Check(Vector3.Distance(kickPlan.player,exit.transform.position)<.001f,"Kick assembly moved player into space");
+                    partner.north=receiver.north;
+                    Check(!BlackHoleTravel.PlanExit(target,dir,null,out kickPlan),"Exit kick assembled same poles");
+                    partner.gameObject.SetActive(false);b.magnets=savedMagnets;b.tiles=savedTiles;b.InvalidateTileLookup();checks+=3;
                     var next=b.TileAt(dir*2);next.blocked=true;
                     Check(!BlackHoleTravel.PlanExit(target,dir,null,out kickPlan),"Exit kick ignored blocked destination");next.blocked=false;
                     receiver.geometry.rotation=flatPose;MagnetVisuals.Ground(receiver);
