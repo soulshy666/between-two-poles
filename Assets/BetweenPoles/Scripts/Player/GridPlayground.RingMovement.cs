@@ -161,6 +161,7 @@ public sealed partial class GridPlayground {
             ring.transform.position=Vector3.Lerp(path[segment],path[segment+1],distance-segment);
             ring.geometry.rotation=Quaternion.AngleAxis(degrees*progress,axis)*pose;
             MagnetVisuals.Ground(ring);
+            if(!tip&&!recordingPush&&!finishingMovement)MagnetRollAudio.Tick(ring);
             if(slideOff){
                 float travel=Vector3.Dot(ring.transform.position-start,forward);
                 float exposed=Mathf.InverseLerp(cellSize*.5f-slideRadius,cellSize*.5f+slideRadius,travel);
@@ -196,6 +197,7 @@ public sealed partial class GridPlayground {
             if(!tip&&elapsed>=seconds)break;
             yield return null;
         }
+        MagnetRollAudio.Stop(ring);
         ring.transform.position=end;
         if(!slideOff){ring.geometry.rotation=rolledPose;MagnetVisuals.Ground(ring);}
         ring.walkable=MagnetPiece.FlatU(ring.Pose);
@@ -404,8 +406,10 @@ public sealed partial class GridPlayground {
             float distance=elapsed/seconds*cells;int segment=Mathf.Min(cells-1,Mathf.FloorToInt(distance));
             ring.transform.position=Vector3.Lerp(path[segment],path[segment+1],distance-segment);
             ring.geometry.rotation=Quaternion.AngleAxis(180*distance,axis)*pose;MagnetVisuals.Ground(ring);
+            if(!recordingPush&&!finishingMovement)MagnetRollAudio.Tick(ring);
             yield return null;
         }
+        MagnetRollAudio.Stop(ring);
         ring.transform.position=path[cells];ring.geometry.rotation=endPose;MagnetVisuals.Ground(ring);
         if(space)yield return RingFloatAfterLeavingShore(ring,endPose,flat,true);
         else{
