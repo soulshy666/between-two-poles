@@ -70,6 +70,7 @@ public sealed partial class GridPlayground {
                 if(RingOpeningsAligned(incoming.Pose,target.Pose,push))return MagnetProduct.Ring;
                 if(Vector3.Dot(arrival*Vector3.forward,target.Pose*Vector3.forward)>.95f
                     ||Vector3.Dot(incoming.Pose*Vector3.forward,target.Pose*Vector3.forward)>.95f)return MagnetProduct.ThickU;
+                if(Mathf.Abs(Vector3.Dot(arrival*Vector3.forward,target.Pose*Vector3.forward))<.05f)return MagnetProduct.CrossU;
                 return MagnetProduct.None;
             }
             // Decide from both pre-push postures, before any animation rotates them.
@@ -329,7 +330,7 @@ public sealed partial class GridPlayground {
             continuePushOnComplete=!finishingMovement&&!recordingPush;
         }
     }
-    public static string ProductName(MagnetProduct p){switch(p){case MagnetProduct.WideBar:return "一格宽条";case MagnetProduct.Ring:return "闭合圆环";case MagnetProduct.Cross:return "叠放十字";case MagnetProduct.Lift:return "单层磁流升降台";case MagnetProduct.BridgeHalf:return "两格桥半成品";case MagnetProduct.Bridge:return "两格桥";default:return "基础磁铁";}}
+    public static string ProductName(MagnetProduct p){switch(p){case MagnetProduct.WideBar:return "一格宽条";case MagnetProduct.Ring:return "闭合圆环";case MagnetProduct.Cross:return "叠放十字";case MagnetProduct.ThickU:return "叠放 U 型磁铁";case MagnetProduct.CrossU:return "U 型交叉磁铁";case MagnetProduct.Lift:return "单层磁流升降台";case MagnetProduct.BridgeHalf:return "两格桥半成品";case MagnetProduct.Bridge:return "两格桥";default:return "基础磁铁";}}
     bool ValidateRollPath(MagnetPiece m,List<MagnetRollStep> path,Vector2Int playerFrom,Vector2Int playerLanding,MagnetPiece vacated,Vector2Int? reserved,out Vector2Int end){
         end=Cell(m.transform);float height=m.transform.position.y;
         foreach(var step in path){
@@ -648,13 +649,13 @@ public sealed partial class GridPlayground {
         bool tippedReceiver=target.shape==MagnetShape.Bar&&MagnetPiece.VerticalBar(target.Pose)&&(product==MagnetProduct.WideBar||product==MagnetProduct.Cross);
         bool tippedIncoming=product==MagnetProduct.Cross&&MagnetPiece.VerticalBar(old);
         Quaternion receiverStart=target.Pose;
-        bool liftDock=product==MagnetProduct.ThickU
+        bool liftDock=product==MagnetProduct.ThickU||product==MagnetProduct.CrossU
             ||(product==MagnetProduct.Ring&&SameFacingAxialRingDock(old,receiverStart,dir))
             ||(product==MagnetProduct.Lift&&incoming.shape==MagnetShape.Bar&&!MagnetPiece.VerticalBar(old));
         Vector3 receiverBodyCenter=AssemblyBounds(AssemblyBodies(target.geometry)).center;
         Quaternion receiverEnd=tippedReceiver?ReceiverLandingPose(target,dir):receiverStart;
         Quaternion yaw=Yaw(receiverEnd*Vector3.right);
-        if(product==MagnetProduct.ThickU)yaw=Quaternion.LookRotation(receiverStart*Vector3.forward,Vector3.up);
+        if(product==MagnetProduct.ThickU||product==MagnetProduct.CrossU)yaw=Quaternion.LookRotation(receiverStart*Vector3.forward,Vector3.up);
         if(product==MagnetProduct.Ring&&MagnetPiece.FlatU(receiverStart)){
             var opening=receiverStart*Vector3.forward;
             if(!SameFacingAxialRingDock(old,receiverStart,dir)
@@ -699,8 +700,9 @@ public sealed partial class GridPlayground {
             else pushPose.End();
         }
         incoming.transform.SetParent(target.transform,true);incoming.enabled=false;incoming.combined=true;incoming.gameObject.SetActive(false);
-        target.bridgeDirection=bridgeDir;MagnetVisuals.Product(target,product,cellSize,yaw,uNorth,tippedReceiver&&product==MagnetProduct.Cross,incoming.north);
-        if(product==MagnetProduct.ThickU)target.geometry.position+=receiverBodyCenter
+        float upperUYaw=Vector3.SignedAngle(yaw*Vector3.forward,arrival*Vector3.forward,Vector3.up);
+        target.bridgeDirection=bridgeDir;MagnetVisuals.Product(target,product,cellSize,yaw,uNorth,tippedReceiver&&product==MagnetProduct.Cross,incoming.north,upperUYaw);
+        if(product==MagnetProduct.ThickU||product==MagnetProduct.CrossU)target.geometry.position+=receiverBodyCenter
             -AssemblyBounds(AssemblyBodies(target.geometry.GetChild(0))).center;
         if(product==MagnetProduct.Cross&&!tippedReceiver&&!tippedIncoming)target.geometry.localPosition=Vector3.down*.24f;
         if(!portal){player.position=playerEnd;NotifyLanding(next);Busy=false;}

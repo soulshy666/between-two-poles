@@ -101,6 +101,10 @@ public sealed partial class GridPlayground {
         ring.transform.SetPositionAndRotation(final.position,final.rotation);
         ring.geometry.localPosition=final.geoPosition;ring.geometry.localRotation=final.pose;
         ring.walkable=final.walkable;
+        if(final.storedInPortal){
+            ring.storedInPortal=final.storedInPortal;ring.portalEntryPosition=final.portalEntryPosition;
+            ring.portalRollSpeed=final.portalRollSpeed;ring.gameObject.SetActive(false);
+        }
     }
     bool RingRouteReserved(Vector2Int cell){
         foreach(var flight in liveRings){

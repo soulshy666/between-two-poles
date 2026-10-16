@@ -1,1 +1,1 @@
-PASS: 72 checks; four directions; obstacle, space, second portal and stored momentum.
+PASS: 348 checks; four directions; rolling, floating, topple, independent rebound, collision chains and entry/exit speed continuity.

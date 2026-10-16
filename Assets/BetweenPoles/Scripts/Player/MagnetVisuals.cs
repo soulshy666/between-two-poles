@@ -111,15 +111,16 @@ public static class MagnetVisuals {
             part.localRotation=Quaternion.Euler(0,-a*Mathf.Rad2Deg,0);Box(part,Vector3.zero,new Vector3(.22f,.24f,.09f),north);
         }
     }
-    public static Transform Build(Transform owner,MagnetShape shape,bool north,MagnetProduct product,float cell,bool baseNorth,Vector2Int direction,bool? secondRailNorth=null) {
+    public static Transform Build(Transform owner,MagnetShape shape,bool north,MagnetProduct product,float cell,bool baseNorth,Vector2Int direction,bool? secondRailNorth=null,float upperUYaw=90) {
         var g=Group(owner,"磁铁实体 · "+product);
         if(product==MagnetProduct.None){if(shape==MagnetShape.Bar)Box(g,new Vector3(0,.12f,0),new Vector3(cell,.24f,.24f),north);else Arc(g,north,180,360);}
         if(product==MagnetProduct.WideBar){Box(g,new Vector3(0,.12f,-.12f),new Vector3(cell,.24f,.24f),north);Box(g,new Vector3(0,.12f,.12f),new Vector3(cell,.24f,.24f),!north);}
         // The receiver retains its U opening; the incoming U closes that opening.
         if(product==MagnetProduct.Ring){Arc(g,north,180,360);Arc(g,!north,0,180);RingSurface(g);}
-        if(product==MagnetProduct.ThickU){
+        if(product==MagnetProduct.ThickU||product==MagnetProduct.CrossU){
             var bottom=Group(g,"接收 U · 下层");Arc(bottom,north,180,360);
             var top=Group(g,"推入 U · 上层");top.localPosition=Vector3.up*.24f;Arc(top,!north,180,360);
+            if(product==MagnetProduct.CrossU)top.localRotation=Quaternion.Euler(0,upperUYaw,0);
         }
         if(product==MagnetProduct.Cross){Box(g,new Vector3(0,.12f,0),new Vector3(cell,.24f,.24f),north);Box(g,new Vector3(0,.36f,0),new Vector3(.24f,.24f,cell),!north);}
         if(product==MagnetProduct.Lift){Arc(g,baseNorth,180,360);Box(g,new Vector3(0,cell*.5f,0),new Vector3(.24f,cell,.24f),!baseNorth);}
@@ -150,8 +151,8 @@ public static class MagnetVisuals {
         if(!float.IsInfinity(min.y)){var shift=Vector3.up*min.y;if(m.product==MagnetProduct.None||m.product==MagnetProduct.Ring)shift+=new Vector3((min.x+max.x)*.5f,0,(min.z+max.z)*.5f);m.geometry.position-=shift;}
 
     }
-    public static void Product(MagnetPiece m,MagnetProduct product,float cell,Quaternion yaw,bool baseNorth,bool receiverOnTop=false,bool? secondRailNorth=null) {
-        m.geometry.gameObject.SetActive(false);m.geometry=Build(m.transform,m.shape,m.north,product,cell,baseNorth,m.bridgeDirection,secondRailNorth);
+    public static void Product(MagnetPiece m,MagnetProduct product,float cell,Quaternion yaw,bool baseNorth,bool receiverOnTop=false,bool? secondRailNorth=null,float upperUYaw=90) {
+        m.geometry.gameObject.SetActive(false);m.geometry=Build(m.transform,m.shape,m.north,product,cell,baseNorth,m.bridgeDirection,secondRailNorth,upperUYaw);
         if(product==MagnetProduct.Cross&&receiverOnTop){
             // The upright receiver falls onto the incoming flat bar, which stays below.
             m.geometry.GetChild(0).localPosition=new Vector3(0,.36f,0);

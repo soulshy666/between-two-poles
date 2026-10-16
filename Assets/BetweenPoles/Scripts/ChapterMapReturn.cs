@@ -6,6 +6,20 @@ namespace BetweenPoles {
 public sealed class ChapterMapReturn : MonoBehaviour {
     const string Showcase="Assets/BetweenPoles/Scenes/PlanetChapterShowcase.unity";
     GridPlayground board;FiveIslandWindow window;bool loading;
+    AudioSource paperSource;
+    AudioClip paperOpen,paperClose;
+    void PlayMapPaper(bool opening){
+        if(!Application.isPlaying)return;
+        if(!paperSource){
+            paperSource=gameObject.AddComponent<AudioSource>();
+            paperSource.playOnAwake=false;paperSource.loop=false;
+            paperSource.spatialBlend=0;paperSource.dopplerLevel=0;paperSource.volume=.65f;
+            paperOpen=Resources.Load<AudioClip>("Audio/Player/Actions/MapPaperOpen");
+            paperClose=Resources.Load<AudioClip>("Audio/Player/Actions/MapPaperClose");
+        }
+        paperSource.Stop();paperSource.clip=opening?paperOpen:paperClose;
+        if(paperSource.clip)paperSource.Play();
+    }
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
     static void Register(){SceneManager.sceneLoaded-=Loaded;SceneManager.sceneLoaded+=Loaded;}
     static void Loaded(Scene scene,LoadSceneMode mode){
@@ -17,7 +31,7 @@ public sealed class ChapterMapReturn : MonoBehaviour {
         if(!GetComponent<ElementGameUI>())gameObject.AddComponent<ElementGameUI>();
         if(board){board.Landed-=Visit;board.Landed+=Visit;}
     }
-    void OnDisable(){if(board)board.Landed-=Visit;}
+    void OnDisable(){if(board)board.Landed-=Visit;if(paperSource)paperSource.Stop();}
     IEnumerator Start(){
         if(ChapterRecoilTravel.IsPreparing(gameObject.scene))yield break;
         board=GetComponent<GridPlayground>();foreach(var candidate in FindObjectsOfType<FiveIslandWindow>())if(candidate.gameObject.scene==gameObject.scene)window=candidate;yield return null;
@@ -57,6 +71,7 @@ public sealed class ChapterMapReturn : MonoBehaviour {
         suspended=this;playerWasActive=board.player.gameObject.activeSelf;boardWasEnabled=board.enabled;
         board.enabled=false;
         mapPose=PlayerPushPose.BeginMap(board.player);
+        PlayMapPaper(true);
         yield return mapPose.AnimateMap(true);
         mapAnimating=false;
         if(cancelMapOpening){StartCoroutine(StowMap());yield break;}
@@ -67,7 +82,7 @@ public sealed class ChapterMapReturn : MonoBehaviour {
         mapAnimating=true;loading=false;
         if(localOverview){localNavigation.FinishInspection();localOverview=false;}
         board.player.gameObject.SetActive(playerWasActive);
-        if(mapPose)yield return mapPose.AnimateMap(false);
+        if(mapPose){PlayMapPaper(false);yield return mapPose.AnimateMap(false);}
         board.enabled=boardWasEnabled;mapSession=false;mapAnimating=false;
         if(suspended==this)suspended=null;
     }

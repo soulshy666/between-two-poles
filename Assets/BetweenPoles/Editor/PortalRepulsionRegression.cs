@@ -76,7 +76,7 @@ public static class PortalRepulsionRegression {
     [MenuItem("两极之间/测试/圆环黑洞动量")]
     public static void RunPortalRollingCheck(){
         var scene=EditorSceneManager.NewPreviewScene();
-        try{int checks=PortalRollingRingCases(scene);File.WriteAllText("output/portal-ring-roll-result.txt","PASS: "+checks+" checks; four directions; obstacle, space, second portal and stored momentum.");}
+        try{int checks=PortalRollingRingCases(scene)+PortalRingToppleCases(scene)+IndependentRingReboundCases(scene)+PortalRingChainCases(scene)+PortalRingEntrySpeedCases(scene);File.WriteAllText("output/portal-ring-roll-result.txt","PASS: "+checks+" checks; four directions; rolling, floating, topple, independent rebound, collision chains and entry/exit speed continuity.");}
         catch(Exception ex){File.WriteAllText("output/portal-ring-roll-result.txt","FAIL: "+ex);throw;}
         finally{EditorSceneManager.ClosePreviewScene(scene);}
     }
@@ -126,7 +126,7 @@ public static class PortalRepulsionRegression {
         int checks=0;
         var flags=System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Instance;
         var clock=typeof(BlackHoleTravel).GetField("settlingAnimation",System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Static);
-        foreach(var dir in new[]{Vector2Int.right,Vector2Int.left,Vector2Int.up,Vector2Int.down})foreach(float face in new[]{0f,180f}){
+        foreach(var dir in new[]{Vector2Int.right,Vector2Int.left,Vector2Int.up,Vector2Int.down})foreach(float face in new[]{0f,180f})foreach(bool floatExit in new[]{false,true}){
             var root=new GameObject("Portal ring outward topple");root.SetActive(false);
             UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(root,scene);
             bool savedClock=(bool)clock.GetValue(null);
@@ -135,7 +135,7 @@ public static class PortalRepulsionRegression {
                 b.player=new GameObject("Actor").transform;b.player.SetParent(root.transform);
                 var forward=new Vector3(dir.x,0,dir.y);var axis=new Vector3(dir.y,0,-dir.x);
                 var tiles=new List<GridTile>();
-                for(int n=0;n<2;n++){
+                for(int n=0;n<(floatExit?1:2);n++){
                     var floor=new GameObject("Floor");floor.transform.SetParent(root.transform);floor.transform.position=forward*n*b.cellSize;
                     tiles.Add(floor.AddComponent<GridTile>());
                 }
@@ -146,12 +146,15 @@ public static class PortalRepulsionRegression {
                 ring.geometry.rotation=entryPose;MagnetVisuals.Ground(ring);
                 ring.storedInPortal=portal;ring.gameObject.SetActive(false);b.magnets=new[]{ring};root.SetActive(true);
                 BlackHoleTravel.ExitPlan plan;
-                Check(BlackHoleTravel.PlanExit(portal,dir,ring,out plan)&&plan.kick&&!plan.failedExit&&!plan.unstableLanding,"Ring did not plan a kick from shore into space");
+                Check(BlackHoleTravel.PlanExit(portal,dir,ring,out plan)&&plan.kick==!floatExit&&plan.floatRing==floatExit&&!plan.failedExit&&!plan.unstableLanding,"Wrong shore/space ring exit plan");
                 var travel=root.AddComponent<BlackHoleTravel>();clock.SetValue(null,true);
                 Drain((System.Collections.IEnumerator)typeof(BlackHoleTravel).GetMethod("Eject",flags).Invoke(travel,new object[]{portal,dir,ring,plan}));
-                Check(Quaternion.Angle(ring.Pose,Quaternion.AngleAxis(90,axis)*entryPose)<.01f,"Ring tipped backwards instead of continuing outward");
-                Check((ring.transform.position-forward*2*b.cellSize).sqrMagnitude<.0001f&&ring.walkable&&MagnetPiece.FlatU(ring.Pose),"Ring did not float flat in the next space cell");
-                Check(!ring.storedInPortal&&ring.gameObject.activeSelf&&!b.Busy&&(b.player.position-forward*b.cellSize).sqrMagnitude<.0001f,"Ring kick did not release the player on shore");
+                if(floatExit){
+                    GridTile support;Vector3 top;
+                    Check(BlackHolePortal.TrySurface(b,dir,out support,out top)&&(b.player.position-top).sqrMagnitude<.0001f,"Passenger did not land on the floating ring surface");
+                }else Check(Quaternion.Angle(ring.Pose,Quaternion.AngleAxis(90,axis)*entryPose)<.01f,"Ring tipped backwards instead of continuing outward");
+                Check((ring.transform.position-forward*(floatExit?1:2)*b.cellSize).sqrMagnitude<.0001f&&ring.walkable&&MagnetPiece.FlatU(ring.Pose),"Ring did not float flat in the expected space cell");
+                Check(!ring.storedInPortal&&ring.gameObject.activeSelf&&!b.Busy&&b.PlayerCell==dir,"Ring exit did not release the player in the adjacent cell");
                 Check(Mathf.Abs((float)typeof(GridPlayground).GetMethod("MagnetGeometryTop",flags).Invoke(b,new object[]{ring}))<.001f,"Floating ring surface lost shore height");
                 checks+=5;
             }finally{clock.SetValue(null,savedClock);UnityEngine.Object.DestroyImmediate(root);}
@@ -430,6 +433,147 @@ public static class PortalRepulsionRegression {
                 Check(outward==3&&back==3&&!b.Busy,"Pulse did not finish the outward and return chain");checks++;
                 for(int i=0;i<3;i++){Check((magnets[i].geometry.position-saved[i]).sqrMagnitude<.0001f,"Pulse left a visual offset");checks++;}
             }finally{UnityEngine.Object.DestroyImmediate(root);}
+        }
+        return checks;
+    }
+    [MenuItem("两极之间/测试/圆环跨越两格桥")]
+    public static void RunRingBridgeCheck(){
+        var scene=EditorSceneManager.NewPreviewScene();
+        try{
+            int checks=0;
+            foreach(var dir in new[]{Vector2Int.right,Vector2Int.left,Vector2Int.up,Vector2Int.down}){
+                var root=new GameObject("Ring bridge traversal");root.SetActive(false);UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(root,scene);
+                try{
+                    var b=root.AddComponent<GridPlayground>();b.enabled=false;b.player=new GameObject("Actor").transform;b.player.SetParent(root.transform);
+                    var axis=new Vector3(dir.x,0,dir.y);b.player.position=-axis*2*b.cellSize;
+                    var tiles=new List<GridTile>();
+                    foreach(int n in new[]{-2,-1,2,3}){var go=new GameObject("Shore");go.transform.SetParent(root.transform);go.transform.position=axis*n*b.cellSize;tiles.Add(go.AddComponent<GridTile>());}
+                    b.tiles=tiles.ToArray();
+                    var bridge=MagnetVisuals.Create(root.transform,Vector3.zero,MagnetShape.Horseshoe,true,Quaternion.identity,b.cellSize,root.transform);
+                    bridge.bridgeDirection=dir;MagnetVisuals.Product(bridge,MagnetProduct.Bridge,b.cellSize,Quaternion.LookRotation(axis),true);
+                    var ring=MagnetVisuals.Create(root.transform,-axis*b.cellSize,MagnetShape.Horseshoe,true,Quaternion.identity,b.cellSize,root.transform);
+                    var pose=Quaternion.FromToRotation(Vector3.up,new Vector3(dir.y,0,-dir.x));
+                    MagnetVisuals.Product(ring,MagnetProduct.Ring,b.cellSize,pose,true);ring.geometry.rotation=pose;MagnetVisuals.Ground(ring);
+                    b.magnets=new[]{bridge,ring};root.SetActive(true);
+                    for(int n=0;n<=3;n++){Check(b.CanPortalRingEnter(ring,dir*(n-1),0,dir*n),"Connected bridge stopped ring at "+n);checks++;}
+                    var side=new Vector2Int(-dir.y,dir.x);
+                    Check(!b.CanPortalRingEnter(ring,-side,0,Vector2Int.zero),"Ring entered bridge sideways");checks++;
+                    Check(!b.CanPortalRingEnter(ring,Vector2Int.zero,0,side),"Ring left bridge sideways");checks++;
+                    tiles[2].surfaceHeight=b.LayerHeight;
+                    Check(!b.CanPortalRingEnter(ring,-dir,0,Vector2Int.zero),"Wrong-height far shore accepted");checks++;
+                    tiles[2].surfaceHeight=0;bridge.product=MagnetProduct.BridgeHalf;bridge.walkable=false;
+                    Check(!b.CanPortalRingEnter(ring,-dir,0,Vector2Int.zero),"Unfinished bridge accepted");checks++;
+                }finally{UnityEngine.Object.DestroyImmediate(root);}
+            }
+            File.WriteAllText("output/ring-bridge-result.txt","PASS: "+checks+" checks; four directions, both bridge cells, shore exit, side entry/exit, height mismatch and unfinished bridge.");
+        }catch(Exception ex){File.WriteAllText("output/ring-bridge-result.txt","FAIL: "+ex);throw;}
+        finally{EditorSceneManager.ClosePreviewScene(scene);}
+    }
+    static int PortalRingEntrySpeedCases(UnityEngine.SceneManagement.Scene scene){
+        int checks=0;var flags=System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Instance;
+        foreach(var dir in new[]{Vector2Int.right,Vector2Int.left,Vector2Int.up,Vector2Int.down}){
+            var root=new GameObject("Portal ring entry speed");root.SetActive(false);UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(root,scene);
+            try{
+                var b=root.AddComponent<GridPlayground>();b.enabled=false;b.player=new GameObject("Actor").transform;b.player.SetParent(root.transform);
+                var forward=new Vector3(dir.x,0,dir.y);var axis=new Vector3(dir.y,0,-dir.x);
+                var tiles=new List<GridTile>();
+                for(int i=-2;i<=0;i++){var go=new GameObject("Floor");go.transform.SetParent(root.transform);go.transform.position=forward*i*b.cellSize;tiles.Add(go.AddComponent<GridTile>());}
+                b.tiles=tiles.ToArray();var portal=tiles[2].gameObject.AddComponent<BlackHolePortal>();portal.board=b;portal.tile=tiles[2];
+                var ring=MagnetVisuals.Create(root.transform,-forward*b.cellSize,MagnetShape.Horseshoe,true,Quaternion.identity,b.cellSize,root.transform);
+                var pose=Quaternion.FromToRotation(Vector3.up,axis);
+                MagnetVisuals.Product(ring,MagnetProduct.Ring,b.cellSize,pose,true);ring.geometry.rotation=pose;MagnetVisuals.Ground(ring);
+                b.magnets=new[]{ring};b.player.position=-forward*2*b.cellSize;root.SetActive(true);
+                typeof(GridPlayground).GetField("finishingMovement",flags).SetValue(b,true);
+                Drain((System.Collections.IEnumerator)typeof(GridPlayground).GetMethod("PushIntoPortalAnimation",flags).Invoke(b,new object[]{ring,portal,dir}));
+                float speed=(float)typeof(GridPlayground).GetMethod("RingRollSpeed",flags).Invoke(b,new object[]{1});
+                Check(portal.Cargo==ring&&!ring.gameObject.activeSelf&&Mathf.Abs(ring.portalRollSpeed-speed)<.0001f,"Adjacent portal entry lost ground cruise speed");checks++;
+                Check(Quaternion.Angle(ring.Pose,Quaternion.AngleAxis(180,axis)*pose)<.01f,"Portal entry changed rotation phase");checks++;
+                float cruise=b.cellSize/speed,acceleration=Mathf.Min(.14f,cruise),duration=cruise+acceleration*.5f;
+                var distance=typeof(GridPlayground).GetMethod("RingRollDistance",System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Static);
+                float end=(float)distance.Invoke(null,new object[]{duration,speed,acceleration});
+                float previous=(float)distance.Invoke(null,new object[]{duration-.001f,speed,acceleration});
+                Check(Mathf.Abs(end-b.cellSize)<.0001f&&Mathf.Abs((end-previous)/.001f-ring.portalRollSpeed)<.001f,"Stored exit speed differs from actual entry velocity");checks++;
+            }finally{UnityEngine.Object.DestroyImmediate(root);}
+        }
+        return checks;
+    }
+    static int PortalRingChainCases(UnityEngine.SceneManagement.Scene scene){
+        int checks=0;var flags=System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Instance;
+        var clock=typeof(BlackHoleTravel).GetField("settlingAnimation",System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Static);
+        foreach(var dir in new[]{Vector2Int.right,Vector2Int.left,Vector2Int.up,Vector2Int.down})for(int mode=0;mode<4;mode++){
+            var root=new GameObject("Portal ring collision chain");root.SetActive(false);UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(root,scene);
+            bool savedClock=(bool)clock.GetValue(null);
+            try{
+                var b=root.AddComponent<GridPlayground>();b.enabled=false;b.player=new GameObject("Actor").transform;b.player.SetParent(root.transform);
+                var forward=new Vector3(dir.x,0,dir.y);var axis=new Vector3(dir.y,0,-dir.x);var tiles=new List<GridTile>();
+                for(int i=0;i<=5;i++){
+                    var go=new GameObject("Floor");go.transform.SetParent(root.transform);go.transform.position=forward*i*b.cellSize;
+                    var tile=go.AddComponent<GridTile>();tile.blocked=i==5;tiles.Add(tile);
+                }
+                b.tiles=tiles.ToArray();var source=tiles[0].gameObject.AddComponent<BlackHolePortal>();source.board=b;source.tile=tiles[0];
+                var target=tiles[4].gameObject.AddComponent<BlackHolePortal>();target.board=b;target.tile=tiles[4];
+                var pose=Quaternion.FromToRotation(Vector3.up,axis);
+                var ring=MagnetVisuals.Create(root.transform,Vector3.zero,MagnetShape.Horseshoe,true,Quaternion.identity,b.cellSize,root.transform);
+                MagnetVisuals.Product(ring,MagnetProduct.Ring,b.cellSize,pose,true);ring.geometry.rotation=pose;MagnetVisuals.Ground(ring);
+                ring.storedInPortal=source;ring.portalEntryPosition=-forward*b.cellSize;ring.portalRollSpeed=b.cellSize*3;ring.gameObject.SetActive(false);
+                var other=MagnetVisuals.Create(root.transform,forward*(mode==3?1:2)*b.cellSize,mode==1?MagnetShape.Bar:MagnetShape.Horseshoe,false,Quaternion.identity,b.cellSize,root.transform);
+                var otherPose=mode==1?Quaternion.FromToRotation(Vector3.up,forward)*Quaternion.Euler(0,0,90):pose;
+                if(mode!=1)MagnetVisuals.Product(other,MagnetProduct.Ring,b.cellSize,pose,true);
+                else otherPose=Quaternion.Euler(0,0,90);
+                other.geometry.rotation=otherPose;MagnetVisuals.Ground(other);
+                MagnetPiece held=null;
+                if(mode==2){held=MagnetVisuals.Create(root.transform,target.transform.position,MagnetShape.Bar,true,Quaternion.identity,b.cellSize,root.transform);held.storedInPortal=target;held.gameObject.SetActive(false);}
+                b.magnets=held?new[]{ring,other,held}:new[]{ring,other};root.SetActive(true);clock.SetValue(null,true);
+                var travel=root.AddComponent<BlackHoleTravel>();
+                Check((bool)typeof(BlackHoleTravel).GetMethod("SeparateCargo",System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Static).Invoke(null,new object[]{ring,dir}),"Same-direction ring was coupled to actor");checks++;
+                Drain((System.Collections.IEnumerator)typeof(BlackHoleTravel).GetMethod("EjectIndependentCargo",flags).Invoke(travel,new object[]{source,dir,ring,Vector3.one}));
+                if(mode==0||mode==3)Check(target.Cargo==other&&!other.gameObject.activeSelf&&other.portalRollSpeed>0,"Transferred ring failed to enter empty hole");
+                else if(mode==2)Check(target.Cargo==held&&other.gameObject.activeSelf&&!other.storedInPortal&&(other.transform.position-forward*3*b.cellSize).sqrMagnitude<.001f,"Occupied portal lost cargo or accepted second ring");
+                else Check(!MagnetPiece.VerticalBar(other.Pose)&&(other.transform.position-forward*3*b.cellSize).sqrMagnitude<.001f,"Portal ring failed to topple upright bar");checks++;
+                Check(b.player.position==Vector3.zero&&b.player.localScale==Vector3.zero&&!b.Busy,"Collision chain released actor early");checks++;
+            }finally{clock.SetValue(null,savedClock);UnityEngine.Object.DestroyImmediate(root);}
+        }
+        return checks;
+    }
+    static int IndependentRingReboundCases(UnityEngine.SceneManagement.Scene scene){
+        int checks=0;var flags=System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Instance;
+        var clock=typeof(BlackHoleTravel).GetField("settlingAnimation",System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Static);
+        foreach(var dir in new[]{Vector2Int.right,Vector2Int.left,Vector2Int.up,Vector2Int.down})for(int mode=0;mode<4;mode++)foreach(bool remote in new[]{false,true}){
+            var root=new GameObject("Independent ring rebound");root.SetActive(false);UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(root,scene);
+            bool savedClock=(bool)clock.GetValue(null);
+            try{
+                var b=root.AddComponent<GridPlayground>();b.enabled=false;b.player=new GameObject("Actor").transform;b.player.SetParent(root.transform);
+                var actorDir=new Vector2Int(-dir.y,dir.x);var axis=new Vector3(dir.x,0,dir.y);
+                var tiles=new List<GridTile>();
+                foreach(var cell in new[]{Vector2Int.zero,dir,-dir,actorDir,new Vector2Int(8,8)}){
+                    if(mode==1&&cell==-dir)continue;
+                    var go=new GameObject("Floor");go.transform.SetParent(root.transform);go.transform.position=new Vector3(cell.x,0,cell.y)*b.cellSize;
+                    var tile=go.AddComponent<GridTile>();tile.blocked=(mode!=3&&cell==dir)||(mode==2&&cell==-dir);
+                    if(mode==3&&cell==dir)tile.surfaceHeight=b.LayerHeight;
+                    tiles.Add(tile);
+                }
+                b.tiles=tiles.ToArray();var target=tiles[0].gameObject.AddComponent<BlackHolePortal>();target.board=b;target.tile=tiles[0];
+                var source=target;
+                if(remote){source=tiles[tiles.Count-1].gameObject.AddComponent<BlackHolePortal>();source.board=b;source.tile=tiles[tiles.Count-1];}
+                var ring=MagnetVisuals.Create(root.transform,source.transform.position,MagnetShape.Horseshoe,true,Quaternion.identity,b.cellSize,root.transform);
+                var pose=Quaternion.FromToRotation(Vector3.up,axis);
+                MagnetVisuals.Product(ring,MagnetProduct.Ring,b.cellSize,pose,true);ring.geometry.rotation=pose;MagnetVisuals.Ground(ring);
+                ring.storedInPortal=source;ring.portalEntryPosition=source.transform.position-axis*b.cellSize;
+                ring.gameObject.SetActive(false);b.magnets=new[]{ring};root.SetActive(true);clock.SetValue(null,true);
+                var travel=root.AddComponent<BlackHoleTravel>();
+                Drain((System.Collections.IEnumerator)typeof(BlackHoleTravel).GetMethod("EjectIndependentCargo",flags).Invoke(travel,new object[]{target,dir,ring,Vector3.one}));
+                Check(mode==2?target.Cargo==ring&&!ring.gameObject.activeSelf:!ring.storedInPortal&&ring.gameObject.activeSelf&&(ring.transform.position+axis*b.cellSize).sqrMagnitude<.001f,"Ring failed to reverse at selected mouth");checks++;
+                Check(mode==1?ring.walkable&&MagnetPiece.FlatU(ring.Pose):Quaternion.Angle(ring.Pose,pose)<.01f,"Rebound ring lost expected pose");checks++;
+                if(mode==2){
+                    var next=(Vector2Int)typeof(BlackHoleTravel).GetMethod("CargoExitDirection",System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Static).Invoke(null,new object[]{ring,actorDir});
+                    Check(next==dir,"Stored ring lost its last rebound direction");checks++;
+                }
+                Check(b.player.localScale==Vector3.zero&&b.player.position==Vector3.zero,"Actor emerged before ring settled");checks++;
+                BlackHoleTravel.ExitPlan plan;Check(BlackHoleTravel.PlanExit(target,actorDir,null,out plan),"Actor independent lane rejected");
+                b.player.localScale=Vector3.one;
+                Drain((System.Collections.IEnumerator)typeof(BlackHoleTravel).GetMethod("Eject",flags).Invoke(travel,new object[]{target,actorDir,null,plan}));
+                Check(b.PlayerCell==actorDir&&!b.Busy,"Rebound redirected actor");checks++;
+            }finally{clock.SetValue(null,savedClock);UnityEngine.Object.DestroyImmediate(root);}
         }
         return checks;
     }
