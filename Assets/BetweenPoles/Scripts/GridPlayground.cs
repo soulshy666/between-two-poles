@@ -36,7 +36,7 @@ public sealed partial class GridPlayground:MonoBehaviour {
     public Material goalCompleteMaterial;
     public bool ReachedGoal { get; private set; }
     bool movementBusy,collectingStar;
-    public bool Busy { get{return movementBusy||collectingStar;} private set{movementBusy=value;} }
+    public bool Busy { get{return movementBusy||collectingStar||GhostMode;} private set{movementBusy=value;} }
     public event System.Action<GridTile> Landed;
     struct BufferedStep { public Vector2Int direction; public float time; }
     readonly Queue<BufferedStep> bufferedSteps=new Queue<BufferedStep>();
@@ -199,6 +199,8 @@ public sealed partial class GridPlayground:MonoBehaviour {
         LastRule="测试跳转：房间编号 "+targetNumber+"（"+(next+1)+" / "+centers.Count+"）";return true;
     }
     void Update(){
+        if(GhostMode){TickGhostMode();return;}
+        if(Input.GetKeyDown(KeyCode.Alpha4)||Input.GetKeyDown(KeyCode.Keypad4)){ToggleGhostMode();return;}
         if(ChapterRecoilTravel.Active||ChapterRecoilTravel.UndoInputFrame==Time.frameCount){ClearMovementInput();return;}
         if(BlackHoleTravel.SkipTransitionActive){ClearMovementInput();return;}
         if(player&&(Input.anyKey||Input.mouseScrollDelta.sqrMagnitude>0
@@ -296,7 +298,7 @@ public sealed partial class GridPlayground:MonoBehaviour {
             bufferedSteps.Enqueue(new BufferedStep{direction=direction,time=Time.unscaledTime});
         if(!Busy&&bufferedSteps.Count>0&&!TryStep(bufferedSteps.Dequeue().direction))bufferedSteps.Clear();
     }
-    void OnDisable(){ClearBridgeJunctionLinks();if(!portalMagnetPresentation)ClearMagnetHover();ClearMovementInput();ClearPushPresentations();}
+    void OnDisable(){CancelGhostMode();ClearBridgeJunctionLinks();if(!portalMagnetPresentation)ClearMagnetHover();ClearMovementInput();ClearPushPresentations();}
     void OnApplicationFocus(bool focused){if(!focused)ClearMovementInput();}
     // Non-zero initial speed makes the first frame responsive; the end settles softly.
     static float MovementProgress(float progress){float p=Mathf.Clamp01(progress);return p+p*p-p*p*p;}
