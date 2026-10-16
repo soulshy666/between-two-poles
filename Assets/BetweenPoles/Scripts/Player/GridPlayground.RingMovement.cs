@@ -80,12 +80,13 @@ public sealed partial class GridPlayground {
     bool RingCanEnter(MagnetPiece ring,Vector2Int from,float height,Vector2Int cell,out float landing){
         var direction=cell-from;var source=Deck(from,ring);
         if(source&&source.product==MagnetProduct.Bridge&&!AlongDeck(source,direction)){landing=height;return false;}
-        // A completed, shore-connected bridge is terrain along its length.
+        // A completed bridge is terrain along its length, even before its far
+        // end reaches shore. The ring may be tipped or rolled onto that route.
         // Raised products and unfinished bridges remain physical obstacles.
         foreach(var other in magnets){
             if(!other||other==ring||!other.enabled||!other.gameObject.activeInHierarchy||!other.Occupies(cell,cellSize))continue;
             bool floor=((SpaceRing(other)&&MagnetPiece.FlatU(other.Pose))
-                ||(other.product==MagnetProduct.Bridge&&!Tile(cell)&&AlongDeck(other,direction)&&WideBarConnected(other)))&&other.walkable
+                ||(other.product==MagnetProduct.Bridge&&!Tile(cell)&&AlongDeck(other,direction)))&&other.walkable
                 &&!MagnetStillAnimating(other)&&SameHeight(DeckHeight(other),height);
             if(!floor){landing=height;return false;}
         }

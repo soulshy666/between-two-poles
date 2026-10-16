@@ -91,7 +91,8 @@ public sealed partial class GridPlayground {
     }
     bool RingShore(MagnetPiece ring){
         return SpaceRing(ring)&&ring.enabled&&ring.gameObject.activeInHierarchy&&ring.geometry
-            &&ring.walkable&&MagnetPiece.FlatU(ring.Pose)&&!MagnetStillAnimating(ring);
+            &&ring.walkable&&MagnetPiece.FlatU(ring.Pose)&&!MagnetStillAnimating(ring)
+            &&!Deck(Cell(ring.transform),ring,true);
     }
     bool ShoreLevelBridge(MagnetPiece deck){
         if(!deck||!deck.walkable)return false;
