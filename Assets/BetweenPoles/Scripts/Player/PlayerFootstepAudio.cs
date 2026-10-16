@@ -4,20 +4,18 @@ namespace BetweenPoles {
 [DisallowMultipleComponent]
 public sealed class PlayerFootstepAudio:MonoBehaviour {
     [Range(0f,1f)] public float volume=.56f;
+    [Range(0f,2f)] public float iceStepVolume=1.3f;
     [Range(0f,2f)] public float pushVolume=1.6f;
-    [Range(0f,1f)] public float mergeVolume=1f;
+    [Range(0f,1f)] public float mergeVolume=.7f;
     AudioSource steps,pushes,merges,stone,recoil,jump;
-    AudioClip jumpAirClip,jumpLandClip;
+    AudioClip jumpLandClip;
     AudioClip recoilClip,recoilChargeClip;
     AudioClip stepClip,pushClip,mergeClip;
-    AudioClip iceFootstep2;
     string chapter;
-    readonly System.Random stepRandom=new System.Random();
     void Awake(){
         steps=CreateSource();pushes=CreateSource();merges=CreateSource();
         stone=CreateSource();recoil=CreateSource();
         jump=CreateSource();
-        jumpAirClip=Resources.Load<AudioClip>("Audio/Player/Actions/JumpDownAir");
         jumpLandClip=Resources.Load<AudioClip>("Audio/Player/Actions/JumpDownLand");
         recoilClip=Resources.Load<AudioClip>("Audio/Player/Actions/MagnetRecoil");
         recoilChargeClip=Resources.Load<AudioClip>("Audio/Player/Actions/MagnetRecoilCharge");
@@ -46,11 +44,10 @@ public sealed class PlayerFootstepAudio:MonoBehaviour {
         var binding=GetComponent<IslandSurfaceAnchor>();
         string current=binding&&binding.ground?binding.ground.gameObject.scene.name:gameObject.scene.name;
         if(chapter!=current){
-            chapter=current;iceFootstep2=null;
+            chapter=current;
             switch(chapter){
                 case "Chapter01_IceWorld":
                     stepClip=Resources.Load<AudioClip>("Audio/Player/Footsteps/Chapter01_IceWorld");
-                    iceFootstep2=Resources.Load<AudioClip>("Audio/Player/Footsteps/Chapter01_IceWorld_Footstep2");
                     break;
                 case "Chapter02_VerdantWorld":
                 case "Chapter03_RingWorld":
@@ -60,10 +57,8 @@ public sealed class PlayerFootstepAudio:MonoBehaviour {
                 default:stepClip=null;break;
             }
         }
-        // One complete clip per walk; each ice variant has a 50% chance.
-        // Use a separate random stream so audio never changes gameplay randomness.
-        var selected=iceFootstep2&&stepRandom.Next(2)==0?iceFootstep2:stepClip;
-        if(selected)steps.PlayOneShot(selected,volume);
+        // Each chapter uses one footstep clip; ice now has a single ground/snow contact.
+        if(stepClip)steps.PlayOneShot(stepClip,chapter=="Chapter01_IceWorld"?iceStepVolume:volume);
     }
     public void PlayPush(){
         if(isActiveAndEnabled&&Application.isPlaying&&pushClip)pushes.PlayOneShot(pushClip,pushVolume);
@@ -84,7 +79,6 @@ public sealed class PlayerFootstepAudio:MonoBehaviour {
         recoil.PlayOneShot(recoilClip,2f);
     }
     public void StopStoneBlocked(){if(stone)stone.Stop();}
-    public void PlayJumpDownAir(){Play(jump,jumpAirClip,1f);}
     public void PlayJumpDownLand(){Play(jump,jumpLandClip,1f);}
     public void StopJumpDown(){if(jump)jump.Stop();}
     public void StopMovementSounds(){if(steps)steps.Stop();if(pushes)pushes.Stop();if(merges)merges.Stop();if(recoil)recoil.Stop();StopStoneBlocked();StopJumpDown();}

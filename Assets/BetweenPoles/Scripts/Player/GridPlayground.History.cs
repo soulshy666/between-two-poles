@@ -126,6 +126,7 @@ public sealed partial class GridPlayground {
         ReachedGoal=s.goal;if(goalLight)goalLight.sharedMaterial=s.goalMaterial;RefreshRestoredIsland();
     }
     public bool UndoStep(){
+        if(GhostMode)return false;
         if(ChapterRecoilTravel.Active)return ChapterRecoilTravel.TryUndoFlight();
         if(OpeningCinematic)return false;
         if(history.Count==0)return Reject("没有可以撤销的操作");

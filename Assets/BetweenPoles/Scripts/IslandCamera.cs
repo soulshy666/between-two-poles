@@ -87,6 +87,7 @@ public sealed class IslandCamera : MonoBehaviour {
         // The landing event changes the target once; movement on a bridge never selects an island.
         var curved=GetComponent<CurvedTrialCamera>();
         var target=board&&board.RecoilFlying?board.RecoilCameraFocus:curved?curved.DisplayFocus(islandCenters[current].position):islandCenters[current].position;
+        if(board&&board.GhostMode)target=curved?curved.DisplayFocus(player.position):player.position;
         focus=Vector3.SmoothDamp(focus,target,ref velocity,board&&board.RecoilFlying?.12f:transitionSeconds);
         Apply();
     }
