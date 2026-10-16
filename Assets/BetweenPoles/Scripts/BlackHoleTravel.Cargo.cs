@@ -5,7 +5,7 @@ namespace BetweenPoles {
 public sealed partial class BlackHoleTravel {
     public struct ExitPlan {
         public Vector3 player,magnet,kicked;
-        public bool kick,bounce,unstableLanding,failedExit,kickRebound,separateCargo;
+        public bool kick,bounce,unstableLanding,failedExit,kickRebound,separateCargo,floatRing;
         public MagnetPiece receiver;
         public MagnetPiece displaced;
         public MagnetPiece exitKickTarget;
@@ -95,6 +95,9 @@ public sealed partial class BlackHoleTravel {
         plan.kick=cargo.product==MagnetProduct.Ring?!MagnetPiece.FlatU(cargo.Pose):cargo.shape==MagnetShape.Bar&&MagnetPiece.VerticalBar(cargo.Pose);
         plan.player=plan.magnet;
         if(!tile){
+            // A closed ring becomes a stable floating platform before the actor
+            // follows. It does not need a second cell for an upright kick.
+            if(cargo.product==MagnetProduct.Ring){plan.kick=false;plan.floatRing=true;return true;}
             // A single material can leave the portal into space; the actor cannot stay on it.
             if(cargo.combined||cargo.product!=MagnetProduct.None)return false;
             plan.unstableLanding=true;
@@ -162,7 +165,7 @@ public sealed partial class BlackHoleTravel {
         foreach(var f in root.GetComponentsInChildren<MeshFilter>())if(f.sharedMesh&&f.sharedMesh.isReadable&&!f.GetComponentInParent<MagnetPiece>()&&!f.GetComponentInParent<BlackHolePortal>())
             foreach(var v in f.sharedMesh.vertices){
                 var p=f.transform.TransformPoint(v);var delta=p-stone.transform.position;
-                if(p.y<=stone.surfaceHeight+.02f||Mathf.Abs(delta.x)>portal.board.cellSize*.6f||Mathf.Abs(delta.z)>portal.board.cellSize*.6f)continue;
+                if(p.y<=portal.tile.surfaceHeight+.02f||Mathf.Abs(delta.x)>portal.board.cellSize*.6f||Mathf.Abs(delta.z)>portal.board.cellSize*.6f)continue;
                 edge=Mathf.Min(edge,Vector3.Dot(p-hole,axis));
             }
         float distance=float.IsPositiveInfinity(edge)?portal.board.cellSize*.12f:Mathf.Clamp(edge-leading-.02f,0,portal.board.cellSize*.6f);
@@ -189,6 +192,7 @@ public sealed partial class BlackHoleTravel {
                 var landingGround=board.TileAt(target.Cell+direction);
                 bool slide=!plan.bounce&&landingGround&&!landingGround.blocked;
                 yield return ThrowCargo(cargo,portalPosition,plan.magnet,pose,scale,plan.bounce?.28f:.55f,plan.bounce?.24f:.38f,plan.displaced,plan.displacedPosition,slide,!plan.bounce);
+                if(plan.floatRing)yield return board.FloatPortalRing(cargo);
                 // Stone contact reverses immediately; clear landings briefly settle first.
                 if(!plan.bounce)yield return AnimationWait(.12f);
                 if(plan.separateCargo){

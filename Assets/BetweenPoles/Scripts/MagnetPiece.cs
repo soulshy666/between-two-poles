@@ -2,7 +2,7 @@ using UnityEngine;
 using System.Collections.Generic;
 namespace BetweenPoles {
 public enum MagnetShape { Bar, Horseshoe }
-public enum MagnetProduct { None, WideBar, Ring, Cross, Lift, BridgeHalf, Bridge, ThickU }
+    public enum MagnetProduct { None, WideBar, Ring, Cross, Lift, BridgeHalf, Bridge, ThickU, CrossU }
 public struct MagnetRollStep {
     public Vector2Int direction;
     public Quaternion pose;

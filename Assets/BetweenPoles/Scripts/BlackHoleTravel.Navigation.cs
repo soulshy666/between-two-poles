@@ -314,6 +314,7 @@ public sealed partial class BlackHoleTravel {
         if(inspectionBoard){if(inspectionPosition.HasValue)DrawOriginIndicator();return;}
         if(testPortals==null||busy||!Selecting)return;
         DrawOriginIndicator();
+        GUI.Label(new Rect(20,Screen.height-50,Screen.width-40,32),testMessage);
     }
 }
 }

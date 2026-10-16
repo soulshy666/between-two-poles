@@ -70,19 +70,27 @@ public sealed partial class GridPlayground {
         var playerEnd=PushPlayerEnd(vacated,magnet);var pose=magnet.Pose;var scale=magnet.geometry.localScale;
         float degrees;var arrival=MagnetPiece.Rolled(magnet.shape,pose,dir,out degrees);
         var axis=new Vector3(dir.y,0,-dir.x);
+        bool rollingRing=false;float seconds=.65f,accelerationSeconds=.14f;
         magnet.portalRollSpeed=0;
         if(magnet.product==MagnetProduct.Ring){
             var forward=new Vector3(dir.x,0,dir.y);
             bool tip=MagnetPiece.FlatU(pose)||Mathf.Abs(Vector3.Dot(pose*Vector3.up,forward))>.95f;
             degrees=tip?90:180;
-            magnet.portalRollSpeed=tip?0:cellSize/.65f;
+            rollingRing=!tip;
+            magnet.portalRollSpeed=tip?0:RingRollSpeed(1);
+            if(rollingRing){
+                float cruiseSeconds=cellSize/magnet.portalRollSpeed;
+                accelerationSeconds=Mathf.Min(.14f,cruiseSeconds);
+                seconds=cruiseSeconds+accelerationSeconds*.5f;
+            }
             arrival=Quaternion.AngleAxis(degrees,axis)*pose;
         }
         player.rotation=Quaternion.LookRotation(new Vector3(dir.x,0,dir.y));var push=PlayerPushPose.Begin(player);
-        if(Application.isPlaying&&!recordingPush&&!finishingMovement){var audio=PortalAudio.For(player);if(audio)audio.Enter(true,.65f);}
-        for(float t=0;t<.65f;t+=MovementDeltaTime*BlackHoleTravel.AnimationSpeed){
-            float a=Mathf.SmoothStep(0,1,t/.65f);magnet.transform.position=Vector3.Lerp(start,end,a);
-            magnet.geometry.rotation=Quaternion.AngleAxis(degrees*Mathf.Clamp01(a/.75f),axis)*pose;magnet.geometry.localScale=scale*Mathf.Lerp(1,.05f,Mathf.SmoothStep(0,1,Mathf.Clamp01((a-.75f)/.25f)));
+        if(Application.isPlaying&&!recordingPush&&!finishingMovement){var audio=PortalAudio.For(player);if(audio)audio.Enter(true,seconds);}
+        for(float t=0;t<seconds;t+=MovementDeltaTime*BlackHoleTravel.AnimationSpeed){
+            float a=rollingRing?Mathf.Clamp01(RingRollDistance(t,magnet.portalRollSpeed,accelerationSeconds)/cellSize):Mathf.SmoothStep(0,1,t/seconds);
+            magnet.transform.position=Vector3.Lerp(start,end,a);
+            magnet.geometry.rotation=Quaternion.AngleAxis(degrees*(rollingRing?a:Mathf.Clamp01(a/.75f)),axis)*pose;magnet.geometry.localScale=scale*Mathf.Lerp(1,.05f,Mathf.SmoothStep(0,1,Mathf.Clamp01((a-.75f)/.25f)));
             MagnetVisuals.Ground(magnet);player.position=Vector3.Lerp(playerStart,playerEnd,a);push.Sample(a);yield return null;
         }
         magnet.transform.position=end;magnet.geometry.localScale=scale;magnet.geometry.rotation=arrival;MagnetVisuals.Ground(magnet);

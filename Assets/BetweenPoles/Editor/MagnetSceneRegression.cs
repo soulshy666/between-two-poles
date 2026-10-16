@@ -15,11 +15,35 @@ namespace BetweenPoles.EditorTools {
         const string Report="output/magnet-scene-consistency-test.txt";
         const BindingFlags Flags=BindingFlags.Instance|BindingFlags.NonPublic;
         static MagnetSceneRegression(){
+            EditorApplication.delayCall+=()=>{
+                const string request="output/cross-u.run";
+                if(!File.Exists(request))return;File.Delete(request);
+                try{ValidateAlignedRingRecipes();ValidateCrossU();File.WriteAllText("output/cross-u-result.txt","PASS: 256 orientation combinations, both faces, ground/space and same poles; CrossU layer direction, height and immovability.");}
+                catch(Exception ex){File.WriteAllText("output/cross-u-result.txt","FAIL: "+ex);throw;}
+            };
             EditorApplication.playModeStateChanged+=state=>{
                 if(state==PlayModeStateChange.EnteredPlayMode&&SessionState.GetBool("MagnetSceneRegression.OwnPlay",false))EditorApplication.delayCall+=Run;
             };
         }
         static void Check(bool condition,string message){if(!condition)throw new Exception(message);}
+        [MenuItem("两极之间/验证 U 型交叉磁铁")]
+        static void ValidateCrossU(){
+            var scene=EditorSceneManager.NewPreviewScene();
+            try{
+                var root=new GameObject("Cross U fixture");root.SetActive(false);SceneManager.MoveGameObjectToScene(root,scene);
+                foreach(float yaw in new[]{0f,90f,180f,270f})foreach(float topYaw in new[]{-90f,90f}){
+                    var m=MagnetVisuals.Create(root.transform,Vector3.zero,MagnetShape.Horseshoe,false,Quaternion.identity,1.5f,root.transform);
+                    MagnetVisuals.Product(m,MagnetProduct.CrossU,1.5f,Quaternion.Euler(0,yaw,0),false,upperUYaw:topYaw);
+                    Check(m.combined&&!m.CanBePushed&&!m.walkable,"Cross U must be a fixed obstacle");
+                    var bottom=m.geometry.GetChild(0);var top=m.geometry.GetChild(1);
+                    Check(Mathf.Abs(Vector3.SignedAngle(bottom.forward,top.forward,Vector3.up)-topYaw)<.01f,"Upper U facing changed");
+                    var lower=new Bounds();var upper=new Bounds();bool first=true;
+                    foreach(var r in bottom.GetComponentsInChildren<Renderer>()){if(first){lower=r.bounds;first=false;}else lower.Encapsulate(r.bounds);}
+                    first=true;foreach(var r in top.GetComponentsInChildren<Renderer>()){if(first){upper=r.bounds;first=false;}else upper.Encapsulate(r.bounds);}
+                    Check(Mathf.Abs(upper.min.y-lower.max.y)<.001f,"Cross U layers overlap or float apart");
+                }
+            }finally{EditorSceneManager.ClosePreviewScene(scene);}
+        }
         [MenuItem("两极之间/验证圆环逐格半圈滚动")]
         static void ValidateRingHalfTurns(){
             var scene=EditorSceneManager.NewPreviewScene();
@@ -120,7 +144,7 @@ namespace BetweenPoles.EditorTools {
                     // front-to-front sockets always form a ring, despite their rolled pose.
                     bool flipCatch=a==2&&b==2;
                     bool stacked=(a==b&&a!=2)||(a==2&&b==0);
-                    var expected=front||opposedSide||flipCatch?MagnetProduct.Ring:stacked?MagnetProduct.ThickU:MagnetProduct.None;
+                    var expected=front||opposedSide||flipCatch?MagnetProduct.Ring:stacked?MagnetProduct.ThickU:Mathf.Abs(a-b)%2==1?MagnetProduct.CrossU:MagnetProduct.None;
                     Check(GridPlayground.Recipe(near,arrival,far,true,push)==expected,"Front/side ring alignment: "+push+" / "+a+" / "+b);
                     Check(GridPlayground.Recipe(near,arrival,far,false,push)==expected,"Floating receiver changed alignment rule");
                     Check(GridPlayground.Recipe(near,arrival,far,true,push)==expected,"All scenes must use facing openings");

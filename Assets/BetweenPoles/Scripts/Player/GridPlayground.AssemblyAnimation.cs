@@ -350,8 +350,10 @@ public sealed partial class GridPlayground {
         preview.SetActive(false);
         preview.transform.SetParent(receiver.transform,false);
         preview.transform.SetPositionAndRotation(receiver.transform.position,yaw);
-        var final=MagnetVisuals.Build(preview.transform,receiver.shape,receiver.north,product,cellSize,uNorth,bridgeDirection,incoming.north);
-        if(product==MagnetProduct.ThickU)final.position+=AssemblyBounds(AssemblyBodies(receiver.geometry)).center
+        float flipDegrees;var flippedU=MagnetPiece.Rolled(incoming.shape,incoming.Pose,direction,out flipDegrees);
+        float upperUYaw=Vector3.SignedAngle(yaw*Vector3.forward,flippedU*Vector3.forward,Vector3.up);
+        var final=MagnetVisuals.Build(preview.transform,receiver.shape,receiver.north,product,cellSize,uNorth,bridgeDirection,incoming.north,upperUYaw);
+        if(product==MagnetProduct.ThickU||product==MagnetProduct.CrossU)final.position+=AssemblyBounds(AssemblyBodies(receiver.geometry)).center
             -AssemblyBounds(final.GetChild(0).GetComponentsInChildren<Renderer>(true)).center;
         if(product==MagnetProduct.Cross&&receiverOnTop){final.GetChild(0).localPosition=new Vector3(0,.36f,0);final.GetChild(1).localPosition=new Vector3(0,.12f,0);}
         if(product==MagnetProduct.Cross&&!receiverOnTop&&!incomingOnTop)final.localPosition=Vector3.down*.24f;
@@ -446,7 +448,7 @@ public sealed partial class GridPlayground {
         }
         float rollDegrees;var rolled=MagnetPiece.Rolled(incoming.shape,poseIncoming,direction,out rollDegrees);
         var rollAxis=new Vector3(direction.y,0,-direction.x);
-        if(product==MagnetProduct.ThickU){
+        if(product==MagnetProduct.ThickU||product==MagnetProduct.CrossU){
             float duration=Mathf.Max(.8f,barPushSeconds)/Mathf.Clamp(attractionAnimationSpeed,1f,2f);
             if(Vector3.Dot(poseIncoming*Vector3.forward,poseReceiver*Vector3.forward)>.95f){
                 // Matching openings already align: lift the entire U, carry it
@@ -477,7 +479,7 @@ public sealed partial class GridPlayground {
             var docking=endIncoming.center-flipEnd;
             // Same-facing axial U's need to align their opening during the final
             // attraction, otherwise replacing the shell makes it snap 180 degrees.
-            var stackedPose=MagnetPiece.UDockPose(yaw,rolled);
+            var stackedPose=MagnetPiece.UDockPose(product==MagnetProduct.CrossU?yaw*Quaternion.Euler(0,upperUYaw,0):yaw,rolled);
             var alignment=stackedPose*Quaternion.Inverse(rolled);
             for(float elapsed=0;elapsed<duration;elapsed+=MovementDeltaTime){
                 float p=Mathf.Clamp01(elapsed/duration);
