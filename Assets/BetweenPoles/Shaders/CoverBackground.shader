@@ -4,10 +4,11 @@ SubShader{Cull Off ZWrite Off ZTest Always Pass{CGPROGRAM
 #pragma vertex vert_img
 #pragma fragment frag
 #include "UnityCG.cginc"
-sampler2D _MainTex,_MapTex;float _CoverTime;float4 _Parallax;
+sampler2D _MainTex,_MapTex;float _CoverTime,_PixelArtwork;float4 _Parallax;
 fixed4 frag(v2f_img i):SV_Target{
  float2 uv=i.uv+float2(_Parallax.x,-_Parallax.y);
  float3 color=tex2D(_MainTex,uv).rgb;
+ if(_PixelArtwork>.5)return fixed4(color,1);
  float mask=tex2D(_MapTex,uv).r;
  float2 p=float2(uv.x,1-uv.y)*float2(1376,768);
  float2 delta=p-float2(-188.4,2496.2);
