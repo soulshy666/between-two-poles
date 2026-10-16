@@ -219,6 +219,10 @@ public sealed partial class GridPlayground {
     void UpdateMagnetHover(){
         RestoreMagnetHover(null);
         IndexHoverNeighbors();
+        IndexHoverDecks();useHoverDecks=true;
+        try{UpdateMagnetHoverIndexed();}finally{useHoverDecks=false;}
+    }
+    void UpdateMagnetHoverIndexed(){
         expiredHovers.Clear();
         foreach(var entry in hoveringMagnets)
             if(!ShouldHover(entry.Key))expiredHovers.Add(entry.Key);
