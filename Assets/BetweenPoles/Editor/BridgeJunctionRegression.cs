@@ -59,8 +59,17 @@ namespace BetweenPoles.EditorTools {
                 Check(!(bool)Call(b,"BridgePassage",origin,-dir,null),"Unconnected sideways exit allowed");
                 var shore=b.TileAt(dir*2);b.tiles=b.tiles.Where(t=>t!=shore).ToArray();shore.gameObject.SetActive(false);
                 Check(!(bool)Call(b,"WideBarConnected",branch),"Open branch accepted");
-                Check(!(bool)Call(b,"BridgePassage",origin,branchCell,null),"Open branch walkable");
-                Call(b,"UpdateBridgeJunctionLinks");Check(!link.gameObject.activeSelf,"Broken route still displays wave");
+                Check((bool)Call(b,"BridgePassage",origin,branchCell,null),"Floating wide-bar joint rejected without a far shore");
+                Check((bool)Call(b,"BridgePassage",branchCell,origin,null),"Floating wide-bar joint rejected in reverse");
+                Call(b,"UpdateBridgeJunctionLinks");Check(link.gameObject.activeSelf,"Floating joint lost its current");
+                b.player.position=Vector3.zero;
+                Check(b.TryStep(dir),"Cannot walk onto floating perpendicular branch");Call(b,"FinishMovement");
+                Check(b.PlayerCell==branchCell,"Floating joint landed in wrong cell");
+                Check(b.TryStep(-dir),"Cannot return from floating perpendicular branch");Call(b,"FinishMovement");
+                branch.transform.position+=Vector3.up*b.LayerHeight;
+                Check(!(bool)Call(b,"BridgePassage",origin,branchCell,null),"Different-height joint accepted");
+                Call(b,"UpdateBridgeJunctionLinks");Check(!link.gameObject.activeSelf,"Different-height joint retained current");
+                branch.transform.position-=Vector3.up*b.LayerHeight;
                 // A flat space ring replaces the main span as an independent shore.
                 shore.gameObject.SetActive(true);b.tiles=b.tiles.Concat(new[]{shore}).ToArray();b.InvalidateTileLookup();
                 MagnetVisuals.Product(main,MagnetProduct.Ring,b.cellSize,yaw,true);
@@ -76,7 +85,7 @@ namespace BetweenPoles.EditorTools {
                 Check(main.GetComponentsInChildren<MagneticLinkPulse>().Length==0,"Upright ring retained current");
                 UnityEngine.Object.DestroyImmediate(main.gameObject);UnityEngine.Object.DestroyImmediate(branch.gameObject);UnityEngine.Object.DestroyImmediate(red.gameObject);
             }
-            File.WriteAllText("output/bridge-junction-result.txt","PASS: four orientations; anchored perpendicular branch, forward/reverse walking, pushing red onward, sideways shore blocked, open branch blocked; animated links created at correct sockets, deduplicated, removed on disconnection.");
+            File.WriteAllText("output/bridge-junction-result.txt","PASS: four orientations; perpendicular floating joints, forward/reverse passage, pushing red onward, sideways shore blocked, height mismatch blocked; animated links created at correct sockets, deduplicated, removed on disconnection.");
         }catch(Exception ex){File.WriteAllText("output/bridge-junction-result.txt","FAIL: "+ex);}
         finally{SessionState.SetBool("Junction.Run",false);EditorApplication.isPlaying=false;}
     }

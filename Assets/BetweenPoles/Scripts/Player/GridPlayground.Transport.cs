@@ -50,7 +50,9 @@ public sealed partial class GridPlayground {
         bool junction=source&&destination&&source!=destination
             &&SameHeight(DeckHeight(source),DeckHeight(destination))
             &&(AlongDeck(source,direction)||AlongDeck(destination,direction))
-            &&WideBarConnected(source)&&WideBarConnected(destination);
+            // Finished wide bars are floating platforms: an end-to-side joint
+            // does not require either platform to have shores at both ends.
+            &&TraversableSpan(source)&&TraversableSpan(destination);
         return (!GapWideBar(source)||((AlongDeck(source,direction)||junction)&&TraversableSpan(source)))
             &&(!GapWideBar(destination)||((AlongDeck(destination,direction)||junction)&&TraversableSpan(destination)));
     }

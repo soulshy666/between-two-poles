@@ -2,8 +2,25 @@
 using UnityEngine;
 namespace BetweenPoles {
 public sealed partial class GridPlayground {
+    float RingRollSpeed(int cells){
+        float shoveSeconds=Mathf.Max(.01f,barPushSeconds);
+        float minimumCruise=shoveSeconds-.5f*Mathf.Min(.14f,shoveSeconds/1.5f);
+        return Mathf.Min(WalkSpeedLimit*1.08f,cellSize*cells/minimumCruise);
+    }
+    static float RingRollDistance(float elapsed,float speed,float accelerationSeconds){
+        float u=Mathf.Clamp01(elapsed/accelerationSeconds);
+        return elapsed<accelerationSeconds?speed*accelerationSeconds*(u*u*u-.5f*u*u*u*u):speed*(elapsed-accelerationSeconds*.5f);
+    }
     public bool CanPortalRingEnter(MagnetPiece ring,Vector2Int from,float height,Vector2Int cell){
         float landing;return RingCanEnter(ring,from,height,cell,out landing);
+    }
+    public IEnumerator FloatPortalRing(MagnetPiece ring){
+        var upright=ring.Pose;
+        var flat=Quaternion.FromToRotation(upright*Vector3.up,Vector3.up)*upright;
+        AnimatePortalMagnet(ring,true);
+        try{yield return RingFloatAfterLeavingShore(ring,upright,flat,portalClock:true);}
+        finally{AnimatePortalMagnet(ring,false);}
+        ring.portalRollSpeed=0;
     }
     public IEnumerator RollRingFromPortal(MagnetPiece ring,BlackHolePortal portal,Vector2Int direction){
         var origin=portal.Cell;
@@ -55,16 +72,20 @@ public sealed partial class GridPlayground {
                 ring.portalRollSpeed=0;
             }else{
                 yield return RingStoneRebound(ring,new Vector3(direction.x,0,direction.y),axis,speed,portalClock:true);
+                yield return TransferPortalRingMomentum(ring,Piece(end+direction,ring),direction,speed);
                 ring.portalRollSpeed=0;
             }
         }finally{ring.geometry.localScale=scale;AnimatePortalMagnet(ring,false);}
     }
     bool RingCanEnter(MagnetPiece ring,Vector2Int from,float height,Vector2Int cell,out float landing){
-        // Only a settled flat space ring acts as terrain. All other magnetic
-        // bodies, including walkable bridges and wide bars, stop a rolling ring.
+        var direction=cell-from;var source=Deck(from,ring);
+        if(source&&source.product==MagnetProduct.Bridge&&!AlongDeck(source,direction)){landing=height;return false;}
+        // A completed, shore-connected bridge is terrain along its length.
+        // Raised products and unfinished bridges remain physical obstacles.
         foreach(var other in magnets){
             if(!other||other==ring||!other.enabled||!other.gameObject.activeInHierarchy||!other.Occupies(cell,cellSize))continue;
-            bool floor=SpaceRing(other)&&other.walkable&&MagnetPiece.FlatU(other.Pose)
+            bool floor=((SpaceRing(other)&&MagnetPiece.FlatU(other.Pose))
+                ||(other.product==MagnetProduct.Bridge&&!Tile(cell)&&AlongDeck(other,direction)&&WideBarConnected(other)))&&other.walkable
                 &&!MagnetStillAnimating(other)&&SameHeight(DeckHeight(other),height);
             if(!floor){landing=height;return false;}
         }
@@ -122,12 +143,10 @@ public sealed partial class GridPlayground {
         float slideRadius=Mathf.Abs(forward.x)*slideBounds.extents.x+Mathf.Abs(forward.z)*slideBounds.extents.z;
         // Cruise faster than even the player's capped rapid-tap walking speed.
         // Rotation and translation share one progress value, with no per-cell pause.
-        float ringSpeed=WalkSpeedLimit*1.08f;
+        float ringSpeed=RingRollSpeed(cells);
         // A short roll must leave time for the same full shove as a normal bar.
         // Account for the acceleration ramp when limiting its cruise speed.
         float shoveSeconds=Mathf.Max(.01f,barPushSeconds);
-        float minimumCruise=shoveSeconds-.5f*Mathf.Min(.14f,shoveSeconds/1.5f);
-        ringSpeed=Mathf.Min(ringSpeed,cellSize*cells/minimumCruise);
         float cruiseSeconds=cellSize*cells/ringSpeed;
         ring.portalRollSpeed=tip?0:ringSpeed;
         float accelerationSeconds=Mathf.Min(.14f,cruiseSeconds);
@@ -151,10 +170,7 @@ public sealed partial class GridPlayground {
             if(tip)progress=falling?progress*progress:progress*progress*(2.47f-1.47f*progress);
             else{
                 // Integral of a smooth speed ramp (smoothstep), then constant cruise.
-                float u=Mathf.Clamp01(sample/accelerationSeconds);
-                float travelled=sample<accelerationSeconds
-                    ?ringSpeed*accelerationSeconds*(u*u*u-.5f*u*u*u*u)
-                    :ringSpeed*(sample-.5f*accelerationSeconds);
+                float travelled=RingRollDistance(sample,ringSpeed,accelerationSeconds);
                 progress=Mathf.Clamp01(travelled/(cellSize*cells));
             }
             float distance=progress*cells;int segment=Mathf.Min(cells-1,Mathf.FloorToInt(distance));
@@ -317,12 +333,12 @@ public sealed partial class GridPlayground {
         var origin=Cell(target.transform);
         var path=new System.Collections.Generic.List<Vector3>{target.transform.position};
         float height=target.transform.position.y;
-        // Portal entry needs its own cargo transaction; keep this transfer on the board.
+        // Reserve the complete route, including a receiving portal, before playback.
         for(int i=1;i<=tiles.Length+magnets.Length*2;i++){
             var previous=origin+direction*(i-1);var next=origin+direction*i;float landing;
-            if(BlackHolePortal.At(this,next)||!RingCanEnter(target,previous,height,next,out landing))break;
+            if(!RingCanEnter(target,previous,height,next,out landing))break;
             path.Add(Position(next,landing));height=landing;
-            if(!Floor(next)&&!Deck(next,target))break;
+            if(BlackHolePortal.At(this,next)||(!Floor(next)&&!Deck(next,target)))break;
         }
         int cells=path.Count-1;
         if(cells==0){
@@ -340,6 +356,10 @@ public sealed partial class GridPlayground {
         bool space=!Tile(origin+direction*cells)&&!Deck(origin+direction*cells,target);
         var flat=Quaternion.FromToRotation(endPose*Vector3.up,Vector3.up)*endPose;
         var flight=PrepareLiveRing(target,origin,direction,cells,path[cells],space?flat:endPose,space);
+        var receivingPortal=BlackHolePortal.At(this,origin+direction*cells);
+        flight.destination.storedInPortal=receivingPortal;
+        flight.destination.portalRollSpeed=receivingPortal?speed:0;
+        if(receivingPortal){flight.destination.portalEntryPosition=path[cells-1];flight.destination.active=false;}
         var actions=new System.Collections.Generic.Stack<IEnumerator>();
         actions.Push(RollTransferredRing(target,direction,path.ToArray(),pose,endPose,flat,space,speed));
         target.walkable=false;
@@ -372,10 +392,10 @@ public sealed partial class GridPlayground {
         }
         reaction.playback=StartCoroutine(ContinueLiveRing(reaction,actions));
     }
-    IEnumerator AnimateRingBarImpact(MagnetPiece bar,Vector3 start,Vector3 end,Quaternion pose,Vector3 axis,bool falling){
+    IEnumerator AnimateRingBarImpact(MagnetPiece bar,Vector3 start,Vector3 end,Quaternion pose,Vector3 axis,bool falling,bool portalClock=false){
         float seconds=falling?Mathf.Max(.3f,barPushSeconds):.48f;
         for(float elapsed=0;elapsed<seconds;){
-            elapsed=Mathf.Min(seconds,elapsed+Time.deltaTime);
+            elapsed=Mathf.Min(seconds,elapsed+(portalClock?BlackHoleTravel.AnimationDeltaTime:Time.deltaTime));
             float p=elapsed/seconds;
             float angle;
             if(falling){
@@ -395,14 +415,14 @@ public sealed partial class GridPlayground {
         MagnetVisuals.Ground(bar);
         if(falling&&bar.product==MagnetProduct.Ring&&SpaceRing(bar)&&!Deck(Cell(bar.transform),bar)){
             var flat=bar.Pose;
-            yield return RingFloatAfterLeavingShore(bar,flat,flat,true);
+            yield return RingFloatAfterLeavingShore(bar,flat,flat,true,portalClock);
         }
     }
-    IEnumerator RollTransferredRing(MagnetPiece ring,Vector2Int direction,Vector3[] path,Quaternion pose,Quaternion endPose,Quaternion flat,bool space,float speed){
+    IEnumerator RollTransferredRing(MagnetPiece ring,Vector2Int direction,Vector3[] path,Quaternion pose,Quaternion endPose,Quaternion flat,bool space,float speed,bool portalClock=false,int depth=0){
         int cells=path.Length-1;var axis=new Vector3(direction.y,0,-direction.x);
         float seconds=cells*cellSize/Mathf.Max(.01f,speed);
         for(float elapsed=0;elapsed<seconds;){
-            elapsed=Mathf.Min(seconds,elapsed+Time.deltaTime);
+            elapsed=Mathf.Min(seconds,elapsed+(portalClock?BlackHoleTravel.AnimationDeltaTime:Time.deltaTime));
             float distance=elapsed/seconds*cells;int segment=Mathf.Min(cells-1,Mathf.FloorToInt(distance));
             ring.transform.position=Vector3.Lerp(path[segment],path[segment+1],distance-segment);
             ring.geometry.rotation=Quaternion.AngleAxis(180*distance,axis)*pose;MagnetVisuals.Ground(ring);
@@ -411,12 +431,56 @@ public sealed partial class GridPlayground {
         }
         MagnetRollAudio.Stop(ring);
         ring.transform.position=path[cells];ring.geometry.rotation=endPose;MagnetVisuals.Ground(ring);
-        if(space)yield return RingFloatAfterLeavingShore(ring,endPose,flat,true);
+        if(BlackHolePortal.At(this,Cell(ring.transform))){
+            ring.portalRollSpeed=speed;
+            yield return SettleMagnetArrival(ring,path[cells-1],portalClock);
+        }
+        else if(space)yield return RingFloatAfterLeavingShore(ring,endPose,flat,true,portalClock);
         else{
             float height;var end=Cell(ring.transform);
             if(!RingCanEnter(ring,end,path[cells].y,end+direction,out height))
-                yield return RingStoneRebound(ring,new Vector3(direction.x,0,direction.y),axis,speed,realtime:true,transferMomentum:true);
+                yield return RingStoneRebound(ring,new Vector3(direction.x,0,direction.y),axis,speed,realtime:true,transferMomentum:!portalClock,portalClock:portalClock);
+            if(portalClock)yield return TransferPortalRingMomentum(ring,Piece(end+direction,ring),direction,speed,depth+1);
         }
+        if(!ring.storedInPortal)ring.portalRollSpeed=0;
+    }
+    // Portal journeys await the entire collision chain before releasing the actor.
+    // Use the same rolling/toppling playback as ordinary ground impacts, with
+    // the portal clock so animation skipping settles every participant as well.
+    public IEnumerator TransferPortalRingMomentum(MagnetPiece source,MagnetPiece target,Vector2Int direction,float speed,int depth=0){
+        if(depth>=magnets.Length||!target||MagnetStillAnimating(target)||!Supported(target)
+            ||!SameHeight(source.transform.position.y,target.transform.position.y))yield break;
+        var forward=new Vector3(direction.x,0,direction.y);var axis=new Vector3(direction.y,0,-direction.x);
+        bool wheel=target.product==MagnetProduct.Ring&&!MagnetPiece.FlatU(target.Pose);
+        bool bar=target.product==MagnetProduct.None&&!target.combined&&target.shape==MagnetShape.Bar&&MagnetPiece.VerticalBar(target.Pose);
+        if(!wheel&&!bar)yield break;
+        var origin=Cell(target.transform);var pose=target.Pose;
+        AnimatePortalMagnet(target,true);
+        try{
+            if(bar||Mathf.Abs(Vector3.Dot(pose*Vector3.up,forward))>.95f){
+                var next=origin+direction;var arrival=InspectMagnetDestination(origin,target.transform.position.y,next,target);
+                bool fall=next!=PlayerCell&&arrival.kind!=MagnetLandingKind.Blocked&&arrival.kind!=MagnetLandingKind.Magnet;
+                var start=target.transform.position;
+                yield return AnimateRingBarImpact(target,start,fall?arrival.position:start,pose,axis,fall,true);
+                if(fall){target.walkable=wheel;yield return SettleMagnetArrival(target,start,true);}
+                yield break;
+            }
+            if(Mathf.Abs(Vector3.Dot(pose*Vector3.up,forward))>.05f)yield break;
+            var path=new System.Collections.Generic.List<Vector3>{target.transform.position};float height=target.transform.position.y;
+            for(int i=1;i<=tiles.Length+magnets.Length*2;i++){
+                var next=origin+direction*i;float landing;
+                if(!RingCanEnter(target,next-direction,height,next,out landing))break;
+                path.Add(Position(next,landing));height=landing;
+                if(BlackHolePortal.At(this,next)||(!Floor(next)&&!Deck(next,target)))break;
+            }
+            int cells=path.Count-1;
+            if(cells==0){yield return RingStoneRebound(target,forward,axis,speed,portalClock:true);yield break;}
+            var endPose=Quaternion.AngleAxis(180*cells,axis)*pose;
+            var flat=Quaternion.FromToRotation(endPose*Vector3.up,Vector3.up)*endPose;
+            bool space=!Tile(origin+direction*cells)&&!Deck(origin+direction*cells,target);
+            target.walkable=false;
+            yield return RollTransferredRing(target,direction,path.ToArray(),pose,endPose,flat,space,speed,true,depth);
+        }finally{AnimatePortalMagnet(target,false);}
     }
 }
 }

@@ -64,7 +64,11 @@ public sealed partial class BlackHoleTravel : MonoBehaviour {
         if(!instance||!instance.origin||instance.origin.gameObject.scene.path!=scene||!instance.VisitedRoom(room))return false;
         return instance.testPortals!=null&&instance.testPortals.Any(p=>p&&p.Room==room&&PlanAvailable(p));
     }
-    static bool PlanAvailable(BlackHolePortal portal){ExitPlan plan;return PlanJourneyExit(portal,instance.entryDirection,instance.origin.Cargo,out plan);}
+    static bool PlanAvailable(BlackHolePortal portal){
+        var cargo=instance.origin.Cargo;
+        if(portal&&cargo&&portal.Cargo&&portal.Cargo!=cargo)return false;
+        ExitPlan plan;return PlanJourneyExit(portal,instance.entryDirection,cargo,out plan);
+    }
     public static void Choose(string scene,string room){
         if(!instance||instance.busy||!Selecting||!instance.origin||instance.origin.gameObject.scene.path!=scene)return;
         var portal=instance.testPortals.FirstOrDefault(p=>p&&p.Room==room&&PlanAvailable(p));
