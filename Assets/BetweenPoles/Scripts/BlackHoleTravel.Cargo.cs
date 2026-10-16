@@ -244,14 +244,16 @@ public sealed partial class BlackHoleTravel {
         var launch=landing;
         try{
             geometry.position=restPosition+Vector3.up*offset;
+            bool landingPlayed=false;
             for(float t=0;t<1.05f;t+=AnimationDeltaTime){
+                PlayPlayerLandingAhead(portalAudio,t,1.05f,ref landingPlayed);
                 float a=Mathf.Clamp01(t/1.05f);player.localScale=scale*Mathf.Clamp01(a*5);
                 player.position=ThrownPosition(hole,landing,a);
                 // Blend into the same prone pose used by the recovery, without a pose reset.
                 pose.SampleUnstablePortalArrival(a);yield return null;
             }
             player.localScale=scale;player.position=landing;
-            if(portalAudio)portalAudio.Land(false);
+            PlayPlayerLandingAhead(portalAudio,1.05f,1.05f,ref landingPlayed);
             // Impact and spring compression share one displacement: the prone
             // actor stays in contact with the magnetic surface until release.
             float depth=board.cellSize*.32f;
@@ -310,7 +312,9 @@ public sealed partial class BlackHoleTravel {
                     var kickPose=PlayerPushPose.Begin(player);
                     var portalAudio=PortalAudio.For(player);if(portalAudio)portalAudio.Exit(false);
                     var landing=PortalProneLanding(player,kickPose,plan.player,playerScale);
+                    bool landingPlayed=false;
                     for(float t=0;t<.8f;t+=AnimationDeltaTime){
+                        PlayPlayerLandingAhead(portalAudio,t,.8f,ref landingPlayed);
                         float a=Mathf.SmoothStep(0,1,t/.8f);
                         cargo.transform.position=Vector3.Lerp(plan.magnet,plan.kicked,a);
                         cargo.geometry.rotation=Quaternion.Slerp(pose,fallen,a);MagnetVisuals.Ground(cargo);kickPose.SamplePortalFlight(a);
@@ -321,7 +325,7 @@ public sealed partial class BlackHoleTravel {
 
 
                     player.position=landing;kickPose.SamplePortalProne();
-                    if(portalAudio)portalAudio.Land(false);
+                    PlayPlayerLandingAhead(portalAudio,.8f,.8f,ref landingPlayed);
                     yield return board.SettleMagnetArrival(cargo,plan.magnet,true);
                     player.position=landing;yield return RecoverPlayer(player,plan.player);
     }
@@ -505,14 +509,20 @@ public sealed partial class BlackHoleTravel {
         var flight=PlayerPushPose.Begin(player);
         var portalAudio=PortalAudio.For(player);if(portalAudio)portalAudio.Exit(false);
         var landing=PortalProneLanding(player,flight,end,scale);
+        bool landingPlayed=false;
         for(float t=0;t<1.05f;t+=AnimationDeltaTime){
+            PlayPlayerLandingAhead(portalAudio,t,1.05f,ref landingPlayed);
             float a=t/1.05f;player.localScale=scale*Mathf.Lerp(.05f,1,Mathf.Clamp01(a*5));
             player.position=ThrownPosition(start,landing,a);flight.SamplePortalFlight(a);yield return null;
         }
         player.localScale=scale;player.position=landing;
-        // New animation meets the prone landing at progress 1; recovery starts afterwards.
-        if(portalAudio)portalAudio.Land(false);
+        PlayPlayerLandingAhead(portalAudio,1.05f,1.05f,ref landingPlayed);
         yield return RecoverPlayer(player,end);
+    }
+    // Follow animation time (including pause/skip), with one short output-latency lead.
+    static void PlayPlayerLandingAhead(PortalAudio audio,float elapsed,float duration,ref bool played){
+        if(played||elapsed<duration-.10f)return;
+        played=true;if(audio)audio.Land(false);
     }
     static Vector3 PortalProneLanding(Transform player,PlayerPushPose pose,Vector3 centre,Vector3 scale){
         var savedScale=player.localScale;player.localScale=scale;
