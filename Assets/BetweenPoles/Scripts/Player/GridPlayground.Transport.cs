@@ -61,8 +61,27 @@ public sealed partial class GridPlayground {
         return deck&&deck.walkable&&(deck.product==MagnetProduct.WideBar||WideBarConnected(deck));
     }
     // A deck and the material travelling on it share a cell, but not a layer.
+    readonly System.Collections.Generic.Dictionary<Vector2Int,System.Collections.Generic.List<MagnetPiece>> hoverDecks=new System.Collections.Generic.Dictionary<Vector2Int,System.Collections.Generic.List<MagnetPiece>>();
+    readonly System.Collections.Generic.Stack<System.Collections.Generic.List<MagnetPiece>> hoverDeckPool=new System.Collections.Generic.Stack<System.Collections.Generic.List<MagnetPiece>>();
+    bool useHoverDecks;
+    void IndexHoverDecks(){
+        foreach(var list in hoverDecks.Values){list.Clear();hoverDeckPool.Push(list);}hoverDecks.Clear();
+        foreach(var m in magnets){
+            if(!m||!m.enabled||!m.gameObject.activeInHierarchy||!m.walkable)continue;
+            AddHoverDeck(Cell(m.transform),m);
+            if(m.product==MagnetProduct.Bridge||m.product==MagnetProduct.BridgeHalf)AddHoverDeck(Cell(m.transform)+m.bridgeDirection,m);
+        }
+    }
+    void AddHoverDeck(Vector2Int cell,MagnetPiece m){
+        if(!hoverDecks.TryGetValue(cell,out var list)){list=hoverDeckPool.Count>0?hoverDeckPool.Pop():new System.Collections.Generic.List<MagnetPiece>();hoverDecks.Add(cell,list);}list.Add(m);
+    }
     MagnetPiece Deck(Vector2Int cell,MagnetPiece ignore=null,bool fixedOnly=false){
         MagnetPiece result=null;
+        if(useHoverDecks){
+            if(hoverDecks.TryGetValue(cell,out var candidates))foreach(var m in candidates)
+                if(m!=ignore&&(!fixedOnly||!m.CanBePushed)&&(!result||DeckHeight(m)>DeckHeight(result)))result=m;
+            return result;
+        }
         foreach(var m in magnets)if(m&&m!=ignore&&m.enabled&&m.gameObject.activeInHierarchy&&m.walkable&&(!fixedOnly||!m.CanBePushed)&&m.Occupies(cell,cellSize))
             if(!result||DeckHeight(m)>DeckHeight(result))result=m;
         return result;

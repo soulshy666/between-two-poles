@@ -80,6 +80,7 @@ public static class MagnetVisuals {
         }
         var mesh=new Mesh{name="圆头连续桥面"};mesh.vertices=vertices;mesh.triangles=triangles;mesh.RecalculateNormals();mesh.RecalculateBounds();
         var deck=Group(parent,"连续桥面");deck.gameObject.AddComponent<MeshFilter>().sharedMesh=mesh;
+        deck.gameObject.AddComponent<RuntimeMagnetMesh>().ownedMesh=mesh;
         deck.gameObject.AddComponent<MeshRenderer>().sharedMaterial=BridgeSurfaceMaterial();
     }
     static void RingSurface(Transform parent){
