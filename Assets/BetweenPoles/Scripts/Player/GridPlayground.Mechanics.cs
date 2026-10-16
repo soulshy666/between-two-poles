@@ -308,9 +308,10 @@ public sealed partial class GridPlayground {
         {
             var jump=PlayerPushPose.Begin(player);
             responsiveJump=true;jumpTapBoost=false;
-            var jumpAudio=Application.isPlaying&&!recordingPush&&!finishingMovement&&end.y<start.y-.01f?PlayerFootstepAudio.For(player):null;
-            bool completed=false;
-            if(jumpAudio)jumpAudio.PlayJumpDownAir();
+            var fromTile=Tile(Cell(player));var toTile=Tile(cell);
+            bool stoneToStone=fromTile&&fromTile.blocked&&toTile&&toTile.blocked;
+            var jumpAudio=Application.isPlaying&&!recordingPush&&!finishingMovement&&(!SameHeight(end.y,start.y)||stoneToStone)?PlayerFootstepAudio.For(player):null;
+            bool completed=false,landingPlayed=false;
             try{
                 float horizontal=new Vector2(end.x-start.x,end.z-start.z).magnitude;
                 float duration=Mathf.Max(.28f,horizontal/(cellSize/.28f))+.06f*Mathf.Min(1,Mathf.Abs(end.y-start.y)/Mathf.Max(.01f,LayerHeight));
@@ -326,10 +327,13 @@ public sealed partial class GridPlayground {
                     // Crouch and recovery run during travel, without stationary
                     // lead-in/out frames. Complete on this frame at touchdown.
                     player.position=point;jump.SamplePlatformJump(progress);
+                    // Start just before contact to compensate audio output latency.
+                    if(!landingPlayed&&progress>=1-.08f*speed/duration){
+                        landingPlayed=true;
+                        if(jumpAudio&&!recordingPush&&!finishingMovement)jumpAudio.PlayJumpDownLand();
+                    }
                     if(progress<1)yield return null;
                 }
-                // The new responsive jump lands at progress 1, with no recovery delay.
-                if(jumpAudio&&!recordingPush&&!finishingMovement)jumpAudio.PlayJumpDownLand();
                 completed=true;
             }finally{if(jumpAudio&&(!completed||recordingPush||finishingMovement))jumpAudio.StopJumpDown();responsiveJump=false;jumpTapBoost=false;jump.End();}
             player.position=end;NotifyLanding(cell);Busy=false;
