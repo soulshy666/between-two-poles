@@ -18,6 +18,15 @@ namespace BetweenPoles.EditorTools {
     static void Check(bool ok,string why){if(!ok)throw new Exception(why);}
     static void Run(){
         try{
+            var cacheMesh=new Mesh();
+            try{
+                cacheMesh.vertices=new[]{Vector3.zero,Vector3.up,Vector3.right};
+                var cached=MagnetVisuals.CachedVertices(cacheMesh);
+                Check(ReferenceEquals(cached,MagnetVisuals.CachedVertices(cacheMesh)),"Vertex cache allocates on repeated access");
+                Check(cached.SequenceEqual(cacheMesh.vertices),"Cached vertices differ from mesh");
+                cacheMesh.vertices=new[]{Vector3.forward,Vector3.up,Vector3.right};MagnetVisuals.InvalidateVertices(cacheMesh);
+                Check(MagnetVisuals.CachedVertices(cacheMesh).SequenceEqual(cacheMesh.vertices),"Mesh invalidation leaves stale vertices");
+            }finally{MagnetVisuals.InvalidateVertices(cacheMesh);UnityEngine.Object.DestroyImmediate(cacheMesh);}
             var lab=UnityEngine.Object.FindObjectOfType<MagnetTestLayouts>();
             for(int rotation=0;rotation<4;rotation++){
                 lab.Load(0);var b=lab.board;var yaw=Quaternion.Euler(0,rotation*90,0);
@@ -41,6 +50,14 @@ namespace BetweenPoles.EditorTools {
                 var endpoint=link.TransformPoint(new Vector3(.24f,.16f,0));
                 Check(Vector3.Distance(endpoint,new Vector3(dir.x*.24f,-.12f,dir.y*.24f))<.001f,"Wave starts away from transverse bar");
                 Call(b,"UpdateBridgeJunctionLinks");Check(main.GetComponentsInChildren<MagneticLinkPulse>().Length==2,"Duplicate wave created");
+                Check(!(bool)Call(b,"JunctionInputsChanged"),"Stationary junction did not reuse topology");
+                var savedPosition=branch.transform.position;branch.transform.position+=Vector3.up;
+                Check((bool)Call(b,"JunctionInputsChanged"),"Height change did not invalidate junction");
+                branch.transform.position=savedPosition;
+                Check((bool)Call(b,"JunctionInputsChanged"),"Restoring position did not invalidate junction");
+                branch.walkable=false;Check((bool)Call(b,"JunctionInputsChanged"),"Walkability change was missed");
+                branch.walkable=true;Check((bool)Call(b,"JunctionInputsChanged"),"Walkability restoration was missed");
+                b.InvalidateTileLookup();Check((bool)Call(b,"JunctionInputsChanged"),"Terrain invalidation was missed");
                 if(rotation==0){
                     foreach(var pulse in link.GetComponentsInChildren<MagneticLinkPulse>())typeof(MagneticLinkPulse).GetMethod("Update",Flags).Invoke(pulse,null);
                     var camera=Camera.main;var previous=camera.targetTexture;var active=RenderTexture.active;

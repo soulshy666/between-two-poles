@@ -26,6 +26,87 @@ namespace BetweenPoles.EditorTools {
             };
         }
         static void Check(bool condition,string message){if(!condition)throw new Exception(message);}
+        struct ArcVertex { public Vector3 position,normal;public Vector2 uv;public Material material; }
+        [MenuItem("两极之间/验证组合模型直接生成")]
+        static void ValidateDirectAssemblyMeshes(){
+            Check(Application.isPlaying,"Run this check in Play mode.");
+            var root=new GameObject("Direct assembly mesh regression");root.SetActive(false);
+            bool previous=MagnetVisuals.UseCombinedArcMeshes;int count=0;
+            try{
+                foreach(var product in new[]{MagnetProduct.None,MagnetProduct.Ring,MagnetProduct.ThickU,MagnetProduct.CrossU,MagnetProduct.Lift,MagnetProduct.BridgeHalf,MagnetProduct.Bridge})
+                foreach(bool north in new[]{false,true}){
+                    MagnetVisuals.UseCombinedArcMeshes=false;
+                    var legacy=MagnetVisuals.Build(root.transform,MagnetShape.Horseshoe,north,product,1.5f,!north,Vector2Int.right);
+                    MagnetVisuals.UseCombinedArcMeshes=true;
+                    var direct=MagnetVisuals.Build(root.transform,MagnetShape.Horseshoe,north,product,1.5f,!north,Vector2Int.right);
+                    foreach(var pose in new[]{Quaternion.identity,Quaternion.Euler(90,0,0),Quaternion.Euler(23,71,39)}){
+                        root.transform.SetPositionAndRotation(new Vector3(3,2,-5),pose);root.transform.localScale=new Vector3(.8f,1.2f,.9f);
+                        var before=ArcSnapshot(legacy);var after=ArcSnapshot(direct);
+                        Check(before.Count==after.Count,"Direct build vertex count changed: "+product);
+                        for(int i=0;i<before.Count;i++){
+                            Check((before[i].position-after[i].position).sqrMagnitude<1e-8f,"Direct build position changed: "+product);
+                            Check((before[i].normal-after[i].normal).sqrMagnitude<1e-8f,"Direct build normal changed: "+product);
+                            Check(before[i].uv==after[i].uv&&before[i].material==after[i].material,"Direct build UV/material changed: "+product);
+                        }
+                        count++;
+                    }
+                    int arcs=product==MagnetProduct.Ring||product==MagnetProduct.ThickU||product==MagnetProduct.CrossU?2:1;
+                    Check(direct.GetComponentsInChildren<Renderer>(true).Length==legacy.GetComponentsInChildren<Renderer>(true).Length-19*arcs,"Direct build renderer count incorrect");
+                    Check(direct.GetComponentsInChildren<Collider>(true).Length==0,"Visual geometry created colliders");
+                    UnityEngine.Object.DestroyImmediate(legacy.gameObject);UnityEngine.Object.DestroyImmediate(direct.gameObject);
+                }
+                Debug.Log("PASS: "+count+" direct assembly mesh pose comparisons.");
+            }finally{MagnetVisuals.UseCombinedArcMeshes=previous;UnityEngine.Object.DestroyImmediate(root);}
+        }
+        static List<ArcVertex> ArcSnapshot(Transform root){
+            var result=new List<ArcVertex>();
+            foreach(var filter in root.GetComponentsInChildren<MeshFilter>(true)){
+                var mesh=filter.sharedMesh;var vertices=mesh.vertices;var normals=mesh.normals;var uv=mesh.uv;
+                var normalMatrix=filter.transform.localToWorldMatrix.inverse.transpose;
+                var material=filter.GetComponent<Renderer>().sharedMaterial;
+                for(int i=0;i<vertices.Length;i++)result.Add(new ArcVertex{position=filter.transform.TransformPoint(vertices[i]),
+                    normal=normalMatrix.MultiplyVector(normals[i]).normalized,uv=uv[i],material=material});
+            }
+            return result;
+        }
+        [MenuItem("两极之间/验证 U 型网格合并一致性")]
+        static void ValidateCombinedArcMeshes(){
+            Check(!Application.isPlaying,"Run this check outside Play mode.");
+            var scene=EditorSceneManager.NewPreviewScene();bool previous=MagnetVisuals.UseCombinedArcMeshes;int checks=0;
+            try{
+                MagnetVisuals.UseCombinedArcMeshes=true;
+                foreach(var product in new[]{MagnetProduct.None,MagnetProduct.Ring,MagnetProduct.ThickU,MagnetProduct.CrossU,MagnetProduct.Lift,MagnetProduct.BridgeHalf,MagnetProduct.Bridge})
+                foreach(bool north in new[]{false,true})foreach(var pose in new[]{Quaternion.identity,Quaternion.Euler(90,0,0),Quaternion.Euler(23,71,39)}){
+                    var root=new GameObject("Arc merge fixture");root.SetActive(false);SceneManager.MoveGameObjectToScene(root,scene);
+                    root.transform.SetPositionAndRotation(new Vector3(3,2,-5),pose);
+                    root.transform.localScale=new Vector3(.8f,1.2f,.9f);
+                    var geometry=MagnetVisuals.Build(root.transform,MagnetShape.Horseshoe,north,product,1.5f,!north,Vector2Int.right);
+                    var before=ArcSnapshot(geometry);int renderers=geometry.GetComponentsInChildren<Renderer>(true).Length;
+                    int triangles=geometry.GetComponentsInChildren<MeshFilter>(true).Sum(f=>f.sharedMesh.triangles.Length);
+                    MagnetVisuals.CombineExistingArcs(geometry);
+                    var after=ArcSnapshot(geometry);
+                    Check(before.Count==after.Count,"Vertex count changed: "+product);
+                    for(int i=0;i<before.Count;i++){
+                        Check((before[i].position-after[i].position).sqrMagnitude<1e-8f,"Vertex position changed: "+product);
+                        Check((before[i].normal-after[i].normal).sqrMagnitude<1e-8f,"Hard normal changed: "+product);
+                        Check(before[i].uv==after[i].uv&&before[i].material==after[i].material,"UV/material changed: "+product);
+                    }
+                    int arcs=product==MagnetProduct.Ring||product==MagnetProduct.ThickU||product==MagnetProduct.CrossU?2:1;
+                    Check(geometry.GetComponentsInChildren<Renderer>(true).Length==renderers-19*arcs,"Renderer reduction incorrect: "+product);
+                    Check(geometry.GetComponentsInChildren<MeshFilter>(true).Sum(f=>f.sharedMesh.triangles.Length)==triangles,"Faces removed: "+product);
+                    var meshes=geometry.GetComponentsInChildren<MeshFilter>(true).Select(f=>f.sharedMesh).ToArray();
+                    MagnetVisuals.CombineExistingArcs(geometry);
+                    Check(meshes.SequenceEqual(geometry.GetComponentsInChildren<MeshFilter>(true).Select(f=>f.sharedMesh)),"Merge is not idempotent");
+                    var duplicate=MagnetVisuals.Build(root.transform,MagnetShape.Horseshoe,north,product,1.5f,!north,Vector2Int.right);
+                    MagnetVisuals.CombineExistingArcs(duplicate);
+                    var firstArcs=geometry.GetComponentsInChildren<MeshFilter>(true).Where(f=>f.name=="U 型磁弧 · 合并").Select(f=>f.sharedMesh);
+                    var secondArcs=duplicate.GetComponentsInChildren<MeshFilter>(true).Where(f=>f.name=="U 型磁弧 · 合并").Select(f=>f.sharedMesh);
+                    Check(firstArcs.SequenceEqual(secondArcs),"Identical arcs do not share meshes");
+                    UnityEngine.Object.DestroyImmediate(root);checks++;
+                }
+                Debug.Log("PASS: "+checks+" arc merge cases: vertices, hard normals, UVs, materials, face counts, renderer reduction, idempotence and mesh sharing.");
+            }finally{MagnetVisuals.UseCombinedArcMeshes=previous;EditorSceneManager.ClosePreviewScene(scene);}
+        }
         [MenuItem("两极之间/验证 U 型交叉磁铁")]
         static void ValidateCrossU(){
             var scene=EditorSceneManager.NewPreviewScene();
