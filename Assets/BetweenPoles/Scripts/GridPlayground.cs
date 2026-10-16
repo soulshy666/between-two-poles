@@ -134,7 +134,8 @@ public sealed partial class GridPlayground:MonoBehaviour {
         MagnetPiece result=null;
         foreach(var m in magnets)if(m&&m.enabled&&m!=ignore&&!IsKnockedFlying(m)&&m.gameObject.activeInHierarchy&&m.Occupies(p,cellSize))
             if(!result||m.transform.position.y>result.transform.position.y+.01f
-                ||(SameHeight(m.transform.position.y,result.transform.position.y)&&result.walkable&&!m.walkable))result=m;
+                ||(SameHeight(m.transform.position.y,result.transform.position.y)&&result.walkable
+                    &&(!m.walkable||(m.CanBePushed&&!result.CanBePushed))))result=m;
         return result;
     }
     Vector3 Position(Vector2Int p,float y=0){return new Vector3(p.x*cellSize,y,p.y*cellSize);}

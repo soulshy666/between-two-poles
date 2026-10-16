@@ -460,8 +460,20 @@ public static class PortalRepulsionRegression {
                     Check(!b.CanPortalRingEnter(ring,-side,0,Vector2Int.zero),"Ring entered bridge sideways");checks++;
                     Check(!b.CanPortalRingEnter(ring,Vector2Int.zero,0,side),"Ring left bridge sideways");checks++;
                     tiles[2].surfaceHeight=b.LayerHeight;
-                    Check(!b.CanPortalRingEnter(ring,-dir,0,Vector2Int.zero),"Wrong-height far shore accepted");checks++;
-                    tiles[2].surfaceHeight=0;bridge.product=MagnetProduct.BridgeHalf;bridge.walkable=false;
+                    Check(b.CanPortalRingEnter(ring,-dir,0,Vector2Int.zero),"Far shore incorrectly prevented entering completed bridge");checks++;
+                    Check(!b.CanPortalRingEnter(ring,dir,0,dir*2),"Ring climbed wrong-height far shore");checks++;
+                    tiles[2].surfaceHeight=0;
+                    var flags=System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Instance;
+                    ring.geometry.rotation=Quaternion.identity;ring.walkable=true;MagnetVisuals.Ground(ring);
+                    typeof(GridPlayground).GetField("recordingPush",flags).SetValue(b,true);
+                    for(int step=0;step<3;step++){
+                        Check(b.TryStep(dir),"Flat/tipping ring push rejected at bridge step "+step);
+                        typeof(GridPlayground).GetMethod("FinishMovement",flags).Invoke(b,null);
+                        Check((ring.transform.position-axis*step*b.cellSize).sqrMagnitude<.001f,"Ring failed to advance across bridge at step "+step);
+                        Check(b.PlayerCell==dir*(step-1),"Player failed to follow ring across bridge");checks+=3;
+                    }
+                    ring.transform.position=-axis*b.cellSize;b.player.position=-axis*2*b.cellSize;
+                    bridge.product=MagnetProduct.BridgeHalf;bridge.walkable=false;
                     Check(!b.CanPortalRingEnter(ring,-dir,0,Vector2Int.zero),"Unfinished bridge accepted");checks++;
                 }finally{UnityEngine.Object.DestroyImmediate(root);}
             }
