@@ -3,7 +3,7 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 namespace BetweenPoles {
 [ExecuteAlways]
-public sealed class CoverMenu:MonoBehaviour {
+public sealed partial class CoverMenu:MonoBehaviour {
  public Texture2D background,solarMask,astronaut,title,startLabel,settingsLabel,exitLabel;
  public Texture2D startHover,settingsHover,exitHover,triangle,menuLine;
  readonly float[] hover=new float[3],hoverStart=new float[3];
@@ -87,7 +87,7 @@ public sealed class CoverMenu:MonoBehaviour {
   for(int i=0;i<3;i++)hover[i]=Mathf.Lerp(hoverStart[i],i==selected?1:0,ease);
   if(loading)return;
   var mouse=Input.mousePosition;
-  if(!settings&&!exitPrompt&&(mouse-lastMouse).sqrMagnitude>.01f){
+  if(!settings&&!exitPrompt&&!savePage&&(mouse-lastMouse).sqrMagnitude>.01f){
    float k=Mathf.Max(Screen.width/1376f,Screen.height/768f);
    float ox=Screen.width/1376f<Screen.height/768f?0:(Screen.width-1376*k)*.5f;
    var point=new Vector2((mouse.x-ox)/k,(Screen.height-mouse.y-(Screen.height-768*k)*.5f)/k);
@@ -96,9 +96,10 @@ public sealed class CoverMenu:MonoBehaviour {
   float screenScale=Mathf.Max(Screen.width/1376f,Screen.height/768f);
   float screenLeft=Screen.width/1376f<Screen.height/768f?0:(Screen.width-1376*screenScale)*.5f;
   var coverMouse=new Vector2((mouse.x-screenLeft)/screenScale,(Screen.height-mouse.y-(Screen.height-768*screenScale)*.5f)/screenScale);
-  UpdateAstronaut(coverMouse,!settings&&!exitPrompt&&mouse.x>=0&&mouse.x<=Screen.width&&mouse.y>=0&&mouse.y<=Screen.height);
+  UpdateAstronaut(coverMouse,!settings&&!exitPrompt&&!savePage&&mouse.x>=0&&mouse.x<=Screen.width&&mouse.y>=0&&mouse.y<=Screen.height);
   lastMouse=mouse;
   parallax=Vector2.Lerp(parallax,new Vector2(Mathf.Clamp01(Input.mousePosition.x/Screen.width)-.5f,.5f-Mathf.Clamp01(Input.mousePosition.y/Screen.height))*2,1-Mathf.Exp(-Time.unscaledDeltaTime*2.4f));
+  if(savePage){UpdateSavePage();return;}
   if(settings||exitPrompt){if(Input.GetKeyDown(KeyCode.Escape)){settings=false;exitPrompt=false;}return;}
   if(Input.GetKeyDown(KeyCode.DownArrow)||Input.GetKeyDown(KeyCode.S))selected=(selected+1)%3;
   if(Input.GetKeyDown(KeyCode.UpArrow)||Input.GetKeyDown(KeyCode.W))selected=(selected+2)%3;
@@ -110,15 +111,16 @@ public sealed class CoverMenu:MonoBehaviour {
   for(int i=0;i<12;i++){t=(lo+hi)*.5f;float u=1-t;float bx=3*u*u*t*.2f+3*u*t*t*.2f+t*t*t;if(bx<x)lo=t;else hi=t;}
   float v=1-t;return 3*v*v*t*.8f+3*v*t*t+t*t*t;
  }
- void Activate(int item){if(!Application.isPlaying||loading)return;if(item==0)StartCoroutine(Begin());else if(item==1)settings=true;else exitPrompt=true;}
- IEnumerator Begin(){
+ void Activate(int item){if(!Application.isPlaying||loading)return;if(item==0)OpenSavePage();else if(item==1)settings=true;else exitPrompt=true;}
+ IEnumerator Begin(string scene){
   loading=true;
   for(float t=0;t<.55f;t+=Time.unscaledDeltaTime){fade=t/.55f;yield return null;}
   fade=1;Time.timeScale=1;
-  yield return SceneManager.LoadSceneAsync("Chapter01_IceWorld");
+  yield return SceneManager.LoadSceneAsync(scene);
  }
  const string PixelGlyphs="两极之间开始游戏设置退出确定要吗？取消声音返回0123456789%−+› ";
- Texture2D pixelGlyphs;
+ Texture2D pixelGlyphs,saveGlyphs;
+ const string SaveGlyphs="选择存档新继续删除是否确认读取失败保存游戏返回取消确定吗？×0123456789› ";
  static int GlyphWidth(char c){return c<128||c=='−'||c=='›'?6:12;}
  void PixelText(Rect rect,string value,float maxScale,bool centered=true,bool shadow=true){
   if(!pixelGlyphs){pixelGlyphs=Resources.Load<Texture2D>("ElementUI/CoverPixelGlyphs");if(pixelGlyphs){pixelGlyphs.filterMode=FilterMode.Point;pixelGlyphs.wrapMode=TextureWrapMode.Clamp;}}
@@ -130,7 +132,11 @@ public sealed class CoverMenu:MonoBehaviour {
   for(int pass=shadow?0:1;pass<2;pass++){
    GUI.color=pass==0?new Color(0,0,0,color.a*.7f):color;
    float at=x+(pass==0?k:0),top=y+(pass==0?k:0);
-   foreach(char c in value){int index=PixelGlyphs.IndexOf(c);if(index>=0)GUI.DrawTextureWithTexCoords(new Rect(at,top,16*k,15*k),pixelGlyphs,new Rect(index/(float)PixelGlyphs.Length,0,1f/PixelGlyphs.Length,1));at+=GlyphWidth(c)*k;}
+   foreach(char c in value){
+    int index=PixelGlyphs.IndexOf(c),length=PixelGlyphs.Length;var atlas=pixelGlyphs;
+    if(index<0){if(!saveGlyphs)saveGlyphs=Resources.Load<Texture2D>("ElementUI/SaveSlotGlyphs");atlas=saveGlyphs;index=SaveGlyphs.IndexOf(c);length=SaveGlyphs.Length;}
+    if(index>=0&&atlas)GUI.DrawTextureWithTexCoords(new Rect(at,top,16*k,15*k),atlas,new Rect(index/(float)length,0,1f/length,1));at+=GlyphWidth(c)*k;
+   }
   }
   GUI.color=color;
  }
@@ -172,9 +178,9 @@ public sealed class CoverMenu:MonoBehaviour {
   GUI.DrawTexture(rect,astronaut);
   GUI.matrix=before;
  }
- bool ExitChoice(Rect rect,string value){
+ bool ExitChoice(Rect rect,string value,int size=26){
   bool hot=rect.Contains(Event.current.mousePosition);
-  ExitText(rect,(hot?"›  ":"")+value,26);
+  ExitText(rect,(hot?"›  ":"")+value,size);
   return GUI.Button(rect,GUIContent.none,GUIStyle.none);
  }
  void OnGUI(){
@@ -189,21 +195,22 @@ public sealed class CoverMenu:MonoBehaviour {
   DrawPixelTitle(new Rect(24,60,title.width*.5f,title.height*.5f));
   var labels=new[]{startLabel,settingsLabel,exitLabel};
   var highlights=new[]{startHover,settingsHover,exitHover};
-  for(int i=0;i<3;i++){
+  if(!(savePage||(!Application.isPlaying&&previewSavePage)))for(int i=0;i<3;i++){
    float h=hover[i];
    var rect=new Rect(44+12*h,330+i*106,320,92);
-   if(!settings&&!exitPrompt&&!loading&&GUI.Button(rect,GUIContent.none,GUIStyle.none)){selected=i;Activate(i);}
+   if(!settings&&!exitPrompt&&!savePage&&!loading&&GUI.Button(rect,GUIContent.none,GUIStyle.none)){selected=i;Activate(i);}
    GUI.color=Color.Lerp(new Color(.80f,.85f,.88f),Color.white,h);PixelText(new Rect(rect.x,rect.y+6,320,75),new[]{"开始游戏","设置","退出"}[i],5,false);
    GUI.color=new Color(1,1,1,Mathf.Lerp(.75f,1,h));GUI.DrawTexture(new Rect(rect.x+14,rect.y+80.5f,230+70*h,1.5f),menuLine);
    GUI.color=new Color(1,1,1,h);GUI.DrawTexture(new Rect(rect.x-14-8*(1-h),rect.y+32,10,14),triangle);GUI.color=Color.white;
   }
+  if(savePage||(!Application.isPlaying&&previewSavePage))DrawSavePage();
   if(settings||exitPrompt){
    if(settings){
-    ExitText(new Rect(428,280,520,60),"设置",32);
-    ExitText(new Rect(558,365,260,48),"声音  "+Mathf.RoundToInt(AudioListener.volume*100)+"%",26);
-    if(ExitChoice(new Rect(478,365,80,48),"−"))AudioListener.volume=Mathf.Clamp01(AudioListener.volume-.1f);
-    if(ExitChoice(new Rect(818,365,80,48),"+"))AudioListener.volume=Mathf.Clamp01(AudioListener.volume+.1f);
-    if(ExitChoice(new Rect(608,455,160,48),"返回"))settings=false;
+    ExitText(new Rect(428,260,520,75),"设置",48);
+    ExitText(new Rect(508,355,360,75),"声音  "+Mathf.RoundToInt(AudioListener.volume*100)+"%",48);
+    if(ExitChoice(new Rect(388,355,120,75),"−",48))AudioListener.volume=Mathf.Clamp01(AudioListener.volume-.1f);
+    if(ExitChoice(new Rect(868,355,120,75),"+",48))AudioListener.volume=Mathf.Clamp01(AudioListener.volume+.1f);
+    if(ExitChoice(new Rect(568,465,240,75),"返回",48))settings=false;
    }
    else{
     ExitText(new Rect(428,310,520,60),"确定要退出游戏吗？",32);
@@ -234,7 +241,8 @@ public sealed class CoverMenu:MonoBehaviour {
   DrawAstronaut(t);
   DrawPixelTitle(new Rect(24,60,title.width*.5f,title.height*.5f));
   var labels=new[]{startHover?startHover:startLabel,settingsLabel,exitLabel};
-  for(int i=0;i<3;i++)if(labels[i]){
+  if(previewSavePage)DrawSavePage();
+  else for(int i=0;i<3;i++)if(labels[i]){
    float x=44+(i==0?12:0),y=330+i*106;
    GUI.color=i==0?Color.white:new Color(.80f,.85f,.88f);PixelText(new Rect(x,y+6,320,75),new[]{"开始游戏","设置","退出"}[i],5,false);GUI.color=Color.white;
    if(menuLine)GUI.DrawTexture(new Rect(x+14,y+80.5f,i==0?300:230,1.5f),menuLine);

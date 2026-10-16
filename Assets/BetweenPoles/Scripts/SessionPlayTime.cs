@@ -1,10 +1,11 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.SceneManagement;
 namespace BetweenPoles {
-// Session-only clock: shared across chapters and map inspection, never saved to disk.
+// Shared across chapters and map inspection; restored by the selected save slot.
 public sealed class SessionPlayTime:MonoBehaviour {
     public static double Seconds {get;private set;}
     static SessionPlayTime instance;
+    public static void Restore(double seconds){Seconds=System.Math.Max(0,seconds);}
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     static void Reset(){Seconds=0;instance=null;}
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
@@ -13,7 +14,7 @@ public sealed class SessionPlayTime:MonoBehaviour {
     void OnDisable(){SceneManager.sceneLoaded-=Loaded;}
     void Loaded(Scene scene,LoadSceneMode mode){if(scene.name=="Cover"&&mode==LoadSceneMode.Single)Seconds=0;}
     void Update(){
-        if(ElementGameUI.Paused||Time.timeScale<=0)return;
+        if(GameSaveSlots.Restoring||ElementGameUI.Paused||Time.timeScale<=0)return;
         var name=SceneManager.GetActiveScene().name;
         if(!name.StartsWith("Chapter0")&&!ChapterMapReturn.HasSuspendedGame&&!ChapterRecoilTravel.Active)return;
         Seconds+=Time.unscaledDeltaTime;

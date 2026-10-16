@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 namespace BetweenPoles {
 // Kept on the shared player so a chapter handoff cannot cut off the discovery.
@@ -11,6 +11,8 @@ public sealed class IslandDiscoveryAudio:MonoBehaviour {
     static readonly HashSet<string> visited=new HashSet<string>();
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     static void ResetVisits(){visited.Clear();}
+    public static string[] ExportVisits(){var result=new string[visited.Count];visited.CopyTo(result);return result;}
+    public static void ImportVisits(string[] values){visited.Clear();if(values!=null)foreach(var value in values)visited.Add(value);}
     static string VisitKey(GridPlayground board,Transform island){
         var scene=board.gameObject.scene;
         string room=island.name;

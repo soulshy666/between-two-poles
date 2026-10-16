@@ -1,6 +1,6 @@
 ﻿using UnityEngine;
 namespace BetweenPoles {
- [ExecuteAlways,DefaultExecutionOrder(100)] public class CurvedTrialCamera:MonoBehaviour {
+ [ExecuteAlways,DefaultExecutionOrder(100)] public partial class CurvedTrialCamera:MonoBehaviour {
   public IslandCamera island;
   public Transform planet;
   public bool PlanarChapter {get{return island&&island.board&&island.board.gameObject.scene.name.StartsWith("Chapter0");}}
@@ -35,7 +35,7 @@ namespace BetweenPoles {
    settlePlanet=planet?planet.position:Vector3.zero;settleRotation=planet?planet.rotation:Quaternion.identity;
    settleElapsed=0;settlingFlight=true;
   }
-  float fittedSize,nextFitTime;Transform fittedCenter;
+  float fittedSize,nextFitTime,fittedAspect;Transform fittedCenter;
   [System.NonSerialized] public float navigationZoomSmoothTime;
   [System.NonSerialized] public bool navigationOwnsZoom;
   int lastNavigationZoomFrame=-1;
@@ -151,7 +151,7 @@ namespace BetweenPoles {
     if(fitIsland&&count>0&&island.board){
      int selected=0;for(int j=window?count:1;j<count;j++)if(((Vector3)anchors[j]-focus).sqrMagnitude<((Vector3)anchors[selected]-focus).sqrMagnitude)selected=j;
      Vector3 center=anchors[selected];
-     bool cached=Application.isPlaying&&fittedCenter==centers[selected]&&Time.unscaledTime<nextFitTime;
+     bool cached=Application.isPlaying&&fittedCenter==centers[selected]&&Time.unscaledTime<nextFitTime&&Mathf.Abs(fittedAspect-camera.aspect)<.001f;
      if(cached)size=fittedSize;
      else {
      foreach(var tile in island.board.tiles){if(!tile||!tile.gameObject.activeInHierarchy)continue;Vector3 p=tile.transform.position;int owner=0;for(int j=1;j<count;j++)if((p-(Vector3)anchors[j]).sqrMagnitude<(p-(Vector3)anchors[owner]).sqrMagnitude)owner=j;var binding=tile.GetComponentInParent<IslandSurfaceAnchor>();if(binding&&binding.center){if(window&&binding.center!=centers[selected])continue;for(int j=0;j<count;j++)if(centers[j]==binding.center){owner=j;break;}}if(owner!=selected)continue;
@@ -159,7 +159,8 @@ namespace BetweenPoles {
       size=Mathf.Max(size,Mathf.Abs(Vector3.Dot(transform.up,delta))+pad+framingMargin,(Mathf.Abs(Vector3.Dot(transform.right,delta))+pad+framingMargin)/Mathf.Max(.5f,camera.aspect));
      }
      }
-     if(!cached){fittedSize=size;fittedCenter=centers[selected];nextFitTime=Time.unscaledTime+.25f;}
+     if(!cached&&planar)size=FitNearbyIslandEdges(centers[selected],center,displayScale,camera.aspect,size);
+     if(!cached){fittedAspect=camera.aspect;fittedSize=size;fittedCenter=centers[selected];nextFitTime=Time.unscaledTime+.25f;}
      }
     targetZoomSize=size;
     // Navigation writes the lens once per frame. LateUpdate still updates the
