@@ -215,6 +215,16 @@ public static class WebSketchImporter {
     public static string Build(Layout data,string source){
         var scene=SceneManager.GetActiveScene();ValidateTarget(scene);
         if(data==null||data.rooms.Count==0||!File.Exists(source))throw new Exception("布局或 JSON 来源无效。");
+        bool fixedChapterThreeSpawn=scene.name=="Chapter03_RingWorld";
+        if(fixedChapterThreeSpawn){
+            int first=data.rooms.FindIndex(r=>r.roomNumber==1);
+            if(first<0)throw new Exception("第三章固定出生点需要编号为1的房间。");
+            var spawn=data.rooms[first].offset+new Vector2Int(0,-1);
+            if(!data.rooms[first].cells.Contains(spawn))throw new Exception("第三章固定出生点：请保留1号房间第1列第2行的地板。");
+            if(data.pieces.Any(p=>p.kind!="player"&&p.cell==spawn))throw new Exception("第三章固定出生点被占用：请空出1号房间第1列第2行。");
+            data.start=first;data.spawn=spawn;
+            data.warnings.Add("第三章固定出生点：1号房间第1列第2行；忽略 JSON 中其他出生位置。");
+        }
         string scenePath=scene.path;
         string baseFolder="Assets/BetweenPoles/ImportedLevels";if(!AssetDatabase.IsValidFolder(baseFolder))AssetDatabase.CreateFolder("Assets/BetweenPoles","ImportedLevels");
         string folder=AssetDatabase.GenerateUniqueAssetPath(baseFolder+"/"+scene.name+"-"+Path.GetFileNameWithoutExtension(source));AssetDatabase.CreateFolder(baseFolder,Path.GetFileName(folder));
@@ -246,6 +256,9 @@ public static class WebSketchImporter {
         foreach(var material in new[]{rock,red,blue,gold})MatchSurface(material,ice);
         // Rebase the map to the initial island; logical relative positions remain exact.
         var startCells=data.rooms[data.start].cells;var shift=new Vector2Int(Mathf.RoundToInt((startCells.Min(c=>c.x)+startCells.Max(c=>c.x))*.5f),Mathf.RoundToInt((startCells.Min(c=>c.y)+startCells.Max(c=>c.y))*.5f));
+        // Keep the authored room-local cell at the same runtime coordinate even
+        // when room 1 moves or changes dimensions in a later JSON export.
+        if(fixedChapterThreeSpawn)shift=data.spawn-new Vector2Int(-2,0);
         foreach(var r in data.rooms){for(int i=0;i<r.cells.Count;i++)r.cells[i]-=shift;}foreach(var p in data.pieces)p.cell-=shift;data.spawn-=shift;
         foreach(var r in data.rooms){
             var island=Child(r.name,root.transform);var center=Child(r.id,island.transform).transform;center.position=Pos(new Vector2Int(0,0))+new Vector3((r.cells.Min(c=>c.x)+r.cells.Max(c=>c.x))*Cell*.5f,0,(r.cells.Min(c=>c.y)+r.cells.Max(c=>c.y))*Cell*.5f);

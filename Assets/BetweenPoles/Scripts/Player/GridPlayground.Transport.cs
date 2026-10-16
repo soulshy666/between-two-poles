@@ -51,8 +51,12 @@ public sealed partial class GridPlayground {
             &&SameHeight(DeckHeight(source),DeckHeight(destination))
             &&(AlongDeck(source,direction)||AlongDeck(destination,direction))
             &&WideBarConnected(source)&&WideBarConnected(destination);
-        return (!GapWideBar(source)||((AlongDeck(source,direction)||junction)&&WideBarConnected(source)))
-            &&(!GapWideBar(destination)||((AlongDeck(destination,direction)||junction)&&WideBarConnected(destination)));
+        return (!GapWideBar(source)||((AlongDeck(source,direction)||junction)&&TraversableSpan(source)))
+            &&(!GapWideBar(destination)||((AlongDeck(destination,direction)||junction)&&TraversableSpan(destination)));
+    }
+    bool TraversableSpan(MagnetPiece deck){
+        // Completed wide bars are usable floating platforms even before reaching a shore.
+        return deck&&deck.walkable&&(deck.product==MagnetProduct.WideBar||WideBarConnected(deck));
     }
     // A deck and the material travelling on it share a cell, but not a layer.
     MagnetPiece Deck(Vector2Int cell,MagnetPiece ignore=null,bool fixedOnly=false){
@@ -86,7 +90,7 @@ public sealed partial class GridPlayground {
         var cell=Cell(m.transform);var tile=Tile(cell);
         if(tile&&!tile.blocked&&SameHeight(tile.surfaceHeight,m.transform.position.y))return true;
         var deck=Deck(cell,m);
-        return deck&&(!GapWideBar(deck)||WideBarConnected(deck))&&SameHeight(DeckHeight(deck),m.transform.position.y);
+        return deck&&(!GapWideBar(deck)||TraversableSpan(deck))&&SameHeight(DeckHeight(deck),m.transform.position.y);
     }
     public enum MagnetLandingKind { Ground, Deck, Portal, Space, Magnet, Blocked }
     public struct MagnetLanding {

@@ -201,6 +201,7 @@ public sealed partial class GridPlayground {
             &&!MagnetFlightOwnsHeight(m)&&!Supported(m)&&(!HoverPassage(m)||FloatingRing(m))&&!MagnetStillAnimating(m);
     }
     bool FloatingRing(MagnetPiece m){return SpaceRing(m)&&m.walkable&&MagnetPiece.FlatU(m.Pose);}
+    bool FloatingWidePlatform(MagnetPiece m){return m&&m.product==MagnetProduct.WideBar&&GapWideBar(m)&&m.walkable;}
     float RingRiderWeight(MagnetPiece ring){
         if(!player||BlackHoleTravel.InTransit||RecoilFlying)return 0;
         var delta=player.position-ring.transform.position;
@@ -249,10 +250,32 @@ public sealed partial class GridPlayground {
             float bob=MagnetHoverAmplitude*Mathf.Sin(t*Mathf.PI*2/MagnetHoverPeriod)
                 *Mathf.SmoothStep(0,1,Mathf.Clamp01(t/.4f));
             float offset=(hoverLevels.TryGetValue(m,out float level)?level:0)+bob;
-            if(FloatingRing(m)){float weight=RingRiderWeight(m);riderOffset+=bob*weight;riderWeight+=weight;}
+            if(FloatingRing(m)||FloatingWidePlatform(m)){
+                float weight=RingRiderWeight(m);riderOffset+=bob*weight;riderWeight+=weight;
+            }
             var geometry=m.geometry;
             hoverRenderPositions[geometry]=geometry.position;
             geometry.position+=Vector3.up*offset;
+        }
+        // Riders use the platform's bob, not its geometry-to-shore alignment offset.
+        // Roots retain logical grid heights for pushing, collision and undo.
+        foreach(var cargo in magnets){
+            if(!cargo||!cargo.enabled||!cargo.gameObject.activeInHierarchy||!cargo.geometry
+                ||hoveringMagnets.ContainsKey(cargo)||MagnetFlightOwnsHeight(cargo)||portalAnimatedMagnets.Contains(cargo))continue;
+            float cargoBob=0,totalWeight=0;
+            foreach(var entry in hoveringMagnets){
+                var platform=entry.Key;
+                if((!FloatingWidePlatform(platform)&&!FloatingRing(platform))||platform==cargo)continue;
+                var delta=cargo.transform.position-platform.transform.position;
+                if(!SameHeight(cargo.transform.position.y,DeckHeight(platform)))continue;
+                float weight=1-Mathf.SmoothStep(0,1,Mathf.InverseLerp(cellSize*.35f,cellSize,new Vector2(delta.x,delta.z).magnitude));
+                float t=entry.Value;
+                cargoBob+=weight*MagnetHoverAmplitude*Mathf.Sin(t*Mathf.PI*2/MagnetHoverPeriod)*Mathf.SmoothStep(0,1,Mathf.Clamp01(t/.4f));
+                totalWeight+=weight;
+            }
+            if(totalWeight<=0)continue;
+            if(!hoverRenderPositions.ContainsKey(cargo.geometry))hoverRenderPositions[cargo.geometry]=cargo.geometry.position;
+            cargo.geometry.position+=Vector3.up*(cargoBob/Mathf.Max(1,totalWeight));
         }
         RenderRingRider(riderOffset/Mathf.Max(1,riderWeight));
         // Connected bridges do not bob, but their deck must still sit flush with
