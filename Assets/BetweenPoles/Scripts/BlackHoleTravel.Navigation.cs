@@ -230,7 +230,7 @@ public sealed partial class BlackHoleTravel {
         foreach(var item in navigationRenderers)if(item.Key)item.Key.enabled=item.Value;navigationRenderers.Clear();
         if(viewCamera)viewCamera.farClipPlane=savedFarClip;
         if(navigationCamera)navigationCamera.viewingOffset=savedViewingOffset;
-        if(navigationCurve){navigationCurve.navigationZoomSmoothTime=0;navigationCurve.editFocus=savedFocus;navigationCurve.planningSize=savedSize;navigationCurve.fitIsland=curveFit;}
+        if(navigationCurve){navigationCurve.navigationOwnsZoom=false;navigationCurve.navigationZoomSmoothTime=0;navigationCurve.editFocus=savedFocus;navigationCurve.planningSize=savedSize;navigationCurve.fitIsland=curveFit;}
         if(navigationCamera){navigationCamera.enabled=cameraEnabled;if(!navigationCurve&&viewCamera)viewCamera.orthographicSize=savedSize;}
         if(navigationWindow){navigationWindow.enabled=windowEnabled;navigationWindow.Show(navigationWindow.CurrentRoom);}
         navigationCamera=null;navigationCurve=null;navigationWindow=null;viewCamera=null;
@@ -265,12 +265,14 @@ public sealed partial class BlackHoleTravel {
         if(navigationWindow)for(int i=0;i<navigationWindow.rooms.Length;i++)if(navigationWindow.rooms[i].center==rig.CurrentIsland){navigationWindow.Show(i);break;}
         float endSize=savedSize;
         if(curve){
+            curve.navigationOwnsZoom=true;
             curve.fitIsland=curveFit;curve.planningSize=savedSize;curve.Apply(target);
             endSize=curve.TargetZoomSize;curve.fitIsland=false;curve.ResetZoomVelocity();
         }
         try{
             for(float age=0;age<1.1f;age+=Mathf.Min(Time.unscaledDeltaTime,.05f)*AnimationSpeed){
-                float t=Mathf.SmoothStep(0,1,age/1.1f);
+                float u=Mathf.Clamp01(age/1.1f);
+                float t=u*u*u*(u*(u*6-15)+10);
                 // Restore scene brightness together with the return-camera movement.
                 mapLightingExitWeight=1f-t;
                 viewFocus=Vector3.Lerp(startFocus,target,t);
@@ -282,6 +284,22 @@ public sealed partial class BlackHoleTravel {
             mapLightingExitWeight=0f;
             EndNavigation();
             if(rig){rig.FocusIsland(target);if(curve){curve.Apply(target);curve.ResetZoomVelocity();}if(camera)camera.orthographicSize=endSize;}
+        }
+        // Keep cargo hidden through the normal camera's first rendered frames.
+        // A completed tween alone does not prove the LateUpdate handoff is settled.
+        int stableFrames=0;
+        var previousPosition=camera.transform.position;
+        var previousRotation=camera.transform.rotation;
+        float previousSize=camera.orthographicSize;
+        while(stableFrames<3&&!SkipTransitionActive){
+            yield return null;
+            if(!camera||!rig)yield break;
+            bool stable=(!curve||curve.FramingSettled)
+                &&(camera.transform.position-previousPosition).sqrMagnitude<.000001f
+                &&Quaternion.Angle(camera.transform.rotation,previousRotation)<.01f
+                &&Mathf.Abs(camera.orthographicSize-previousSize)<.001f;
+            stableFrames=stable?stableFrames+1:0;
+            previousPosition=camera.transform.position;previousRotation=camera.transform.rotation;previousSize=camera.orthographicSize;
         }
     }
     void OnGUI(){

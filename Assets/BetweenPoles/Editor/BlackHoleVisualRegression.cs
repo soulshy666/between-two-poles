@@ -10,6 +10,10 @@ namespace BetweenPoles.EditorTools {
         const string Request="output/blackhole-visual.run",Report="output/blackhole-visual-result.txt";
         const BindingFlags Private=BindingFlags.NonPublic|BindingFlags.Instance;
         static BlackHoleVisualRegression(){
+            EditorApplication.delayCall+=()=>{
+                const string request="output/portal-camera-handoff.run";
+                if(!File.Exists(request))return;File.Delete(request);CheckCameraHandoff();
+            };
             EditorApplication.playModeStateChanged+=s=>{
                 if(s!=PlayModeStateChange.EnteredEditMode)return;
                 string previous=SessionState.GetString("BlackHoleVisual.Scene","");
@@ -23,6 +27,38 @@ namespace BetweenPoles.EditorTools {
             }};
         }
         static void Require(bool ok,string error){if(!ok)throw new Exception(error);}
+        [MenuItem("两极之间/测试/黑洞镜头交接参数")]
+        public static void CheckCameraHandoff(){
+            var scene=EditorSceneManager.NewPreviewScene();var root=new GameObject("Portal camera handoff fixture");root.SetActive(false);
+            UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(root,scene);
+            try{
+                var board=root.AddComponent<GridPlayground>();board.enabled=false;
+                var center=new GameObject("Island").transform;center.SetParent(root.transform);
+                var floor=new GameObject("Floor");floor.transform.SetParent(center);floor.transform.localPosition=new Vector3(12,0,8);
+                var tile=floor.AddComponent<GridTile>();board.tiles=new[]{tile};board.magnets=new MagnetPiece[0];
+                var binding=floor.AddComponent<IslandSurfaceAnchor>();binding.center=center;
+                var window=root.AddComponent<FiveIslandWindow>();window.board=board;window.enabled=false;
+                var lensObject=new GameObject("Camera");lensObject.transform.SetParent(root.transform);
+                var camera=lensObject.AddComponent<Camera>();camera.orthographic=true;camera.aspect=16f/9;
+                var rig=lensObject.AddComponent<IslandCamera>();rig.board=board;rig.islandCenters=new[]{center};rig.enabled=false;
+                var curve=lensObject.AddComponent<CurvedTrialCamera>();curve.island=rig;curve.enabled=false;
+                curve.fitIsland=true;curve.planningSize=7.4f;
+                curve.Apply(Vector3.zero);float overviewScale=Shader.GetGlobalFloat("_IslandDisplayScale"),overviewSize=curve.TargetZoomSize;
+                window.enabled=true;curve.Apply(Vector3.zero);
+                Require(Mathf.Abs(overviewScale-Shader.GetGlobalFloat("_IslandDisplayScale"))<.00001f,"Window handoff changed world display scale");
+                Require(Mathf.Abs(overviewSize-curve.TargetZoomSize)<.00001f,"Window handoff changed fitted zoom");
+                curve.navigationOwnsZoom=true;camera.orthographicSize=11.25f;
+                curve.planningSize=18;curve.Apply(Vector3.zero);curve.Apply(Vector3.zero);
+                Require(Mathf.Abs(camera.orthographicSize-11.25f)<.00001f,"Late camera update overwrote navigation zoom");
+                Require(curve.TargetZoomSize>=18,"Explicit zoom ownership prevented target measurement");
+                curve.navigationOwnsZoom=false;
+                typeof(CurvedTrialCamera).GetField("zoomInitialized",Private).SetValue(curve,false);
+                curve.Apply(Vector3.zero);
+                Require(Mathf.Abs(camera.orthographicSize-curve.TargetZoomSize)<.00001f,"Normal camera did not regain zoom ownership");
+                File.WriteAllText("output/portal-camera-handoff-result.txt","PASS: 5 checks; stable overview/gameplay projection and fitted zoom; exclusive tween ownership; normal camera restoration.");
+            }catch(Exception ex){File.WriteAllText("output/portal-camera-handoff-result.txt","FAIL: "+ex);throw;}
+            finally{UnityEngine.Object.DestroyImmediate(root);EditorSceneManager.ClosePreviewScene(scene);}
+        }
         [MenuItem("两极之间/测试/黑洞实际场景镜头回归")]
         public static void Run(){
             if(!Application.isPlaying){

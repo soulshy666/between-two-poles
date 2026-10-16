@@ -41,7 +41,7 @@ public sealed partial class GridPlayground {
             MagnetVisuals.Ground(magnet);magnet.walkable=true;
             magnet.geometry.position+=Vector3.up*(magnet.transform.position.y-MagnetGeometryTop(magnet));
         }
-        if(!portal)yield break; // Ground/deck heights and space hovering use the shared surface rules.
+        if(!portal){magnet.portalRollSpeed=0;yield break;} // Ground/deck heights and space hovering use the shared surface rules.
         if(portal.Cargo&&portal.Cargo!=magnet)throw new System.InvalidOperationException("Magnet destination became occupied during movement");
         var scale=magnet.geometry.localScale;
         if(Application.isPlaying&&!recordingPush&&!finishingMovement){var audio=PortalAudio.For(player);if(audio)audio.Enter(true,.28f,unscaled);}
@@ -53,6 +53,9 @@ public sealed partial class GridPlayground {
         StoreMagnetInPortal(magnet,portal,previousPosition,scale);
     }
     void StoreMagnetInPortal(MagnetPiece magnet,BlackHolePortal portal,Vector3 previousPosition,Vector3 scale){
+        var travel=portal.transform.position-previousPosition;travel.y=0;
+        if(magnet.product!=MagnetProduct.Ring||MagnetPiece.FlatU(magnet.Pose)
+            ||Mathf.Abs(Vector3.Dot(magnet.Pose*Vector3.up,travel.normalized))>.95f)magnet.portalRollSpeed=0;
         magnet.portalEntryPosition=previousPosition;magnet.storedInPortal=portal;
         magnet.gameObject.SetActive(false);magnet.geometry.localScale=scale;MagnetVisuals.Ground(magnet);
     }
@@ -67,11 +70,12 @@ public sealed partial class GridPlayground {
         var playerEnd=PushPlayerEnd(vacated,magnet);var pose=magnet.Pose;var scale=magnet.geometry.localScale;
         float degrees;var arrival=MagnetPiece.Rolled(magnet.shape,pose,dir,out degrees);
         var axis=new Vector3(dir.y,0,-dir.x);
+        magnet.portalRollSpeed=0;
         if(magnet.product==MagnetProduct.Ring){
             var forward=new Vector3(dir.x,0,dir.y);
             bool tip=MagnetPiece.FlatU(pose)||Mathf.Abs(Vector3.Dot(pose*Vector3.up,forward))>.95f;
-            var bounds=AssemblyBounds(AssemblyBodies(magnet.geometry));
-            degrees=tip?90:cellSize/Mathf.Max(.1f,bounds.size.y*.5f)*Mathf.Rad2Deg;
+            degrees=tip?90:180;
+            magnet.portalRollSpeed=tip?0:cellSize/.65f;
             arrival=Quaternion.AngleAxis(degrees,axis)*pose;
         }
         player.rotation=Quaternion.LookRotation(new Vector3(dir.x,0,dir.y));var push=PlayerPushPose.Begin(player);
