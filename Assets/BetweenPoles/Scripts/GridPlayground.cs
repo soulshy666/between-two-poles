@@ -116,7 +116,7 @@ public sealed partial class GridPlayground:MonoBehaviour {
         try{while(AdvanceMovement()){}}
         finally{finishingMovement=false;}
     }
-    struct Snapshot { public BlackHolePortal storedInPortal; public Transform parent,owner; public Vector3 position,scale,portalEntryPosition; public Quaternion rotation; public bool combined,walkable,enabled,active,north; public Transform geometry; public Quaternion pose; public Vector3 geoPosition; public MagnetShape shape; public MagnetProduct product; public bool baseNorth; public Vector2Int bridgeDirection; }
+    struct Snapshot { public float portalRollSpeed; public BlackHolePortal storedInPortal; public Transform parent,owner; public Vector3 position,scale,portalEntryPosition; public Quaternion rotation; public bool combined,walkable,enabled,active,north; public Transform geometry; public Quaternion pose; public Vector3 geoPosition; public MagnetShape shape; public MagnetProduct product; public bool baseNorth; public Vector2Int bridgeDirection; }
     Vector2Int Cell(Transform t){return new Vector2Int(Mathf.RoundToInt(t.position.x/cellSize),Mathf.RoundToInt(t.position.z/cellSize));}
     readonly System.Collections.Generic.Dictionary<Vector2Int,GridTile> frameTiles=new System.Collections.Generic.Dictionary<Vector2Int,GridTile>();
     int tileFrame=-1;GridTile[] indexedTiles;Vector3 indexedBoardPosition;float indexedCellSize;

@@ -37,6 +37,7 @@ namespace BetweenPoles {
   }
   float fittedSize,nextFitTime;Transform fittedCenter;
   [System.NonSerialized] public float navigationZoomSmoothTime;
+  [System.NonSerialized] public bool navigationOwnsZoom;
   int lastNavigationZoomFrame=-1;
   float zoomVelocity;
   float targetZoomSize;
@@ -113,7 +114,7 @@ namespace BetweenPoles {
    bool recoil=island&&island.board&&island.board.RecoilFlying;
    Vector3 renderFocus=fixedDisplayOrigin?displayOrigin:recoil?island.board.RecoilOrigin:focus;
    // Disabling island visibility for the overview must not change its projection.
-   float displayScale=islandDisplayScale*(edgeLayout||(planar&&layoutWindow)?1.1f:1f);
+   float displayScale=islandDisplayScale*(layoutWindow?1.1f:1f);
    Shader.SetGlobalFloat("_IslandDisplayScale",displayScale);
    Shader.SetGlobalVector("_IceCurveFocus",fixedDisplayOrigin?curveOrigin:renderFocus);
    Shader.SetGlobalVector("_IceFocus",new Vector4(renderFocus.x,0,renderFocus.z,0));
@@ -161,6 +162,9 @@ namespace BetweenPoles {
      if(!cached){fittedSize=size;fittedCenter=centers[selected];nextFitTime=Time.unscaledTime+.25f;}
      }
     targetZoomSize=size;
+    // Navigation writes the lens once per frame. LateUpdate still updates the
+    // world projection, but must not apply another zoom after that explicit tween.
+    if(navigationOwnsZoom)return;
     // Start at the correct framing; subsequent island changes ease both ways.
     if(!Application.isPlaying||!zoomInitialized){
      camera.orthographicSize=size;zoomVelocity=0;zoomInitialized=Application.isPlaying;

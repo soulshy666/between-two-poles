@@ -56,12 +56,107 @@ public static class PortalRepulsionRegression {
             checks+=IndependentCargoCases(scene);
             checks+=BlockedChainCases(scene);
             checks+=RingResponseCases(scene);
+            checks+=PortalRingToppleCases(scene);
+            checks+=PortalRollingRingCases(scene);
             checks+=RingEditorCases(scene);
             checks+=FlatRingShoreCases(scene);
             checks+=RingRecipeCases(scene);
             Directory.CreateDirectory("output");File.WriteAllText("output/portal-repulsion.txt","PASS: "+checks+" checks; four directions; stone/high platform rebound; wide-bar support and visibility; kick onto ground/space/second portal; occupied portal rejection with animated return; cargo retention and mouth recovery.");
         }catch(Exception ex){Directory.CreateDirectory("output");File.WriteAllText("output/portal-repulsion.txt","FAIL: "+ex);throw;}
         finally{EditorSceneManager.ClosePreviewScene(scene);}
+    }
+    [InitializeOnLoadMethod]
+    static void QueuePortalRollingCheck(){
+        EditorApplication.delayCall+=()=>{
+            const string request="output/portal-ring-roll.run";
+            if(!File.Exists(request))return;
+            File.Delete(request);RunPortalRollingCheck();
+        };
+    }
+    [MenuItem("两极之间/测试/圆环黑洞动量")]
+    public static void RunPortalRollingCheck(){
+        var scene=EditorSceneManager.NewPreviewScene();
+        try{int checks=PortalRollingRingCases(scene);File.WriteAllText("output/portal-ring-roll-result.txt","PASS: "+checks+" checks; four directions; obstacle, space, second portal and stored momentum.");}
+        catch(Exception ex){File.WriteAllText("output/portal-ring-roll-result.txt","FAIL: "+ex);throw;}
+        finally{EditorSceneManager.ClosePreviewScene(scene);}
+    }
+    static int PortalRollingRingCases(UnityEngine.SceneManagement.Scene scene){
+        int checks=0;var flags=System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Instance;
+        var clock=typeof(BlackHoleTravel).GetField("settlingAnimation",System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Static);
+        foreach(var dir in new[]{Vector2Int.right,Vector2Int.left,Vector2Int.up,Vector2Int.down})for(int mode=0;mode<3;mode++){
+            var root=new GameObject("Portal rolling ring");root.SetActive(false);
+            UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(root,scene);
+            bool savedClock=(bool)clock.GetValue(null);
+            try{
+                var b=root.AddComponent<GridPlayground>();b.enabled=false;
+                b.player=new GameObject("Actor").transform;b.player.SetParent(root.transform);
+                var forward=new Vector3(dir.x,0,dir.y);var axis=new Vector3(dir.y,0,-dir.x);
+                var tiles=new List<GridTile>();
+                for(int n=0;n<(mode==1?3:4);n++){
+                    var floor=new GameObject("Floor");floor.transform.SetParent(root.transform);floor.transform.position=forward*n*b.cellSize;
+                    tiles.Add(floor.AddComponent<GridTile>());
+                }
+                if(mode==0)tiles[3].blocked=true;
+                b.tiles=tiles.ToArray();var portal=tiles[0].gameObject.AddComponent<BlackHolePortal>();portal.board=b;portal.tile=tiles[0];
+                BlackHolePortal second=null;
+                if(mode==2){second=tiles[2].gameObject.AddComponent<BlackHolePortal>();second.board=b;second.tile=tiles[2];}
+                var ring=MagnetVisuals.Create(root.transform,Vector3.zero,MagnetShape.Horseshoe,true,Quaternion.identity,b.cellSize,root.transform);
+                var pose=Quaternion.FromToRotation(Vector3.up,axis);
+                MagnetVisuals.Product(ring,MagnetProduct.Ring,b.cellSize,pose,true);ring.geometry.rotation=pose;MagnetVisuals.Ground(ring);
+                ring.portalRollSpeed=b.cellSize*3;ring.storedInPortal=portal;ring.portalEntryPosition=-forward*b.cellSize;
+                ring.gameObject.SetActive(false);b.magnets=new[]{ring};root.SetActive(true);
+                var saved=typeof(GridPlayground).GetMethod("SavePiece",flags).Invoke(b,new object[]{ring});
+                Check(Mathf.Abs((float)saved.GetType().GetField("portalRollSpeed").GetValue(saved)-ring.portalRollSpeed)<.001f,"Undo snapshot lost portal speed");
+                BlackHoleTravel.ExitPlan plan;
+                Check(BlackHoleTravel.PlanExit(portal,dir,ring,out plan)&&!plan.kick&&!plan.bounce,"Rolling ring was classified as a topple");
+                plan.separateCargo=true;clock.SetValue(null,true);
+                var travel=root.AddComponent<BlackHoleTravel>();
+                Drain((System.Collections.IEnumerator)typeof(BlackHoleTravel).GetMethod("Eject",flags).Invoke(travel,new object[]{portal,dir,ring,plan}));
+                Check((ring.transform.position-forward*(mode==1?3:2)*b.cellSize).sqrMagnitude<.0001f,"Rolling ring stopped in the wrong cell");
+                Check(b.player.position==Vector3.zero&&!b.Busy,"Rolling cargo moved the player");
+                if(mode==1)Check(ring.walkable&&MagnetPiece.FlatU(ring.Pose)&&ring.portalRollSpeed==0,"Space ring failed to settle");
+                else Check(Quaternion.Angle(ring.Pose,pose)<.01f,"Rolling ring lost its rotation phase");
+                Check(mode==2?second.Cargo==ring&&!ring.gameObject.activeSelf&&ring.portalRollSpeed>0:!ring.storedInPortal&&ring.gameObject.activeSelf,"Rolling ring storage/momentum state wrong");
+                checks+=6;
+            }finally{clock.SetValue(null,savedClock);UnityEngine.Object.DestroyImmediate(root);}
+        }
+        return checks;
+    }
+    static int PortalRingToppleCases(UnityEngine.SceneManagement.Scene scene){
+        int checks=0;
+        var flags=System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Instance;
+        var clock=typeof(BlackHoleTravel).GetField("settlingAnimation",System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Static);
+        foreach(var dir in new[]{Vector2Int.right,Vector2Int.left,Vector2Int.up,Vector2Int.down})foreach(float face in new[]{0f,180f}){
+            var root=new GameObject("Portal ring outward topple");root.SetActive(false);
+            UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(root,scene);
+            bool savedClock=(bool)clock.GetValue(null);
+            try{
+                var b=root.AddComponent<GridPlayground>();b.enabled=false;
+                b.player=new GameObject("Actor").transform;b.player.SetParent(root.transform);
+                var forward=new Vector3(dir.x,0,dir.y);var axis=new Vector3(dir.y,0,-dir.x);
+                var tiles=new List<GridTile>();
+                for(int n=0;n<2;n++){
+                    var floor=new GameObject("Floor");floor.transform.SetParent(root.transform);floor.transform.position=forward*n*b.cellSize;
+                    tiles.Add(floor.AddComponent<GridTile>());
+                }
+                b.tiles=tiles.ToArray();var portal=tiles[0].gameObject.AddComponent<BlackHolePortal>();portal.board=b;portal.tile=tiles[0];
+                var ring=MagnetVisuals.Create(root.transform,Vector3.zero,MagnetShape.Horseshoe,true,Quaternion.identity,b.cellSize,root.transform);
+                var entryPose=Quaternion.AngleAxis(90,axis)*Quaternion.Euler(face,0,0);
+                MagnetVisuals.Product(ring,MagnetProduct.Ring,b.cellSize,entryPose,true);
+                ring.geometry.rotation=entryPose;MagnetVisuals.Ground(ring);
+                ring.storedInPortal=portal;ring.gameObject.SetActive(false);b.magnets=new[]{ring};root.SetActive(true);
+                BlackHoleTravel.ExitPlan plan;
+                Check(BlackHoleTravel.PlanExit(portal,dir,ring,out plan)&&plan.kick&&!plan.failedExit&&!plan.unstableLanding,"Ring did not plan a kick from shore into space");
+                var travel=root.AddComponent<BlackHoleTravel>();clock.SetValue(null,true);
+                Drain((System.Collections.IEnumerator)typeof(BlackHoleTravel).GetMethod("Eject",flags).Invoke(travel,new object[]{portal,dir,ring,plan}));
+                Check(Quaternion.Angle(ring.Pose,Quaternion.AngleAxis(90,axis)*entryPose)<.01f,"Ring tipped backwards instead of continuing outward");
+                Check((ring.transform.position-forward*2*b.cellSize).sqrMagnitude<.0001f&&ring.walkable&&MagnetPiece.FlatU(ring.Pose),"Ring did not float flat in the next space cell");
+                Check(!ring.storedInPortal&&ring.gameObject.activeSelf&&!b.Busy&&(b.player.position-forward*b.cellSize).sqrMagnitude<.0001f,"Ring kick did not release the player on shore");
+                Check(Mathf.Abs((float)typeof(GridPlayground).GetMethod("MagnetGeometryTop",flags).Invoke(b,new object[]{ring}))<.001f,"Floating ring surface lost shore height");
+                checks+=5;
+            }finally{clock.SetValue(null,savedClock);UnityEngine.Object.DestroyImmediate(root);}
+        }
+        return checks;
     }
     static int RingRecipeCases(UnityEngine.SceneManagement.Scene scene){
         int checks=0;var root=new GameObject("Universal ring recipe");root.SetActive(false);UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(root,scene);

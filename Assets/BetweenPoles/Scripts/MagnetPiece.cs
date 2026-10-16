@@ -19,6 +19,7 @@ public sealed class MagnetPiece:MonoBehaviour {
     public bool baseNorth;
     [System.NonSerialized] public BlackHolePortal storedInPortal;
     [System.NonSerialized] public Vector3 portalEntryPosition;
+    [System.NonSerialized] public float portalRollSpeed;
     public Vector2Int bridgeDirection=Vector2Int.right;
     public Quaternion Pose { get { return geometry.rotation; } }
     // Rings move as one assembled body; other products remain fixed.

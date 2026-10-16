@@ -37,7 +37,7 @@ public sealed partial class BlackHoleTravel {
             busy=true;var destination=testDestination;
             ExitPlan plan;var direction=entryDirection;
             var cargo=source.Cargo;
-            bool split=cargo&&CargoExitDirection(cargo,direction)!=direction;
+            bool split=cargo&&(cargo.portalRollSpeed>0||CargoExitDirection(cargo,direction)!=direction);
             bool valid=PlanJourneyExit(destination,direction,split?null:cargo,out plan);
             if(!valid)yield break;
 
@@ -56,11 +56,16 @@ public sealed partial class BlackHoleTravel {
             board.player.SetPositionAndRotation(new Vector3(destination.tile.transform.position.x,destination.tile.surfaceHeight,destination.tile.transform.position.z),entryFacing);
             board.CompletePortalLanding(destination.Cell);
             yield return WaitForExitView(destination);
-            bool split=cargo&&CargoExitDirection(cargo,direction)!=direction;
+            bool split=cargo&&(cargo.portalRollSpeed>0||CargoExitDirection(cargo,direction)!=direction);
             if(split){
+                bool rolling=cargo.portalRollSpeed>0;
                 yield return EjectIndependentCargo(destination,CargoExitDirection(cargo,direction),cargo,playerScale);
                 cargo=null;
                 PlanJourneyExit(destination,direction,null,out plan);
+                // A wheel stopped immediately outside the mouth is an obstacle,
+                // not a new request to topple it across its rolling axis.
+                if(rolling&&plan.exitKickTarget&&plan.exitKickTarget.product==MagnetProduct.Ring)
+                    plan=new ExitPlan{failedExit=true};
             }
             board.player.localScale=playerScale;
             if(plan.failedExit)yield return FailedPortalExit(destination,direction,cargo,playerScale);
