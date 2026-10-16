@@ -343,10 +343,24 @@ public sealed partial class GridPlayground {
         }
         return m.shape!=MagnetShape.Horseshoe||MagnetPiece.FlatU(path[path.Count-1].pose)||Reject("单个 U 型翻面后必须平躺");
     }
+    const float UTouchdownPhase=.78f;
+    static bool PlainU(MagnetPiece m){return m.shape==MagnetShape.Horseshoe&&m.product==MagnetProduct.None;}
+    float UFlipDuration(){return Mathf.Max(.16f,uRollSeconds*.78f);}
+    static float UFlipProgress(float time,bool settles){
+        // Start with visible motion immediately, then accelerate into touchdown.
+        float p=Mathf.Clamp01(time/(settles?UTouchdownPhase:1));return p*(.7f+.3f*p);
+    }
+    bool UHasLanding(Vector2Int cell){return !BlackHolePortal.At(this,cell)&&(Tile(cell)||Deck(cell));}
+    void ApplyUTouchdown(MagnetPiece m,float time){
+        float p=Mathf.InverseLerp(UTouchdownPhase,1,time);
+        // One small ballistic hop after impact; no further rotation or logical-cell motion.
+        m.geometry.position+=Vector3.up*(cellSize*.035f*4*p*(1-p));
+    }
     IEnumerator RollPiece(MagnetPiece m,MagnetRollStep step,Vector2Int to,System.Action<float> follow=null,float seconds=0){
         Vector3 start=m.transform.position,end=Position(to,TransportHeight(m,to));Quaternion pose=m.Pose;var axis=new Vector3(step.direction.y,0,-step.direction.x);
-        float duration=seconds>0?seconds:m.shape==MagnetShape.Horseshoe?uRollSeconds:stepSeconds;
-        for(float t=0;t<duration;t+=MovementDeltaTime){float a=Mathf.SmoothStep(0,1,t/duration);m.transform.position=Vector3.Lerp(start,end,a);m.geometry.rotation=Quaternion.AngleAxis(step.degrees*a,axis)*pose;MagnetVisuals.Ground(m);follow?.Invoke(a);yield return null;}
+        bool u=PlainU(m),settles=u&&UHasLanding(to);
+        float duration=seconds>0?seconds:u?UFlipDuration():m.shape==MagnetShape.Horseshoe?uRollSeconds:stepSeconds;
+        for(float t=0;t<duration;t+=MovementDeltaTime){float phase=Mathf.Clamp01(t/duration);float a=u?UFlipProgress(phase,settles):Mathf.SmoothStep(0,1,phase);m.transform.position=Vector3.Lerp(start,end,a);m.geometry.rotation=Quaternion.AngleAxis(step.degrees*a,axis)*pose;MagnetVisuals.Ground(m);if(settles)ApplyUTouchdown(m,phase);follow?.Invoke(a);yield return null;}
         m.transform.position=end;m.geometry.rotation=step.pose;MagnetVisuals.Ground(m);follow?.Invoke(1);
         var settle=SettleMagnetArrival(m,start);
         while(settle.MoveNext())yield return null;
@@ -387,10 +401,10 @@ public sealed partial class GridPlayground {
         else {
             Vector3 start=player.position,end=PushPlayerEnd(next,m);
             player.rotation=Quaternion.LookRotation(new Vector3(dir.x,0,dir.y));
-            var pushPose=PlayerPushPose.Begin(player);var cell=Cell(m.transform);
+            var pushPose=PlayerPushPose.BeginFlowPush(player,cellSize,PlayerPushPose.FlowPushStyle.LiftBar);var cell=Cell(m.transform);
             for(int i=0;i<path.Count;i++){
                 cell+=path[i].direction;
-                System.Action<float> follow=i==0?(System.Action<float>)(progress=>{player.position=Vector3.Lerp(start,end,progress);pushPose.Sample(progress);}):null;
+                System.Action<float> follow=i==0?(System.Action<float>)(progress=>{var previous=player.position;player.position=Vector3.Lerp(start,end,progress);pushPose.AdvanceFlowPush(Vector3.Distance(previous,player.position),MovementDeltaTime,progress);}):null;
                 yield return RollPiece(m,path[i],cell,follow);
                 if(i==0)pushPose.End();
             }
@@ -400,7 +414,7 @@ public sealed partial class GridPlayground {
         EndPushInterrupt();Busy=false;
         continuePushOnComplete=flowed&&!recordingPush&&!finishingMovement;
     }
-    float AdvancePushFlow(float normalSpeed,out float remainingTime){
+    float AdvancePushFlow(float normalSpeed,out float remainingTime,bool brakeAtEnd=true){
             float dt=pushFlowCarryTime>=0&&!recordingPush&&!finishingMovement?pushFlowCarryTime:MovementDeltaTime;
             pushFlowCarryTime=-1;
             bool continuing=(bufferedSteps.Count>0&&bufferedSteps.Peek().direction==pushDirection
@@ -411,7 +425,7 @@ public sealed partial class GridPlayground {
             float desired=Mathf.Clamp(Mathf.Max(normalSpeed,pushFlowBoost),normalSpeed,speedLimit);
             if(recordingPush)desired=normalSpeed;
             // Only the last step settles. Intermediate cell centres are not brakes.
-            if(!continuing&&!recordingPush)desired*=Mathf.Sqrt(Mathf.Clamp((1-pushFlowProgress)/.2f,.04f,1));
+            if(brakeAtEnd&&!continuing&&!recordingPush)desired*=Mathf.Sqrt(Mathf.Clamp((1-pushFlowProgress)/.2f,.04f,1));
             pushFlowSpeed=Mathf.Min(speedLimit,Mathf.MoveTowards(pushFlowSpeed,desired,normalSpeed*3*dt/.07f));
             remainingTime=(1-pushFlowProgress)/Mathf.Max(.001f,pushFlowSpeed);
             pushFlowProgress=Mathf.Min(1,pushFlowProgress+pushFlowSpeed*dt);
@@ -420,7 +434,8 @@ public sealed partial class GridPlayground {
     static float ShoveBarPoseProgress(float progress){float phase=Mathf.Clamp01(progress/.78f);return phase*phase;}
     IEnumerator FlowingRoll(MagnetPiece m,MagnetRollStep step,Vector2Int target,Vector2Int next){
         flowingPush=true;pushFlowProgress=0;
-        float normalSpeed=1/Mathf.Max(.01f,m.shape==MagnetShape.Bar?barPushSeconds:uRollSeconds);
+        bool u=PlainU(m),uSettles=u&&UHasLanding(target);
+        float normalSpeed=1/Mathf.Max(.01f,u?UFlipDuration():m.shape==MagnetShape.Bar?barPushSeconds:uRollSeconds);
         if(pushFlowSpeed<=0)pushFlowSpeed=normalSpeed;
         var start=m.transform.position;var end=Position(target,TransportHeight(m,target));
         var actorStart=player.position;var actorEnd=PushPlayerEnd(next,m);
@@ -440,19 +455,19 @@ public sealed partial class GridPlayground {
         float inheritedRock=TakeBarRock(m,axis);
         float touchdownAge=-1;
         player.rotation=Quaternion.LookRotation(new Vector3(step.direction.x,0,step.direction.y));
-        var style=m.shape!=MagnetShape.Bar?PlayerPushPose.FlowPushStyle.Standard:
+        var style=m.shape!=MagnetShape.Bar?PlayerPushPose.FlowPushStyle.LiftBar:
             MagnetPiece.VerticalBar(rotation)?PlayerPushPose.FlowPushStyle.ShoveBar:PlayerPushPose.FlowPushStyle.LiftBar;
         var pose=PlayerPushPose.BeginFlowPush(player,cellSize,style);
         while(pushFlowProgress<1){
             float previousProgress=pushFlowProgress;
-            float dt=AdvancePushFlow(normalSpeed,out float remainingTime);
+            float dt=AdvancePushFlow(normalSpeed,out float remainingTime,!u);
             if(groundBar&&falling&&pushFlowProgress>=.78f){
                 float used=Mathf.Min(dt,remainingTime);
                 touchdownAge=touchdownAge<0?Mathf.Max(0,used-(.78f-previousProgress)/Mathf.Max(.001f,pushFlowSpeed)):touchdownAge+used;
             }
             var previous=player.position;
-            player.position=Vector3.Lerp(actorStart,actorEnd,pushFlowProgress);
-            float roll=pushFlowProgress;
+            float roll=u?UFlipProgress(pushFlowProgress,uSettles):pushFlowProgress;
+            player.position=Vector3.Lerp(actorStart,actorEnd,roll);
             if(groundBar){
                 // Gravity accelerates the fall; lifting accelerates under effort then brakes at vertical.
                 float phase=Mathf.Clamp01(pushFlowProgress/(falling?.78f:1));
@@ -465,10 +480,11 @@ public sealed partial class GridPlayground {
                 float travel=pivotTravel+remaining*Mathf.SmoothStep(0,1,phase);
                 if(falling){float friction=Mathf.InverseLerp(.78f,1,pushFlowProgress);travel+=slide*(1-(1-friction)*(1-friction));}
                 m.transform.position=Vector3.Lerp(start,end,travel/cellSize);
-            }else m.transform.position=Vector3.Lerp(start,end,pushFlowProgress);
+            }else m.transform.position=Vector3.Lerp(start,end,roll);
             float followRock=inheritedRock*(1-Mathf.SmoothStep(0,1,Mathf.Clamp01(pushFlowProgress/.22f)));
             m.geometry.rotation=Quaternion.AngleAxis(step.degrees*roll,axis)*rotation;
             MagnetVisuals.Ground(m);
+            if(uSettles)ApplyUTouchdown(m,pushFlowProgress);
             if(Mathf.Abs(followRock)>.001f)ApplyBarRock(m,axis,followRock);
             if(touchdownAge>=0)ApplyBarRock(m,axis,BarTouchdownAngle(touchdownAge));
             pose.AdvanceFlowPush(Vector3.Distance(previous,player.position),dt,groundBar?roll:pushFlowProgress);
@@ -500,12 +516,13 @@ public sealed partial class GridPlayground {
         pushHoverParticipants.Add(near);pushHoverParticipants.Add(far);
         Vector3 playerStart=player.position,playerEnd=PushPlayerEnd(next,near);
         player.rotation=Quaternion.LookRotation(new Vector3(direction.x,0,direction.y));
-        var pushPose=PlayerPushPose.Begin(player);
+        bool liftU=PlainU(near);
+        var pushPose=liftU?PlayerPushPose.BeginFlowPush(player,cellSize,PlayerPushPose.FlowPushStyle.LiftBar):PlayerPushPose.Begin(player);
         // At a quarter of the near roll's time it has advanced about 16% of a cell.
         // The far magnet then accelerates away, with both arriving together.
         float seconds=Mathf.Max(.12f,near.shape==MagnetShape.Horseshoe||far.shape==MagnetShape.Horseshoe?uRollSeconds:barPushSeconds);
         float delay=seconds*.25f;
-        System.Action<float> follow=progress=>{player.position=Vector3.Lerp(playerStart,playerEnd,progress);pushPose.Sample(progress);};
+        System.Action<float> follow=progress=>{var previous=player.position;player.position=Vector3.Lerp(playerStart,playerEnd,progress);if(liftU)pushPose.AdvanceFlowPush(Vector3.Distance(previous,player.position),MovementDeltaTime,progress);else pushPose.Sample(progress);};
         var nearMotion=RepelledPath(near,nearPath,seconds,follow);
         var farMotion=RepelledPath(far,farPath,seconds-delay);
         bool nearMoving=true,farMoving=true;
@@ -677,7 +694,8 @@ public sealed partial class GridPlayground {
             &&Mathf.Abs(Vector3.Dot(receiverStart*Vector3.right,pushAxis))>.95f)
             yaw=Yaw(pushAxis);
         Vector3 playerStart=player.position,playerEnd=PushPlayerEnd(next,incoming);
-        var pushPose=portal?null:liftDock
+        bool liftUActor=PlainU(incoming);
+        var pushPose=portal?null:(liftDock||liftUActor)
             ?PlayerPushPose.BeginFlowPush(player,cellSize,PlayerPushPose.FlowPushStyle.LiftBar):PlayerPushPose.Begin(player);
         if(!portal)player.rotation=Quaternion.LookRotation(new Vector3(dir.x,0,dir.y));
         // Every recipe drives the player during docking, not with a later Walk.
@@ -688,7 +706,7 @@ public sealed partial class GridPlayground {
             var previous=player.position;
             if(liftDock)travel=Mathf.SmoothStep(0,1,Mathf.InverseLerp(.35f,1,progress));
             player.position=Vector3.Lerp(playerStart,playerEnd,travel);
-            if(liftDock)pushPose.AdvanceFlowPush(Vector3.Distance(previous,player.position),MovementDeltaTime,progress);
+            if(liftDock||liftUActor)pushPose.AdvanceFlowPush(Vector3.Distance(previous,player.position),MovementDeltaTime,progress);
             else if(throwing)pushPose.SampleBridgeThrow(progress);else pushPose.Sample(progress);
         };
         yield return AnimateAssembly(incoming,target,dir,product,yaw,bridgeDir,uNorth,tippedReceiver,tippedIncoming,receiverEnd,follow);

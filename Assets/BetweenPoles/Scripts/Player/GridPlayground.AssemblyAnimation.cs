@@ -15,7 +15,8 @@ public sealed partial class GridPlayground {
         var bounds=new Bounds();bool first=true;
         foreach(var renderer in renderers){
             var filter=renderer.GetComponent<MeshFilter>();if(!filter||!filter.sharedMesh)continue;
-            foreach(var vertex in filter.sharedMesh.vertices){var point=filter.transform.TransformPoint(vertex);if(first){bounds=new Bounds(point,Vector3.zero);first=false;}else bounds.Encapsulate(point);}
+            var matrix=filter.transform.localToWorldMatrix;
+            foreach(var vertex in MagnetVisuals.CachedVertices(filter.sharedMesh)){var point=matrix.MultiplyPoint3x4(vertex);if(first){bounds=new Bounds(point,Vector3.zero);first=false;}else bounds.Encapsulate(point);}
         }
         return bounds;
     }
