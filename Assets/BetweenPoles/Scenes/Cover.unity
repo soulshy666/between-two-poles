@@ -243,9 +243,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c7df8aae9c9136746bee00acba3c88d6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  background: {fileID: 2800000, guid: c21a4cf627d5781439d091d00cbb59ef, type: 3}
+  background: {fileID: 2800000, guid: 19cc72c82bcacc441b4750b40570a09d, type: 3}
   solarMask: {fileID: 2800000, guid: 5e0b51783f8b03b4ba925721a1c2f8b3, type: 3}
-  astronaut: {fileID: 2800000, guid: d77de508ea719ea4184be763dd437d49, type: 3}
+  astronaut: {fileID: 2800000, guid: 56bca5010c98fb941a3551dc95dc91aa, type: 3}
   title: {fileID: 2800000, guid: 5240c369a3a4b8e418f07676d8f3bec1, type: 3}
   startLabel: {fileID: 2800000, guid: 4537efa224fe1224582c89c35a8505cf, type: 3}
   settingsLabel: {fileID: 2800000, guid: 2d7940abf9b5a124c9b1f022ff40276f, type: 3}
@@ -257,6 +257,7 @@ MonoBehaviour:
   menuLine: {fileID: 2800000, guid: 4ea9d88069317c44fb13a14dff0f575c, type: 3}
   font: {fileID: 12800000, guid: 35b6aa9904814c945b29888ef37b928d, type: 3}
   backgroundShader: {fileID: 4800000, guid: 8836854b4ea5b0447861337d28b854f6, type: 3}
+  pixelArtwork: 1
 --- !u!4 &1796602347
 Transform:
   m_ObjectHideFlags: 0

@@ -11,9 +11,11 @@ public sealed class CoverMenu:MonoBehaviour {
  Vector3 lastMouse;
  public Font font;
  public Shader backgroundShader;
+ public bool pixelArtwork;
  Material backdrop;RenderTexture backgroundFrame;
- int selected;bool settings,exitPrompt,loading,scanlines=true;
+ int selected;bool settings,exitPrompt,loading;
  float fade;Vector2 parallax;
+ Vector2 astronautOffset,astronautVelocity;float astronautTilt;
  float AnimationTime {
   get {
 #if UNITY_EDITOR
@@ -47,6 +49,8 @@ public sealed class CoverMenu:MonoBehaviour {
   RenderBackground();
  }
  void ReleasePreview(){
+  if(signalFrame){signalFrame.Release();if(Application.isPlaying)Destroy(signalFrame);else DestroyImmediate(signalFrame);signalFrame=null;}
+  if(titleSignal){if(Application.isPlaying)Destroy(titleSignal);else DestroyImmediate(titleSignal);titleSignal=null;}
   if(backgroundFrame){backgroundFrame.Release();if(Application.isPlaying)Destroy(backgroundFrame);else DestroyImmediate(backgroundFrame);backgroundFrame=null;}
   if(backdrop){if(Application.isPlaying)Destroy(backdrop);else DestroyImmediate(backdrop);backdrop=null;}
  }
@@ -58,11 +62,21 @@ public sealed class CoverMenu:MonoBehaviour {
  }
  void OnDestroy(){ReleasePreview();}
  void RenderBackground(){
+  if(pixelArtwork)return;
   if(!backdrop||!backgroundFrame)return;
   var previous=RenderTexture.active;
   backdrop.SetFloat("_CoverTime",AnimationTime);
+  backdrop.SetFloat("_PixelArtwork",pixelArtwork?1:0);
   backdrop.SetVector("_Parallax",Application.isPlaying?new Vector4(-parallax.x*.004f,-parallax.y*.004f,0,0):Vector4.zero);
   Graphics.Blit(background,backgroundFrame,backdrop);RenderTexture.active=previous;
+ }
+ void DrawCoverBackground(){
+  var rect=new Rect(0,0,1376,768);
+  // Draw the supplied artwork directly: an intermediate linear render texture
+  // was making its sRGB colours too dark in the IMGUI presentation pass.
+  if(pixelArtwork&&background){
+   GUI.DrawTextureWithTexCoords(rect,background,new Rect(-parallax.x*.004f,parallax.y*.004f,1,1));
+  }else GUI.DrawTexture(rect,backgroundFrame?backgroundFrame:(Texture)background);
  }
  void LateUpdate(){EnsurePreview();}
  void Update(){
@@ -79,6 +93,10 @@ public sealed class CoverMenu:MonoBehaviour {
    var point=new Vector2((mouse.x-ox)/k,(Screen.height-mouse.y-(Screen.height-768*k)*.5f)/k);
    for(int i=0;i<3;i++)if(new Rect(30,330+i*106,350,92).Contains(point))selected=i;
   }
+  float screenScale=Mathf.Max(Screen.width/1376f,Screen.height/768f);
+  float screenLeft=Screen.width/1376f<Screen.height/768f?0:(Screen.width-1376*screenScale)*.5f;
+  var coverMouse=new Vector2((mouse.x-screenLeft)/screenScale,(Screen.height-mouse.y-(Screen.height-768*screenScale)*.5f)/screenScale);
+  UpdateAstronaut(coverMouse,!settings&&!exitPrompt&&mouse.x>=0&&mouse.x<=Screen.width&&mouse.y>=0&&mouse.y<=Screen.height);
   lastMouse=mouse;
   parallax=Vector2.Lerp(parallax,new Vector2(Mathf.Clamp01(Input.mousePosition.x/Screen.width)-.5f,.5f-Mathf.Clamp01(Input.mousePosition.y/Screen.height))*2,1-Mathf.Exp(-Time.unscaledDeltaTime*2.4f));
   if(settings||exitPrompt){if(Input.GetKeyDown(KeyCode.Escape)){settings=false;exitPrompt=false;}return;}
@@ -99,13 +117,60 @@ public sealed class CoverMenu:MonoBehaviour {
   fade=1;Time.timeScale=1;
   yield return SceneManager.LoadSceneAsync("Chapter01_IceWorld");
  }
- Font exitFont;
- void ExitText(Rect rect,string value,int size){
-  if(!exitFont)exitFont=Font.CreateDynamicFontFromOSFont(new[]{"Microsoft YaHei","SimHei","Arial"},32);
-  var style=new GUIStyle(GUI.skin.label){font=exitFont,fontSize=size,alignment=TextAnchor.MiddleCenter};
-  style.normal.textColor=new Color(0,0,0,.8f);
-  var shadow=rect;shadow.position+=new Vector2(2,2);GUI.Label(shadow,value,style);
-  style.normal.textColor=new Color(.96f,.94f,.90f);GUI.Label(rect,value,style);
+ const string PixelGlyphs="两极之间开始游戏设置退出确定要吗？取消声音返回0123456789%−+› ";
+ Texture2D pixelGlyphs;
+ static int GlyphWidth(char c){return c<128||c=='−'||c=='›'?6:12;}
+ void PixelText(Rect rect,string value,float maxScale,bool centered=true,bool shadow=true){
+  if(!pixelGlyphs){pixelGlyphs=Resources.Load<Texture2D>("ElementUI/CoverPixelGlyphs");if(pixelGlyphs){pixelGlyphs.filterMode=FilterMode.Point;pixelGlyphs.wrapMode=TextureWrapMode.Clamp;}}
+  if(!pixelGlyphs)return;
+  int width=2;foreach(char c in value)width+=GlyphWidth(c);
+  float k=Mathf.Max(1,Mathf.Floor(Mathf.Min(maxScale,Mathf.Min(rect.width/width,rect.height/15))));
+  float x=Mathf.Round(centered?rect.center.x-width*k*.5f:rect.x),y=Mathf.Round(rect.center.y-15*k*.5f);
+  var color=GUI.color;
+  for(int pass=shadow?0:1;pass<2;pass++){
+   GUI.color=pass==0?new Color(0,0,0,color.a*.7f):color;
+   float at=x+(pass==0?k:0),top=y+(pass==0?k:0);
+   foreach(char c in value){int index=PixelGlyphs.IndexOf(c);if(index>=0)GUI.DrawTextureWithTexCoords(new Rect(at,top,16*k,15*k),pixelGlyphs,new Rect(index/(float)PixelGlyphs.Length,0,1f/PixelGlyphs.Length,1));at+=GlyphWidth(c)*k;}
+  }
+  GUI.color=color;
+ }
+ void ExitText(Rect rect,string value,int size){PixelText(rect,value,size/12f);}
+ Texture2D signalTitle;Material titleSignal;RenderTexture signalFrame;
+ void DrawPixelTitle(Rect rect){
+  if(!signalTitle)signalTitle=Resources.Load<Texture2D>("ElementUI/CoverPixelTitle");
+  if(!titleSignal){var shader=Resources.Load<Shader>("Shaders/CoverTitleSignal");if(shader)titleSignal=new Material(shader){hideFlags=HideFlags.HideAndDontSave};}
+  if(!signalTitle||!titleSignal){PixelText(rect,"两极之间",20,false,false);return;}
+  signalTitle.filterMode=FilterMode.Point;
+  float k=Mathf.Max(1,Mathf.Floor(Mathf.Min(20,Mathf.Min(rect.width/50,rect.height/15))));
+  int width=Mathf.RoundToInt(54*k),height=Mathf.RoundToInt(15*k);
+  if(!signalFrame||signalFrame.width!=width||signalFrame.height!=height){
+   if(signalFrame){signalFrame.Release();if(Application.isPlaying)Destroy(signalFrame);else DestroyImmediate(signalFrame);}
+   signalFrame=new RenderTexture(width,height,0,RenderTextureFormat.ARGB32){filterMode=FilterMode.Point,hideFlags=HideFlags.HideAndDontSave};signalFrame.Create();
+  }
+  if(Event.current.type!=EventType.Repaint)return;
+  var previous=RenderTexture.active;titleSignal.SetFloat("_SignalTime",AnimationTime);
+  Graphics.Blit(signalTitle,signalFrame,titleSignal);RenderTexture.active=previous;
+  GUI.DrawTexture(new Rect(Mathf.Round(rect.x-2*k),Mathf.Round(rect.center.y-height*.5f),width,height),signalFrame);
+ }
+ Vector2 AstronautPosition(float t){return new Vector2(620+Mathf.Sin(t*.31f)*26+Mathf.Sin(t*.73f+1.3f)*11+parallax.x*16,345+Mathf.Sin(t*.47f)*22+Mathf.Sin(t*1.07f+.4f)*8+parallax.y*12);}
+ void UpdateAstronaut(Vector2 mouse,bool interactive){
+  var center=AstronautPosition(AnimationTime)+new Vector2(142.5f,97);
+  var away=center-mouse;float distance=away.magnitude;
+  float proximity=interactive?1-Mathf.SmoothStep(0,1,Mathf.Clamp01(distance/280)):0;
+  var target=(distance>1?away/distance:Vector2.up)*proximity*48;
+  float dt=Mathf.Min(Time.unscaledDeltaTime,.05f);
+  astronautOffset=Vector2.SmoothDamp(astronautOffset,target,ref astronautVelocity,.3f,250,dt);
+  astronautTilt=Mathf.Lerp(astronautTilt,Mathf.Clamp(-away.x/180,-1,1)*proximity*16,1-Mathf.Exp(-dt*5));
+ }
+ void DrawAstronaut(float t){
+  var before=GUI.matrix;var p=AstronautPosition(t)+astronautOffset;
+  var pivot=p+new Vector2(142.5f,97);
+  GUIUtility.RotateAroundPivot(Mathf.Sin(t*.23f)*9+Mathf.Sin(t*.61f+2)*3.5f+astronautTilt,pivot);
+  float height=pixelArtwork?220:285f*astronaut.height/astronaut.width;
+  float width=pixelArtwork?height*astronaut.width/astronaut.height:285;
+  var rect=new Rect(pivot.x-width*.5f,pivot.y-height*.5f,width,height);
+  GUI.DrawTexture(rect,astronaut);
+  GUI.matrix=before;
  }
  bool ExitChoice(Rect rect,string value){
   bool hot=rect.Contains(Event.current.mousePosition);
@@ -119,25 +184,19 @@ public sealed class CoverMenu:MonoBehaviour {
   float scale=Mathf.Max(Screen.width/1376f,Screen.height/768f);
   GUI.matrix=Matrix4x4.TRS(new Vector3(Screen.width/1376f<Screen.height/768f?0:(Screen.width-1376*scale)*.5f,(Screen.height-768*scale)*.5f,0),Quaternion.identity,Vector3.one*scale);
   float t=AnimationTime;
-  GUI.DrawTexture(new Rect(0,0,1376,768),backgroundFrame);
-  var before=GUI.matrix;
-  float x=620+Mathf.Sin(t*.31f)*26+Mathf.Sin(t*.73f+1.3f)*11+parallax.x*16;
-  float y=345+Mathf.Sin(t*.47f)*22+Mathf.Sin(t*1.07f+.4f)*8+parallax.y*12;
-  GUIUtility.RotateAroundPivot(Mathf.Sin(t*.23f)*9+Mathf.Sin(t*.61f+2)*3.5f,new Vector2(x+142.5f,y+97));
-  GUI.DrawTexture(new Rect(x,y,285,285f*astronaut.height/astronaut.width),astronaut);GUI.matrix=before;
-  GUI.DrawTexture(new Rect(12,60,title.width*.5f,title.height*.5f),title);
+  DrawCoverBackground();
+  DrawAstronaut(t);
+  DrawPixelTitle(new Rect(24,60,title.width*.5f,title.height*.5f));
   var labels=new[]{startLabel,settingsLabel,exitLabel};
   var highlights=new[]{startHover,settingsHover,exitHover};
   for(int i=0;i<3;i++){
    float h=hover[i];
    var rect=new Rect(44+12*h,330+i*106,320,92);
    if(!settings&&!exitPrompt&&!loading&&GUI.Button(rect,GUIContent.none,GUIStyle.none)){selected=i;Activate(i);}
-   GUI.color=new Color(1,1,1,1-h);GUI.DrawTexture(new Rect(rect.x,rect.y+6,labels[i].width*.5f,labels[i].height*.5f),labels[i]);
-   GUI.color=new Color(1,1,1,h);GUI.DrawTexture(new Rect(rect.x,rect.y+6,highlights[i].width*.5f,highlights[i].height*.5f),highlights[i]);
+   GUI.color=Color.Lerp(new Color(.80f,.85f,.88f),Color.white,h);PixelText(new Rect(rect.x,rect.y+6,320,75),new[]{"开始游戏","设置","退出"}[i],5,false);
    GUI.color=new Color(1,1,1,Mathf.Lerp(.75f,1,h));GUI.DrawTexture(new Rect(rect.x+14,rect.y+80.5f,230+70*h,1.5f),menuLine);
    GUI.color=new Color(1,1,1,h);GUI.DrawTexture(new Rect(rect.x-14-8*(1-h),rect.y+32,10,14),triangle);GUI.color=Color.white;
   }
-  if(scanlines){GUI.color=new Color(0,0,0,.085f);for(int yLine=0;yLine<768;yLine+=3)GUI.DrawTexture(new Rect(0,yLine,1376,1),Texture2D.whiteTexture);GUI.color=Color.white;}
   if(settings||exitPrompt){
    if(settings){
     ExitText(new Rect(428,280,520,60),"设置",32);
@@ -170,19 +229,14 @@ public sealed class CoverMenu:MonoBehaviour {
   float scale=Mathf.Min(width/1376f,height/768f);
   GUI.matrix=Matrix4x4.TRS(new Vector3((width-1376*scale)*.5f,(height-768*scale)*.5f,0),Quaternion.identity,Vector3.one*scale);
   GUI.color=Color.white;
-  GUI.DrawTexture(new Rect(0,0,1376,768),backgroundFrame?backgroundFrame:(Texture)background);
+  DrawCoverBackground();
   float t=AnimationTime;
-  float astroX=620+Mathf.Sin(t*.31f)*26+Mathf.Sin(t*.73f+1.3f)*11;
-  float astroY=345+Mathf.Sin(t*.47f)*22+Mathf.Sin(t*1.07f+.4f)*8;
-  var stageMatrix=GUI.matrix;
-  GUIUtility.RotateAroundPivot(Mathf.Sin(t*.23f)*9+Mathf.Sin(t*.61f+2)*3.5f,new Vector2(astroX+142.5f,astroY+97));
-  GUI.DrawTexture(new Rect(astroX,astroY,285,285f*astronaut.height/astronaut.width),astronaut);
-  GUI.matrix=stageMatrix;
-  GUI.DrawTexture(new Rect(12,60,title.width*.5f,title.height*.5f),title);
+  DrawAstronaut(t);
+  DrawPixelTitle(new Rect(24,60,title.width*.5f,title.height*.5f));
   var labels=new[]{startHover?startHover:startLabel,settingsLabel,exitLabel};
   for(int i=0;i<3;i++)if(labels[i]){
    float x=44+(i==0?12:0),y=330+i*106;
-   GUI.DrawTexture(new Rect(x,y+6,labels[i].width*.5f,labels[i].height*.5f),labels[i]);
+   GUI.color=i==0?Color.white:new Color(.80f,.85f,.88f);PixelText(new Rect(x,y+6,320,75),new[]{"开始游戏","设置","退出"}[i],5,false);GUI.color=Color.white;
    if(menuLine)GUI.DrawTexture(new Rect(x+14,y+80.5f,i==0?300:230,1.5f),menuLine);
    if(i==0&&triangle)GUI.DrawTexture(new Rect(x-14,y+32,10,14),triangle);
   }
