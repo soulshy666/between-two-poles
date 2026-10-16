@@ -41,7 +41,8 @@ public sealed class IceCrashIntro:MonoBehaviour {
         if(!Setup()){Playing=false;board.SetOpeningCinematic(false);yield break;}
         crashAudio=GetComponent<IceCrashAudio>();
         if(!crashAudio)crashAudio=gameObject.AddComponent<IceCrashAudio>();
-        crashAudio.Begin();ready=true;Sample(0);
+        if(!GameSaveSlots.Restoring)crashAudio.Begin();ready=true;Sample(0);
+        if(GameSaveSlots.Restoring)Skip();
     }
     bool Setup(){
         originalPosition=board.player.position;originalRotation=board.player.rotation;

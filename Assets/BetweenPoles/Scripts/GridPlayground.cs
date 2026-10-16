@@ -146,7 +146,7 @@ public sealed partial class GridPlayground:MonoBehaviour {
         mobilePad=GetComponent<MobileDirectionPad>();
         if(!mobilePad&&(Application.isMobilePlatform||Application.isEditor))mobilePad=gameObject.AddComponent<MobileDirectionPad>();
         if(player)PlayerPushPose.EnsureIdle(player);
-        CaptureInitialState();
+        CaptureInitialState();InitializeDiskReferences();
     }
     public void CaptureInitialState(){
         InvalidateTileLookup();
@@ -208,7 +208,7 @@ public sealed partial class GridPlayground:MonoBehaviour {
             ||Mathf.Abs(Input.GetAxisRaw("Mouse X"))+Mathf.Abs(Input.GetAxisRaw("Mouse Y"))>.001f)){
             var pose=player.GetComponent<PlayerPushPose>();if(pose)pose.CancelIdle();
         }
-        if(OpeningCinematic||collectingStar){ClearMovementInput();return;}
+        if(GameSaveSlots.Restoring||OpeningCinematic||collectingStar){ClearMovementInput();return;}
         var panel=GetComponent<MagnetDebugPanel>();
         if((panel&&panel.enabled&&panel.IsOpen)||Time.timeScale<=0){ClearMovementInput();return;}
         if(Input.GetKeyDown(KeyCode.Alpha1)||Input.GetKeyDown(KeyCode.Keypad1)){JumpTestRoom(1);return;}

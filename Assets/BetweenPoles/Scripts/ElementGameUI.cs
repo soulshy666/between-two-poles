@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 namespace BetweenPoles {
@@ -170,6 +170,7 @@ public sealed class ElementGameUI:MonoBehaviour {
         }
     }
     System.Collections.IEnumerator ReturnToMenu(){
+        GameSaveSlots.SaveNow();
         yield return ChapterRecoilTravel.CancelPreloadForMenu();
         SetPaused(false);
         yield return SceneManager.LoadSceneAsync("Cover",LoadSceneMode.Single);

@@ -7,6 +7,8 @@ public static class SessionExploration {
     public static int Revision {get;private set;}
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     static void Reset(){visited.Clear();connections.Clear();Revision++;}
+    public static string[] Export(){var result=new string[visited.Count];visited.CopyTo(result);return result;}
+    public static void Import(string[] values){visited.Clear();connections.Clear();if(values!=null)foreach(var value in values)visited.Add(value);Revision++;}
     public static int GetInt(string key,int fallback=0){return visited.Contains(key)?1:fallback;}
     public static void Visit(string scene,string room){if(visited.Add(ChapterAtlas.Key(scene,room)))Revision++;visited.Add(ChapterAtlas.WorldVisitKey(scene));}
     public static void VisitTile(GridPlayground board,GridTile tile){
