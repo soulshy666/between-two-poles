@@ -13,7 +13,10 @@ public struct MagnetRollStep {
 public sealed class MagnetPiece:MonoBehaviour {
     public int VisualHierarchyRevision { get; private set; }
     void OnTransformChildrenChanged(){unchecked{VisualHierarchyRevision++;}}
-    void OnEnable(){unchecked{VisualHierarchyRevision++;}}
+    void OnEnable(){
+        unchecked{VisualHierarchyRevision++;}
+        if(Application.isPlaying&&!GetComponent<MagnetFieldIdentity>())gameObject.AddComponent<MagnetFieldIdentity>();
+    }
     void Awake(){
         if(!Application.isPlaying||!geometry||!MagnetVisuals.UseCombinedArcMeshes)return;
         MagnetVisuals.CombineExistingArcs(geometry);
