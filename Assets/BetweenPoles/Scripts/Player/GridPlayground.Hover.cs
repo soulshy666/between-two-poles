@@ -104,8 +104,11 @@ public sealed partial class GridPlayground {
         m.geometry.position=pivot+turn*(m.geometry.position-pivot);
         m.geometry.rotation=turn*m.geometry.rotation;
     }
+    readonly List<MagnetPiece> rockRenderKeys=new List<MagnetPiece>();
     void RenderBarRocks(){
-        foreach(var m in new List<MagnetPiece>(barRocks.Keys)){
+        rockRenderKeys.Clear();
+        foreach(var key in barRocks.Keys)rockRenderKeys.Add(key);
+        foreach(var m in rockRenderKeys){
             var rock=barRocks[m];float age=Time.time-rock.started;
             if(!m||!m.geometry||!m.gameObject.activeInHierarchy||m.storedInPortal||(m.product!=MagnetProduct.None&&m.product!=MagnetProduct.Ring)
                 ||(m.product==MagnetProduct.Ring?!MagnetPiece.FlatU(m.Pose):MagnetPiece.VerticalBar(m.Pose))==rock.touchdown||age>=(rock.undoBounce?.7f:rock.touchdown?.52f:BarRockSeconds)){barRocks.Remove(m);continue;}

@@ -1,17 +1,16 @@
 using UnityEngine;
 namespace BetweenPoles {
-// Chapter footsteps and shared magnetic sounds.
+// Shared randomized footsteps and magnetic sounds.
 [DisallowMultipleComponent]
 public sealed class PlayerFootstepAudio:MonoBehaviour {
     [Range(0f,1f)] public float volume=.56f;
-    [Range(0f,2f)] public float iceStepVolume=1.3f;
     [Range(0f,2f)] public float pushVolume=1.6f;
     [Range(0f,1f)] public float mergeVolume=.7f;
     AudioSource steps,pushes,merges,stone,recoil,jump;
     AudioClip jumpLandClip;
     AudioClip recoilClip,recoilChargeClip;
-    AudioClip stepClip,pushClip,mergeClip;
-    string chapter;
+    AudioClip grassStep,ringStep,pushClip,mergeClip;
+    readonly System.Random footstepRandom=new System.Random();
     void Awake(){
         steps=CreateSource();pushes=CreateSource();merges=CreateSource();
         stone=CreateSource();recoil=CreateSource();
@@ -39,26 +38,12 @@ public sealed class PlayerFootstepAudio:MonoBehaviour {
     }
     public void PlayStep(){
         if(!isActiveAndEnabled||!Application.isPlaying)return;
-        // SharedPlayer lives in DontDestroyOnLoad; its bound ground owns the chapter.
-        // Resolve this each walk because portals and recoil can rebind the same actor.
-        var binding=GetComponent<IslandSurfaceAnchor>();
-        string current=binding&&binding.ground?binding.ground.gameObject.scene.name:gameObject.scene.name;
-        if(chapter!=current){
-            chapter=current;
-            switch(chapter){
-                case "Chapter01_IceWorld":
-                    stepClip=Resources.Load<AudioClip>("Audio/Player/Footsteps/Chapter01_IceWorld");
-                    break;
-                case "Chapter02_VerdantWorld":
-                case "Chapter03_RingWorld":
-                case "Chapter04_LavaWorld":
-                    stepClip=Resources.Load<AudioClip>("Audio/Player/Footsteps/"+chapter);
-                    break;
-                default:stepClip=null;break;
-            }
-        }
-        // Each chapter uses one footstep clip; ice now has a single ground/snow contact.
-        if(stepClip)steps.PlayOneShot(stepClip,chapter=="Chapter01_IceWorld"?iceStepVolume:volume);
+        // Cache both clips; each step chooses one without changing gameplay randomness.
+        if(!grassStep)grassStep=Resources.Load<AudioClip>("Audio/Player/Footsteps/Chapter02_VerdantWorld");
+        if(!ringStep)ringStep=Resources.Load<AudioClip>("Audio/Player/Footsteps/Chapter03_RingWorld");
+        var clip=footstepRandom.Next(2)==0?grassStep:ringStep;
+        if(!clip)clip=grassStep?grassStep:ringStep;
+        if(clip&&steps)steps.PlayOneShot(clip,volume);
     }
     public void PlayPush(){
         if(isActiveAndEnabled&&Application.isPlaying&&pushClip)pushes.PlayOneShot(pushClip,pushVolume);

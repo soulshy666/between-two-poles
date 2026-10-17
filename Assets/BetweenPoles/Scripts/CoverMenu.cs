@@ -62,7 +62,7 @@ public sealed partial class CoverMenu:MonoBehaviour {
 #endif
   ReleasePreview();
  }
- void OnDestroy(){ReleasePreview();}
+ void OnDestroy(){ReleasePreview();if(menuClick)Destroy(menuClick);}
  void RenderBackground(){
   if(pixelArtwork)return;
   if(!backdrop||!backgroundFrame)return;
@@ -114,7 +114,7 @@ public sealed partial class CoverMenu:MonoBehaviour {
   for(int i=0;i<12;i++){t=(lo+hi)*.5f;float u=1-t;float bx=3*u*u*t*.2f+3*u*t*t*.2f+t*t*t;if(bx<x)lo=t;else hi=t;}
   float v=1-t;return 3*v*v*t*.8f+3*v*t*t+t*t*t;
  }
- void Activate(int item){if(!Application.isPlaying||loading||TelevisionSceneTransition.Busy)return;if(item==0)OpenSavePage();else if(item==1)settings=true;else exitPrompt=true;}
+ void Activate(int item){if(!Application.isPlaying||loading||TelevisionSceneTransition.Busy)return;PlayMenuClick();if(item==0)OpenSavePage();else if(item==1)settings=true;else exitPrompt=true;}
  IEnumerator Begin(string scene){
   loading=true;
   Time.timeScale=1;
@@ -191,7 +191,9 @@ public sealed partial class CoverMenu:MonoBehaviour {
  bool ExitChoice(Rect rect,string value,int size=26){
   bool hot=rect.Contains(Event.current.mousePosition);
   ExitText(rect,(hot?"›  ":"")+value,size);
-  return GUI.Button(rect,GUIContent.none,GUIStyle.none);
+  bool clicked=GUI.Button(rect,GUIContent.none,GUIStyle.none);
+  if(clicked)PlayMenuClick();
+  return clicked;
  }
  void OnGUI(){
   if((!coverWorld&&(!background||!astronaut))||!title)return;
@@ -229,11 +231,7 @@ public sealed partial class CoverMenu:MonoBehaviour {
     ExitText(new Rect(428,310,520,60),"确定要退出游戏吗？",32);
     if(ExitChoice(new Rect(490,410,160,48),"取消"))exitPrompt=false;
     if(ExitChoice(new Rect(720,410,165,48),"确定")){
-#if UNITY_EDITOR
-    UnityEditor.EditorApplication.isPlaying=false;
-#else
-    Application.Quit();
-#endif
+    if(Application.isPlaying)StartCoroutine(QuitAfterClick());
    }}
   }
   GUI.matrix=matrix;if(fade>0){GUI.color=new Color(0,0,0,fade);GUI.DrawTexture(new Rect(0,0,Screen.width,Screen.height),Texture2D.whiteTexture);}GUI.color=color;
