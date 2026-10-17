@@ -9,8 +9,21 @@ public struct MagnetRollStep {
     public float degrees;
     public MagnetRollStep(Vector2Int direction,Quaternion pose,float degrees){this.direction=direction;this.pose=pose;this.degrees=degrees;}
 }
+[DefaultExecutionOrder(-1000)]
 public sealed class MagnetPiece:MonoBehaviour {
-    void OnEnable(){if(Application.isPlaying&&!GetComponent<MagnetFieldIdentity>())gameObject.AddComponent<MagnetFieldIdentity>();}
+    public int VisualHierarchyRevision { get; private set; }
+    void OnTransformChildrenChanged(){unchecked{VisualHierarchyRevision++;}}
+    void OnEnable(){
+        unchecked{VisualHierarchyRevision++;}
+        if(Application.isPlaying&&!GetComponent<MagnetFieldIdentity>())gameObject.AddComponent<MagnetFieldIdentity>();
+    }
+    void Awake(){
+        if(!Application.isPlaying||!geometry||!MagnetVisuals.UseCombinedArcMeshes)return;
+        MagnetVisuals.CombineExistingArcs(geometry);
+        // Refresh a previously populated anchor cache (e.g. when instantiating a prefab).
+        var anchor=GetComponent<IslandSurfaceAnchor>();
+        if(anchor&&anchor.enabled){anchor.enabled=false;anchor.enabled=true;}
+    }
     public MagnetShape shape;
     public bool north=true;
     public bool combined;

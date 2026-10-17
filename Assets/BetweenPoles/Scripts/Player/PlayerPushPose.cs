@@ -103,12 +103,15 @@ public sealed partial class PlayerPushPose:MonoBehaviour {
         visual.localRotation=restRotation*Quaternion.Euler(stance.lean*weight,0,0);
         visual.localPosition=restPosition+new Vector3(0,-stance.drop*weight,.035f*weight);
         if(!posed)return;
+        var leftArm=Quaternion.Euler(0,stance.armYaw*weight,0)*Quaternion.Euler(stance.armPitch*weight,0,0);
+        var rightArm=Quaternion.Euler(0,-stance.armYaw*weight,0)*Quaternion.Euler(stance.armPitch*weight,0,0);
+        var leftLeg=Quaternion.Euler((stance.legDrive+26*stance.stride)*weight,0,0);
+        var rightLeg=Quaternion.Euler((stance.legDrive-26*stance.stride)*weight,0,0);
         for(int i=0;i<vertices.Length;i++){
             float side=Mathf.Sign(vertices[i].x);
             bool arm=arms[i],leg=legs[i];
             var pivot=arm?new Vector3(side*.235f,.635f,0):new Vector3(side*.097f,.34f,0);
-            var rotation=Quaternion.Euler(0,arm?-side*stance.armYaw*weight:0,0)
-                *Quaternion.Euler((arm?stance.armPitch:stance.legDrive-26*stance.stride*side)*weight,0,0);
+            var rotation=arm?(side<0?leftArm:rightArm):(side<0?leftLeg:rightLeg);
             // Keep the feet above the floor as the torso lowers to scoop.
             var offset=arm?new Vector3(-side*stance.armInset,stance.armY,stance.armZ):
                 new Vector3(0,stance.drop+.025f*Mathf.Max(0,stance.stride*side),0);
@@ -310,10 +313,14 @@ public sealed partial class PlayerPushPose:MonoBehaviour {
         visual.localPosition=restPosition+new Vector3(0,-.035f*effort+(swingArms?.008f*Mathf.Abs(stride):0),.035f*effort);
         if(!posed)return;
         Quaternion reach=Quaternion.Euler(-72f*effort,0,0);
+        var leftArm=swingArms?Quaternion.Euler(-40f*stride,0,0):reach;
+        var rightArm=swingArms?Quaternion.Euler(40f*stride,0,0):reach;
+        var leftLeg=Quaternion.Euler((swingArms?40f:26f)*stride,0,0);
+        var rightLeg=Quaternion.Euler(-(swingArms?40f:26f)*stride,0,0);
         for(int i=0;i<vertices.Length;i++){
             float side=Mathf.Sign(vertices[i].x);
             Vector3 pivot=arms[i]?new Vector3(side*.235f,.635f,0):new Vector3(side*.097f,.34f,0);
-            Quaternion turn=arms[i]?(swingArms?Quaternion.Euler(40f*stride*side,0,0):reach):Quaternion.Euler(-(swingArms?40f:26f)*stride*side,0,0);
+            Quaternion turn=arms[i]?(side<0?leftArm:rightArm):(side<0?leftLeg:rightLeg);
             bool limb=arms[i]||legs[i];
             // Lift the advancing foot slightly while the opposite arm swings forward.
             Vector3 lift=legs[i]?Vector3.up*((swingArms?.03f:.015f)*Mathf.Max(0,stride*side)):Vector3.zero;

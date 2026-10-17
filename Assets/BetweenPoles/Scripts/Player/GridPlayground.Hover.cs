@@ -96,7 +96,6 @@ public sealed partial class GridPlayground {
     readonly Dictionary<Transform,Vector3> hoverRenderPositions=new Dictionary<Transform,Vector3>();
     readonly List<MagnetPiece> expiredHovers=new List<MagnetPiece>();
     readonly Dictionary<MagnetPiece,float> hoverLevels=new Dictionary<MagnetPiece,float>();
-    readonly List<Vector3> hoverVertices=new List<Vector3>();
     readonly Dictionary<Vector2Int,MagnetPiece> hoverNeighbors=new Dictionary<Vector2Int,MagnetPiece>();
     bool portalMagnetPresentation;
     int portalHoverFrame=-1;
@@ -155,10 +154,10 @@ public sealed partial class GridPlayground {
         foreach(var filter in m.geometry.GetComponentsInChildren<MeshFilter>()){
             if(!filter.sharedMesh)continue;
             var renderer=filter.GetComponent<Renderer>();if(renderer&&!renderer.enabled)continue;
-            filter.sharedMesh.GetVertices(hoverVertices);
+            var vertices=MagnetVisuals.CachedVertices(filter.sharedMesh);
             // Read the transform once per mesh, not once for every vertex.
             var matrix=filter.transform.localToWorldMatrix;
-            foreach(var vertex in hoverVertices)top=Mathf.Max(top,matrix.m10*vertex.x+matrix.m11*vertex.y+matrix.m12*vertex.z+matrix.m13);
+            foreach(var vertex in vertices)top=Mathf.Max(top,matrix.m10*vertex.x+matrix.m11*vertex.y+matrix.m12*vertex.z+matrix.m13);
         }
         return float.IsNegativeInfinity(top)?m.transform.position.y:top;
     }

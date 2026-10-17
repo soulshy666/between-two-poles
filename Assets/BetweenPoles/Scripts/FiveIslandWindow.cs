@@ -27,17 +27,29 @@ public sealed class FiveIslandWindow : MonoBehaviour {
     readonly Dictionary<Vector2Int,Transform> tileOwners=new Dictionary<Vector2Int,Transform>();
     readonly Dictionary<Vector2Int,GridTile> floor=new Dictionary<Vector2Int,GridTile>();
     int bridgeSignature=int.MinValue;
+    readonly Dictionary<Vector2Int,MagnetPiece> bridgeSpans=new Dictionary<Vector2Int,MagnetPiece>();
+    bool BridgeCandidate(MagnetPiece m){return m&&m.enabled&&m.gameObject.activeInHierarchy&&!board.IsKnockedFlying(m)&&!(board.RecoilFlying&&m==board.RecoilMagnet)&&(m.walkable||(!m.combined&&m.shape==MagnetShape.Bar&&!MagnetPiece.VerticalBar(m.Pose)));}
     Vector4 previewBounds;
     MaterialPropertyBlock previewBlock;
+    sealed class PieceView {
+        public Transform geometry;
+        public int hierarchyRevision,geometryChildren;
+        public IslandSurfaceAnchor binding;
+        public Renderer[] renderers;
+        public bool previewApplied;
+        public Vector4 bounds;
+    }
+    readonly Dictionary<MagnetPiece,PieceView> pieceViews=new Dictionary<MagnetPiece,PieceView>();
+    MagnetPiece[] cachedPieces;
     void OnEnable(){if(Application.isPlaying&&!GetComponent<IslandDiscoveryView>())gameObject.AddComponent<IslandDiscoveryView>();if(board)board.Landed+=OnLanded;}
-    void OnDisable(){if(previewBlock==null)previewBlock=new MaterialPropertyBlock();if(board)board.Landed-=OnLanded;foreach(var room in rooms)foreach(var renderer in room.surfaces)if(renderer){renderer.GetPropertyBlock(previewBlock);previewBlock.SetFloat("_IslandWindowClipEnabled",0);renderer.SetPropertyBlock(previewBlock);}}
+    void OnDisable(){pieceViews.Clear();cachedPieces=null;if(previewBlock==null)previewBlock=new MaterialPropertyBlock();if(board)board.Landed-=OnLanded;foreach(var room in rooms)foreach(var renderer in room.surfaces)if(renderer){renderer.GetPropertyBlock(previewBlock);previewBlock.SetFloat("_IslandWindowClipEnabled",0);renderer.SetPropertyBlock(previewBlock);}}
     void Start(){if(enabled)Show(initialRoom);}
     void OnLanded(GridTile tile){
         var owner=tile.GetComponentInParent<IslandSurfaceAnchor>();
         if(!owner)return;
         for(int i=0;i<rooms.Length;i++)if(rooms[i].center==owner.center){if(i!=CurrentRoom)Show(i);return;}
     }
-    public void RefreshLayout(){tileOwners.Clear();floor.Clear();bridgeSignature=int.MinValue;Show(CurrentRoom);}
+    public void RefreshLayout(){pieceViews.Clear();tileOwners.Clear();floor.Clear();bridgeSignature=int.MinValue;Show(CurrentRoom);}
     public void Show(int index){
         if(index<0||index>=rooms.Length)return;
         CurrentRoom=index;visible.Clear();visible.Add(rooms[index].center);
@@ -71,9 +83,12 @@ public sealed class FiveIslandWindow : MonoBehaviour {
     }
     void RefreshBridgeLinks(){
         if(!board||!bridges||floor.Count==0)return;
-        int signature=17;var spans=new Dictionary<Vector2Int,MagnetPiece>();
-        foreach(var m in board.magnets)if(m&&m.enabled&&m.gameObject.activeInHierarchy&&!board.IsKnockedFlying(m)&&!(board.RecoilFlying&&m==board.RecoilMagnet)&&(m.walkable||(!m.combined&&m.shape==MagnetShape.Bar&&!MagnetPiece.VerticalBar(m.Pose)))){unchecked{signature=signature*31+m.GetInstanceID();signature=signature*31+Cell(m.transform).GetHashCode();signature=signature*31+m.Pose.GetHashCode();signature=signature*31+(int)m.product;signature=signature*31+m.bridgeDirection.GetHashCode();}IndexBridgeSpan(spans,Cell(m.transform),m);if(m.product==MagnetProduct.Bridge)IndexBridgeSpan(spans,Cell(m.transform)+m.bridgeDirection,m);}
+        int signature=17;
+        foreach(var m in board.magnets)if(BridgeCandidate(m)){unchecked{signature=signature*31+m.GetInstanceID();signature=signature*31+Cell(m.transform).GetHashCode();signature=signature*31+m.Pose.GetHashCode();signature=signature*31+(int)m.product;signature=signature*31+m.bridgeDirection.GetHashCode();signature=signature*31+m.transform.position.y.GetHashCode();signature=signature*31+(m.walkable?1:0);signature=signature*31+(m.CanBePushed?1:0);signature=signature*31+(m.geometry?m.geometry.GetInstanceID():0);signature=signature*31+m.VisualHierarchyRevision;}}
         if(signature==bridgeSignature)return;bridgeSignature=signature;
+        // Only rebuild the occupied-cell index after an actual input change.
+        var spans=bridgeSpans;spans.Clear();
+        foreach(var m in board.magnets)if(BridgeCandidate(m)){IndexBridgeSpan(spans,Cell(m.transform),m);if(m.product==MagnetProduct.Bridge)IndexBridgeSpan(spans,Cell(m.transform)+m.bridgeDirection,m);}
         var links=new List<PrejoinedTestBridges.Link>();
         foreach(var pair in spans){var m=pair.Value;if(pair.Key!=Cell(m.transform))continue;var right=m.Pose*Vector3.right;var dir=m.product==MagnetProduct.Bridge?m.bridgeDirection:new Vector2Int(Mathf.RoundToInt(right.x),Mathf.RoundToInt(right.z));GridTile a=null,b=null;
             for(int step=1;step<=3;step++){var p=pair.Key-dir*step;if(floor.TryGetValue(p,out a))break;if(!spans.ContainsKey(p))break;}
@@ -96,15 +111,40 @@ public sealed class FiveIslandWindow : MonoBehaviour {
     }
     void RefreshPieces(){
         if(!board||visible.Count==0)return;
+        // Level reloads/debug layouts replace this array; do not retain their old objects.
+        if(cachedPieces!=board.magnets){pieceViews.Clear();cachedPieces=board.magnets;}
         foreach(var piece in board.magnets){
             if(!piece||!piece.enabled)continue;
-            if((board.RecoilFlying&&piece==board.RecoilMagnet)||board.IsKnockedFlying(piece)){foreach(var r in piece.GetComponentsInChildren<Renderer>())r.enabled=true;continue;}
-            var binding=piece.GetComponent<IslandSurfaceAnchor>();
-            if(!binding){foreach(var renderer in piece.GetComponentsInChildren<Renderer>(true)){renderer.enabled=true;ApplyPreview(renderer,false);}continue;}
+            int children=piece.geometry?piece.geometry.childCount:0;
+            if(!pieceViews.TryGetValue(piece,out var state)){
+                state=new PieceView();pieceViews.Add(piece,state);
+            }
+            // Edit-time hierarchy/component changes can bypass runtime assembly paths.
+            // Runtime swaps, undo, links and reactivation invalidate the cached renderer list.
+            if(!Application.isPlaying||state.renderers==null||state.geometry!=piece.geometry||
+                state.hierarchyRevision!=piece.VisualHierarchyRevision||state.geometryChildren!=children){
+                state.geometry=piece.geometry;state.geometryChildren=children;
+                state.hierarchyRevision=piece.VisualHierarchyRevision;
+                state.binding=piece.GetComponent<IslandSurfaceAnchor>();
+                state.renderers=piece.GetComponentsInChildren<Renderer>(true);
+                state.previewApplied=false;
+            }
+            bool flying=(board.RecoilFlying&&piece==board.RecoilMagnet)||board.IsKnockedFlying(piece);
+            bool updatePreview=!flying&&(!state.previewApplied||state.bounds!=previewBounds);
+            foreach(var renderer in state.renderers){
+                if(!renderer||(flying&&!renderer.gameObject.activeInHierarchy))continue;
+                // Preserve recovery from other presentation systems hiding a renderer,
+                // without making redundant native enabled/property-block writes.
+                if(!renderer.enabled)renderer.enabled=true;
+                if(updatePreview)ApplyPreview(renderer,false);
+            }
+            if(flying){state.previewApplied=false;continue;}
+            state.previewApplied=true;state.bounds=previewBounds;
+            var binding=state.binding;
+            if(!binding)continue;
             // Moving pieces adopt the island they actually occupy; floating pieces retain their authored owner.
             Vector3 position=piece.transform.position;var cell=new Vector2Int(Mathf.RoundToInt(position.x/board.cellSize),Mathf.RoundToInt(position.z/board.cellSize));
-            if(tileOwners.TryGetValue(cell,out var owner))binding.center=owner;
-            foreach(var renderer in piece.GetComponentsInChildren<Renderer>(true)){renderer.enabled=true;ApplyPreview(renderer,binding.center!=rooms[CurrentRoom].center);}
+            if(tileOwners.TryGetValue(cell,out var owner)&&binding.center!=owner)binding.center=owner;
         }
     }
 }

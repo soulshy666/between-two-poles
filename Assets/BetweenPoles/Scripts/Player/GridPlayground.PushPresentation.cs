@@ -39,7 +39,7 @@ public sealed partial class GridPlayground {
         contactSparks.RemoveAll(effect=>!effect);
         contactSparks.Add(MagnetContactSpark.Spawn(contact.point,contact.block));
     }
-    sealed class PushFrame {
+    struct PushFrame {
         public Vector3 position,scale; public Quaternion rotation;
         public PushFrame(Transform t){position=t.position;rotation=t.rotation;scale=t.lossyScale;}
     }
@@ -154,6 +154,10 @@ public sealed partial class GridPlayground {
         return false;
     }
     void FinishPushWithPresentation(float catchupSeconds,Vector2Int[] reserved=null){
+        using(var sample=pushPreparationMarker.Auto())FinishPushWithPresentationCore(catchupSeconds,reserved);
+    }
+    static readonly Unity.Profiling.ProfilerMarker pushPreparationMarker=new Unity.Profiling.ProfilerMarker("Magnets.PreparePushPlayback");
+    void FinishPushWithPresentationCore(float catchupSeconds,Vector2Int[] reserved){
         // Sample the original path, including every turn and contact. Commit its
         // logical result now, then compress the render playback into the catch-up window.
         var presentation=new PushPresentation{playbackSeconds=catchupSeconds};

@@ -120,7 +120,8 @@ public sealed partial class GridPlayground:MonoBehaviour {
     Vector2Int Cell(Transform t){return new Vector2Int(Mathf.RoundToInt(t.position.x/cellSize),Mathf.RoundToInt(t.position.z/cellSize));}
     readonly System.Collections.Generic.Dictionary<Vector2Int,GridTile> frameTiles=new System.Collections.Generic.Dictionary<Vector2Int,GridTile>();
     int tileFrame=-1;GridTile[] indexedTiles;Vector3 indexedBoardPosition;float indexedCellSize;
-    public void InvalidateTileLookup(){tileFrame=-1;}
+    int connectionTerrainRevision;
+    public void InvalidateTileLookup(){tileFrame=-1;unchecked{connectionTerrainRevision++;}}
     GridTile Tile(Vector2Int p){
         // Rebuild at most once per frame, preserving the authored first tile at each cell.
         // Array replacement and chapter translation invalidate even in the same frame.
