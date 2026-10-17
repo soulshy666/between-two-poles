@@ -3,13 +3,19 @@ using UnityEngine;
 namespace BetweenPoles {
 public sealed partial class GridPlayground {
     float RingRollSpeed(int cells){
-        float shoveSeconds=Mathf.Max(.01f,barPushSeconds);
-        float minimumCruise=shoveSeconds-.5f*Mathf.Min(.14f,shoveSeconds/1.5f);
-        return Mathf.Min(WalkSpeedLimit*1.08f,cellSize*cells/minimumCruise);
+        // Obstacles shorten the route, not the wheel's cruise speed. Impacts and
+        // portals must inherit the same speed as an unobstructed ground roll.
+        return WalkSpeedLimit*1.08f;
     }
     static float RingRollDistance(float elapsed,float speed,float accelerationSeconds){
         float u=Mathf.Clamp01(elapsed/accelerationSeconds);
         return elapsed<accelerationSeconds?speed*accelerationSeconds*(u*u*u-.5f*u*u*u*u):speed*(elapsed-accelerationSeconds*.5f);
+    }
+    // Integral of a forward impulse that smoothly decays to cruise velocity.
+    // Normalized distance stays monotonic and reaches exactly one cell.
+    internal static float PortalRingThrowProgress(float progress,float impulse=.9f){
+        float u=Mathf.Clamp01(progress);
+        return (u+impulse*(u-u*u+u*u*u/3f))/(1+impulse/3f);
     }
     public bool CanPortalRingEnter(MagnetPiece ring,Vector2Int from,float height,Vector2Int cell){
         float landing;return RingCanEnter(ring,from,height,cell,out landing);
@@ -34,9 +40,14 @@ public sealed partial class GridPlayground {
         }
         int cells=path.Count-1;
         if(cells==0)throw new System.InvalidOperationException("Rolling portal exit became blocked");
-        float speed=Mathf.Max(.01f,ring.portalRollSpeed),seconds=cells*cellSize/speed;
+        float speed=Mathf.Max(.01f,ring.portalRollSpeed);
+        const float rollingImpulse=.2f;
+        float launchSeconds=cellSize/(speed*(1+rollingImpulse/3f));
+        float seconds=launchSeconds+(cells-1)*cellSize/speed;
         var pose=ring.Pose;var axis=new Vector3(direction.y,0,-direction.x);
         var scale=ring.geometry.localScale;
+        var receivingPortal=BlackHolePortal.At(this,origin+direction*cells);
+        bool enteringPortal=false;
         ring.walkable=false;
         foreach(var renderer in ring.GetComponentsInChildren<Renderer>(true)){
             renderer.enabled=true;var block=new MaterialPropertyBlock();renderer.GetPropertyBlock(block);
@@ -50,22 +61,28 @@ public sealed partial class GridPlayground {
             // Landing never resets the orientation or restarts acceleration.
             for(float elapsed=0;elapsed<seconds;){
                 elapsed=Mathf.Min(seconds,elapsed+BlackHoleTravel.AnimationDeltaTime);
-                float distance=elapsed*speed/cellSize;
+                // Burst out at 1.2x entry speed, smoothly reaching the preserved
+                // entry speed at touchdown. Rotation follows actual travel.
+                float distance=elapsed<launchSeconds?PortalRingThrowProgress(elapsed/launchSeconds,rollingImpulse)
+                    :1+(elapsed-launchSeconds)*speed/cellSize;
                 int segment=Mathf.Min(cells-1,Mathf.FloorToInt(distance));
                 ring.transform.position=Vector3.Lerp(path[segment],path[segment+1],distance-segment);
                 ring.geometry.rotation=Quaternion.AngleAxis(180*distance,axis)*pose;
                 ring.geometry.localScale=scale*Mathf.SmoothStep(0,1,Mathf.Clamp01(distance/.2f));
+                float sink=receivingPortal?Mathf.SmoothStep(0,1,Mathf.InverseLerp(cells-.35f,cells,distance)):0;
+                ring.geometry.localScale*=1-sink;
+                if(receivingPortal&&!enteringPortal&&distance>=cells-.35f){enteringPortal=true;if(audio)audio.Enter(true,.35f*cellSize/speed,true);}
                 MagnetVisuals.Ground(ring);
                 float launch=Mathf.Clamp01(distance);
-                ring.geometry.position+=Vector3.up*(1.52f*launch*(1-launch));
-                if(!landed&&distance>=1){landed=true;if(audio)audio.Land(true);}
+                ring.geometry.position+=Vector3.up*(1.52f*launch*(1-launch)-.2f*sink);
+                if(!landed&&distance>=1){landed=true;if(audio&&!(receivingPortal&&cells==1))audio.Land(true);}
                 if(elapsed<seconds)yield return null;
             }
             ring.transform.position=path[cells];ring.geometry.localScale=scale;
             ring.geometry.rotation=Quaternion.AngleAxis(180*cells,axis)*pose;MagnetVisuals.Ground(ring);
             var end=origin+direction*cells;
             if(BlackHolePortal.At(this,end)){
-                yield return SettleMagnetArrival(ring,path[cells-1],true);
+                StoreMagnetInPortal(ring,receivingPortal,path[cells-1],scale);
             }else if(!Tile(end)&&!Deck(end,ring)){
                 var flat=Quaternion.FromToRotation(ring.Pose*Vector3.up,Vector3.up)*ring.Pose;
                 yield return RingFloatAfterLeavingShore(ring,ring.Pose,flat,portalClock:true);
@@ -119,7 +136,17 @@ public sealed partial class GridPlayground {
     }
     IEnumerator MoveRing(MagnetPiece ring,Vector2Int dir,Vector2Int origin,int cells,bool tip){
         BeginPushInterrupt(dir);
-        rollingRingShove=!tip;
+        // A ring arriving on/leaving another ring must keep its real geometry
+        // authoritative. Recording an interrupted flip hides that geometry and
+        // can make the rider look like terrain to the following buffered step.
+        bool ringPlatformPush=false;
+        foreach(var platform in magnets){
+            if(platform&&platform!=ring&&RingShore(platform)
+                &&(platform.Occupies(origin,cellSize)||platform.Occupies(origin+dir*cells,cellSize))){
+                ringPlatformPush=true;break;
+            }
+        }
+        rollingRingShove=!tip||ringPlatformPush;
         // Keep the shared push interruption and visible catch-up path available.
         pushHoverParticipants.Add(ring);
         Vector3 start=ring.transform.position;
@@ -130,6 +157,8 @@ public sealed partial class GridPlayground {
         }
         Vector3 end=path[cells];
         Vector3 playerStart=player.position,playerEnd=PushPlayerEnd(origin,ring);
+        bool jumpDown=!tip&&playerStart.y>playerEnd.y+.01f;
+        const float rimShoveSeconds=.12f,jumpDownSeconds=.34f;
         Vector3 forward=new Vector3(dir.x,0,dir.y),axis=new Vector3(dir.y,0,-dir.x);
         Quaternion pose=ring.Pose;
         // Grid rotation is deliberate: every cell swaps the two coloured halves.
@@ -145,15 +174,16 @@ public sealed partial class GridPlayground {
         // Cruise faster than even the player's capped rapid-tap walking speed.
         // Rotation and translation share one progress value, with no per-cell pause.
         float ringSpeed=RingRollSpeed(cells);
-        // A short roll must leave time for the same full shove as a normal bar.
-        // Account for the acceleration ramp when limiting its cruise speed.
+        // Fit the actor's shove to a short route instead of slowing both wheels.
         float shoveSeconds=Mathf.Max(.01f,barPushSeconds);
         float cruiseSeconds=cellSize*cells/ringSpeed;
         ring.portalRollSpeed=tip?0:ringSpeed;
         float accelerationSeconds=Mathf.Min(.14f,cruiseSeconds);
         float seconds=tip?Mathf.Max(.01f,barPushSeconds):cruiseSeconds+accelerationSeconds*.5f;
         if(tip){flowingPush=true;pushFlowProgress=0;if(pushFlowSpeed<=0)pushFlowSpeed=1/seconds;}
-        float playerSeconds=shoveSeconds;
+        float playerSeconds=Mathf.Min(shoveSeconds,seconds);
+        if(jumpDown)playerSeconds=rimShoveSeconds+jumpDownSeconds;
+        float motionSeconds=jumpDown?Mathf.Max(seconds,playerSeconds):seconds;
         bool releasedPush=false;
         bool detached=false;
         ring.walkable=false;player.rotation=Quaternion.LookRotation(forward);
@@ -163,7 +193,7 @@ public sealed partial class GridPlayground {
         float inheritedRock=TakeBarRock(ring,axis);
         // One continuous interpolation prevents a stop/start at every grid line.
         float elapsed=0;
-        while(tip?pushFlowProgress<1:elapsed<seconds){
+        while(tip?pushFlowProgress<1:elapsed<motionSeconds){
             float remainingTime=0;
             float dt=tip?AdvancePushFlow(1/seconds,out remainingTime):detached?Time.deltaTime:MovementDeltaTime;
             float sample=tip?pushFlowProgress*seconds:Mathf.Min(seconds,elapsed+dt);
@@ -190,14 +220,21 @@ public sealed partial class GridPlayground {
                 ring.geometry.position=pivot+turn*(ring.geometry.position-pivot);
                 ring.geometry.rotation=turn*pose;
             }
-            float pushProgress=tip?Mathf.Clamp01(sample/seconds):Mathf.Clamp01(sample/playerSeconds);
+            float actorTime=jumpDown?Mathf.Min(motionSeconds,elapsed+dt):sample;
+            float pushProgress=tip?Mathf.Clamp01(sample/seconds):Mathf.Clamp01(actorTime/playerSeconds);
             float residual=inheritedRock*(1-Mathf.SmoothStep(0,1,Mathf.Clamp01(sample/.1f)));
             if(!intoSpace&&Mathf.Abs(residual)>.001f)ApplyBarRock(ring,axis,residual);
             var previous=player.position;
             if(!detached)player.position=Vector3.Lerp(playerStart,playerEnd,pushProgress);
+            if(jumpDown&&!detached){
+                float jump=Mathf.Clamp01((actorTime-rimShoveSeconds)/jumpDownSeconds);
+                player.position=Vector3.Lerp(playerStart,playerEnd,jump)+Vector3.up*(Mathf.Sin(jump*Mathf.PI)*cellSize*.2f);
+            }
             if(!releasedPush){
                 pushPose.AdvanceFlowPush(Vector3.Distance(previous,player.position),dt,
                     lifting?pushProgress:ShoveBarPoseProgress(pushProgress));
+                if(jumpDown&&actorTime>=rimShoveSeconds)
+                    pushPose.SamplePlatformJump(Mathf.Clamp01((actorTime-rimShoveSeconds)/jumpDownSeconds));
                 if(!tip&&pushProgress>=1){
                     pushPose.ReleaseFlowPush();releasedPush=true;
                     if(!recordingPush&&!finishingMovement&&!BlackHolePortal.At(this,origin+dir*cells)){
@@ -211,7 +248,7 @@ public sealed partial class GridPlayground {
             elapsed+=dt;
             // Even a short roll must yield once so the driver can transfer ownership.
             if(detached&&pendingRingRelease!=null){yield return null;continue;}
-            if(!tip&&elapsed>=seconds)break;
+            if(!tip&&elapsed>=motionSeconds)break;
             yield return null;
         }
         MagnetRollAudio.Stop(ring);
@@ -222,7 +259,7 @@ public sealed partial class GridPlayground {
             if(!detached)pushPose.ReleaseFlowPush();
             yield return RingFloatAfterLeavingShore(ring,ring.Pose,floatingPose,detached);
         }
-        if(tip&&!intoSpace&&!BlackHolePortal.At(this,origin+dir*cells)&&!recordingPush&&!finishingMovement){
+        if(tip&&!ringPlatformPush&&!intoSpace&&!BlackHolePortal.At(this,origin+dir*cells)&&!recordingPush&&!finishingMovement){
             if(falling)StartBarTouchdown(ring,axis,0);
             else StartBarRock(ring,axis);
         }
@@ -238,9 +275,13 @@ public sealed partial class GridPlayground {
     IEnumerator BlockedRingShove(MagnetPiece ring,Vector2Int dir){
         BeginPushInterrupt(dir,true);
         var forward=new Vector3(dir.x,0,dir.y);
+        bool rolling=!MagnetPiece.FlatU(ring.Pose)&&Mathf.Abs(Vector3.Dot(ring.Pose*Vector3.up,forward))<.05f;
+        // Keep the contact live: interruption recording deliberately suppresses
+        // momentum transfer, so it must not consume this collision early.
+        rollingRingShove=rolling;
         player.rotation=Quaternion.LookRotation(forward);
         var pose=PlayerPushPose.BeginFlowPush(player,cellSize,PlayerPushPose.FlowPushStyle.ShoveBar);
-        yield return RingStoneRebound(ring,forward,new Vector3(dir.y,0,-dir.x),cellSize*2,pose);
+        yield return RingStoneRebound(ring,forward,new Vector3(dir.y,0,-dir.x),RingRollSpeed(1),pose,transferMomentum:rolling);
         pose.ReleaseFlowPush();EndPushInterrupt();Busy=false;
 
     }
@@ -291,7 +332,10 @@ public sealed partial class GridPlayground {
         float contactSeconds=2*distance/Mathf.Max(.01f,speed),returnSeconds=.24f;
         // A blocked shove and its response share one clock. Contact coincides
         // with the normal shove's strongest effort, rather than following it.
-        if(shove){contactSeconds=Mathf.Max(.01f,barPushSeconds)*.5f;returnSeconds=contactSeconds;}
+        if(shove){
+            if(transferMomentum)contactSeconds=Mathf.Max(.06f,contactSeconds);
+            else{contactSeconds=Mathf.Max(.01f,barPushSeconds)*.5f;returnSeconds=contactSeconds;}
+        }
         float duration=contactSeconds+returnSeconds;
         bool contacted=false;
         try{

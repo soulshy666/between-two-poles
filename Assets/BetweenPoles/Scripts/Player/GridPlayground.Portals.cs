@@ -52,7 +52,7 @@ public sealed partial class GridPlayground {
         }
         StoreMagnetInPortal(magnet,portal,previousPosition,scale);
     }
-    void StoreMagnetInPortal(MagnetPiece magnet,BlackHolePortal portal,Vector3 previousPosition,Vector3 scale){
+    internal void StoreMagnetInPortal(MagnetPiece magnet,BlackHolePortal portal,Vector3 previousPosition,Vector3 scale){
         var travel=portal.transform.position-previousPosition;travel.y=0;
         if(magnet.product!=MagnetProduct.Ring||MagnetPiece.FlatU(magnet.Pose)
             ||Mathf.Abs(Vector3.Dot(magnet.Pose*Vector3.up,travel.normalized))>.95f)magnet.portalRollSpeed=0;

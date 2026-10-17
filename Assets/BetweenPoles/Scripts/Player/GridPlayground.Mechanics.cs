@@ -14,7 +14,7 @@ public sealed partial class GridPlayground {
         // Fresh presses may retry; holding must not loop the stumble indefinitely.
         nextHeldStep=float.PositiveInfinity;
     }
-    float GroundHeight(Vector2Int p){var t=Tile(p);return t?t.surfaceHeight:0;}
+    float GroundHeight(Vector2Int p){float height;TryPortalFloor(p,out height);return height;}
     // Only absorb floating-point drift; this is not an automatic step-up allowance.
     bool SameHeight(float a,float b){return Mathf.Abs(a-b)<.01f;}
     bool CanReachMagnet(MagnetPiece magnet){
@@ -159,16 +159,33 @@ public sealed partial class GridPlayground {
         var from=Cell(player);var support=Deck(from);
         var next=from+dir;var tile=Tile(next);var m=Piece(next);
         var destinationDeck=Deck(next);
-        if(tile&&destinationDeck&&destinationDeck.product==MagnetProduct.Bridge)
+        if(Floor(next)&&destinationDeck&&destinationDeck.product==MagnetProduct.Bridge)
             return Reject("陆地上的两格桥是障碍，只能走上边缘外的桥段");
         if(IsWreckCell(next))return Reject("飞船残骸挡住了这个格子");
         if(m&&MagnetStillAnimating(m))return Reject("磁铁正在完成上一次推动，请稍候再接触");
         if(!BridgePassage(from,next))return Reject("宽条平台只能沿长边通过；单条桥还需要两端接通");
         RefreshPlayerSupport();
+        var standingRing=standingSurface.owner as MagnetPiece;
+        // A floating ring is ground, not an elevated magnet top. Only the
+        // latter gives ring-to-ring jumping priority over a reachable push.
+        bool ringTopJump=standingSurface.valid&&standingRing&&standingRing.product==MagnetProduct.Ring
+            &&!RingShore(standingRing)&&MagnetPiece.FlatU(standingRing.Pose)
+            &&m&&m.product==MagnetProduct.Ring&&MagnetPiece.FlatU(m.Pose);
+        // An upright wheel beside a stone is pushed from its upper rim, not
+        // used as a landing platform. Keep the ordinary ground rules elsewhere.
+        var sourceStone=Tile(from);
+        if(sourceStone&&sourceStone.blocked&&standingSurface.valid&&standingSurface.canJump
+            &&m&&m.product==MagnetProduct.Ring&&!MagnetPiece.FlatU(m.Pose)
+            &&Supported(m)&&!RingShore(m)&&tile&&!tile.blocked
+            &&player.position.y>m.transform.position.y+.01f
+            &&player.position.y-m.transform.position.y<=LayerHeight+.01f
+            &&Mathf.Abs(Vector3.Dot(m.Pose*Vector3.up,new Vector3(dir.x,0,dir.y)))<.05f)
+            return BeginPushRing(m,dir,next);
         bool deviceEntry=m&&(m.product==MagnetProduct.Lift||(m.product==MagnetProduct.Cross&&RotorActive(m)))
             &&(SameHeight(player.position.y,m.transform.position.y)
                 ||SameHeight(player.position.y,m.transform.position.y+LayerHeight*(m.product==MagnetProduct.Lift?1:2)));
-        if(standingSurface.valid&&standingSurface.canJump&&!deviceEntry&&!(m&&m.CanBePushed&&CanReachMagnet(m))){
+        if(standingSurface.valid&&(standingSurface.canJump||ringTopJump)&&!deviceEntry
+            &&(ringTopJump||!(m&&m.CanBePushed&&CanReachMagnet(m)))){
             // Single flat pieces remain pushable at ground level, but their
             // solid tops can receive a jump from a higher surface.
             bool flatSingle=m&&!m.combined&&m.product==MagnetProduct.None
@@ -281,7 +298,7 @@ public sealed partial class GridPlayground {
         }
         // A combined bar can be entered from base level only over a gap.
         // On an island it is a fixed raised obstacle; equal-height top access still works.
-        if(m&&m.product==MagnetProduct.WideBar&&tile&&player.position.y<Height(next)-.01f)
+        if(m&&m.product==MagnetProduct.WideBar&&Floor(next)&&player.position.y<Height(next)-.01f)
             return Reject("岛上的合成条有高度，不能从地面直接踩上，也不能推动");
         if(EvaluateHeight(player.position.y,Height(next),false,LayerHeight)!=HeightMove.Walk)return Reject("地面不能直接起跳登高，高差需要磁流升降装置");
         var entryPortal=BlackHolePortal.At(this,next);
@@ -443,7 +460,7 @@ public sealed partial class GridPlayground {
         var actorStart=player.position;var actorEnd=PushPlayerEnd(next,m);
         var rotation=m.Pose;var axis=new Vector3(step.direction.y,0,-step.direction.x);
         bool groundBar=m.shape==MagnetShape.Bar&&m.product==MagnetProduct.None
-            &&Tile(Cell(m.transform))&&!Tile(Cell(m.transform)).blocked&&Tile(target)&&!Tile(target).blocked
+            &&Floor(Cell(m.transform))&&Floor(target)
             &&!BlackHolePortal.At(this,target)&&SameHeight(start.y,end.y)
             &&MagnetPiece.VerticalBar(rotation)!=MagnetPiece.VerticalBar(step.pose);
         bool falling=MagnetPiece.VerticalBar(rotation);
@@ -555,7 +572,7 @@ public sealed partial class GridPlayground {
     bool CanRepelBackToLand(MagnetPiece far,Vector2Int direction){
         if(Supported(far))return false;
         var from=Cell(far.transform);var to=from+direction;var tile=Tile(to);float height;
-        return tile&&!tile.blocked&&SameHeight(tile.surfaceHeight,far.transform.position.y)
+        return Floor(to)&&SameHeight(GroundHeight(to),far.transform.position.y)
             &&!TransportObstacle(to,far)&&to!=PlayerCell
             &&TravelSurface(from,far.transform.position.y,to,far,out height)
             &&SameHeight(height,far.transform.position.y);
