@@ -11,12 +11,46 @@ public sealed partial class ChapterRecoilTravel:MonoBehaviour {
     public static bool Active {get;private set;}
     public static CurvedTrialCamera FlightView {get;private set;}
     public static float FlightSize {get;private set;}
+    public static bool TryGetFlightFocus(CurvedTrialCamera camera,out Vector3 focus){
+        var flight=activeFlight;
+        if(Active&&FlightView==camera&&flight&&flight.source&&flight.source.player
+            &&(!flight.arrivalStarted||(flight.arrivalBoard&&flight.arrivalBoard.RecoilFlying))){
+            // The source and destination boards briefly have no RecoilFlying owner
+            // while the handoff is spread across frames. Keep tracking the shared actor.
+            focus=flight.source.RecoilCameraFocus+flight.flightFramingOffset;return true;
+        }
+        focus=Vector3.zero;return false;
+    }
     GridPlayground source;MagnetPiece magnet;CurvedTrialCamera view;Scene destination;
     string destinationPath;readonly List<Renderer> destinationRenderers=new List<Renderer>();
     float speed;Vector3 heading=Vector3.left;
     PixelGeneratorLab flightBackground,targetBackground;
     Color originalBackground;Color[] originalPalette;
     float sourceScreenEdge=float.NaN;
+    Rect[] departureTiles;
+    bool WaitForVerdantDeparture => source&&source.gameObject.scene.name=="Chapter02_VerdantWorld";
+    bool VerdantIslandsVisible(Camera camera){
+        if(departureTiles==null){
+            var bounds=new List<Rect>();
+            float scale=Mathf.Max(1,Shader.GetGlobalFloat("_IslandDisplayScale"));
+            Vector3 focus=Shader.GetGlobalVector("_IceFocus");
+            var right=camera.transform.right;var up=camera.transform.up;
+            // Include the island rim, side wall and a full cell of decoration clearance.
+            float margin=source.cellSize*scale*1.5f;
+            foreach(var tile in source.tiles){
+                if(!tile||!tile.gameObject.activeInHierarchy)continue;
+                var point=focus+(tile.transform.position-focus)*scale;
+                bounds.Add(new Rect(Vector3.Dot(point,right)-margin,Vector3.Dot(point,up)-margin,margin*2,margin*2));
+            }
+            departureTiles=bounds.ToArray();
+        }
+        float halfHeight=camera.orthographicSize,halfWidth=halfHeight*camera.aspect;
+        var position=camera.transform.position;
+        var screen=new Rect(Vector3.Dot(position,camera.transform.right)-halfWidth,
+            Vector3.Dot(position,camera.transform.up)-halfHeight,halfWidth*2,halfHeight*2);
+        foreach(var tile in departureTiles)if(screen.Overlaps(tile))return true;
+        return false;
+    }
     ThreadPriority previousLoadingPriority;
     bool changedLoadingPriority;
     bool releasedControl;
@@ -24,9 +58,45 @@ public sealed partial class ChapterRecoilTravel:MonoBehaviour {
     AsyncOperation loading;
     ChapterFlightTitle flightTitle;float flightBeganAt;
     float launchAge;
+    Vector3 flightFramingOffset;
+    bool arrivalStarted;
+    Coroutine preloadRoutine;
+    readonly List<GameObject> sleepingRoots=new List<GameObject>();
+    public static void Preload(ChapterRecoilExit exit){
+        if(Active||prepared)return;
+        Prepare(exit);
+        if(prepared&&prepared.source==exit.GetComponent<GridPlayground>())
+            prepared.preloadRoutine=prepared.StartCoroutine(prepared.LoadAhead());
+    }
+    void LowerLoadingPriority(){
+        if(changedLoadingPriority)return;
+        previousLoadingPriority=Application.backgroundLoadingPriority;
+        Application.backgroundLoadingPriority=ThreadPriority.Low;changedLoadingPriority=true;
+    }
+    void RestoreLoadingPriority(){
+        if(!changedLoadingPriority)return;
+        Application.backgroundLoadingPriority=previousLoadingPriority;changedLoadingPriority=false;
+    }
+    IEnumerator LoadAhead(){
+        LowerLoadingPriority();
+        loading=SceneManager.LoadSceneAsync(destinationPath,LoadSceneMode.Additive);
+        if(loading!=null)yield return loading;
+        RestoreLoadingPriority();preloadRoutine=null;
+    }
+    IEnumerator WakeDestination(){
+        // Hidden renderers and disabled chapter controllers remain suspended during warm-up.
+        foreach(var root in sleepingRoots){
+            if(root)root.SetActive(true);
+            Advance();yield return null;
+        }
+        sleepingRoots.Clear();
+    }
     public static bool IsPreparing(Scene scene){return prepared&&scene.path==prepared.destinationPath;}
     public static IEnumerator CancelPreloadForMenu(){
-        if(!Active&&prepared)yield return prepared.ReleaseCancelledDestination();
+        if(!Active&&prepared){
+            if(prepared.preloadRoutine!=null){prepared.StopCoroutine(prepared.preloadRoutine);prepared.preloadRoutine=null;}
+            yield return prepared.ReleaseCancelledDestination();
+        }
     }
     public static void Prepare(ChapterRecoilExit exit){
         if(Active||prepared||!Application.CanStreamedLevelBeLoaded(exit.destinationScene))return;
@@ -37,7 +107,7 @@ public sealed partial class ChapterRecoilTravel:MonoBehaviour {
         DontDestroyOnLoad(prepared.gameObject);
         prepared.source=exit.GetComponent<GridPlayground>();prepared.destinationPath=exit.destinationScene;
         SceneManager.sceneLoaded+=prepared.HideDestination;
-        // Reserve ownership only; scene loading starts with the visible launch.
+        // Reserve ownership before Awake/OnEnable so the destination cannot take the player/view.
     }
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     static void ResetStatics(){Active=false;FlightView=null;FlightSize=0;prepared=null;activeFlight=null;UndoInputFrame=-1;}
@@ -45,18 +115,30 @@ public sealed partial class ChapterRecoilTravel:MonoBehaviour {
         if(Active)return;
         Prepare(exit);
         var runner=prepared&&prepared.source==exit.GetComponent<GridPlayground>()?prepared:new GameObject("连续星际飞行").AddComponent<ChapterRecoilTravel>();DontDestroyOnLoad(runner.gameObject);
+        if(runner.preloadRoutine!=null){runner.StopCoroutine(runner.preloadRoutine);runner.preloadRoutine=null;}
         runner.source=exit.GetComponent<GridPlayground>();runner.magnet=incoming;
         runner.view=FindObjectsOfType<CurvedTrialCamera>().First(c=>c.island&&c.island.board==runner.source);
+        // Preserve the departure's vertical framing instead of snapping from island
+        // center to the launcher's row as soon as flight begins.
+        var framing=runner.view.transform.position-runner.view.island.viewingOffset-runner.source.RecoilCameraFocus;
+        runner.flightFramingOffset=new Vector3(0,framing.y,framing.z);
         FlightView=runner.view;FlightSize=runner.view.GetComponent<Camera>().orthographicSize;
         runner.view.navigationZoomSmoothTime=0;runner.view.ResetZoomVelocity();
         runner.destinationPath=exit.destinationScene;runner.speed=runner.source.cellSize*5;Active=true;
         runner.CaptureUndoView();activeFlight=runner;runner.flightBeganAt=Time.time;
-        PlayerPushPose.Begin(runner.source.player).SampleRecoilFlight(0,incoming);
+        PlayerPushPose.BeginRecoil(runner.source.player);
         var movementAudio=PlayerFootstepAudio.For(runner.source.player);if(movementAudio)movementAudio.StopMovementSounds();
         if(runner.source.gameObject.scene.name=="Chapter01_IceWorld"){var titleObject=new GameObject("跨章标题 · 落地交互后消散");DontDestroyOnLoad(titleObject);runner.flightTitle=titleObject.AddComponent<ChapterFlightTitle>();runner.flightTitle.Begin(incoming,runner.view);}
         runner.StartCoroutine(runner.Travel());
     }
     void HideDestination(Scene scene,LoadSceneMode mode){
+        // A direct load/restart replaces the preloaded world. It must never be
+        // adopted as a dormant destination or later unloaded by this old owner.
+        if(mode==LoadSceneMode.Single){
+            if(prepared==this)prepared=null;
+            SceneManager.sceneLoaded-=HideDestination;
+            RestoreLoadingPriority();Destroy(gameObject);return;
+        }
         if(scene.path!=destinationPath)return;destination=scene;
         foreach(var root in scene.GetRootGameObjects()){
             foreach(var camera in root.GetComponentsInChildren<Camera>())camera.enabled=false;
@@ -73,9 +155,14 @@ public sealed partial class ChapterRecoilTravel:MonoBehaviour {
             if(root.name=="动态太空背景"){targetBackground=root.GetComponent<PixelGeneratorLab>();root.SetActive(false);continue;}
             foreach(var renderer in root.GetComponentsInChildren<Renderer>())if(renderer.enabled){destinationRenderers.Add(renderer);renderer.enabled=false;}
         }
+        // Dormant scenes retain assets but do not simulate physics, particles or scripts.
+        if(!Active)foreach(var root in scene.GetRootGameObjects())if(root.activeSelf){
+            sleepingRoots.Add(root);root.SetActive(false);
+        }
     }
     bool SourceHasLeftScreen(){
         var camera=view.GetComponent<Camera>();var planet=view.planet;
+        if(WaitForVerdantDeparture)return !VerdantIslandsVisible(camera);
         if(view.PlanarChapter){
             // Wait until the departing island, rather than a hidden globe, is off screen.
             float scale=Mathf.Max(1,Shader.GetGlobalFloat("_IslandDisplayScale"));
@@ -139,14 +226,21 @@ public sealed partial class ChapterRecoilTravel:MonoBehaviour {
     IEnumerator Travel(){
         if(!Application.CanStreamedLevelBeLoaded(destinationPath)){Abort("目标星球没有加入构建列表");yield break;}
         SceneManager.sceneLoaded-=HideDestination;SceneManager.sceneLoaded+=HideDestination;
-        previousLoadingPriority=Application.backgroundLoadingPriority;
-        Application.backgroundLoadingPriority=ThreadPriority.Low;changedLoadingPriority=true;
+        LowerLoadingPriority();
         ChapterAtlas.DestinationIsland=-1;ChapterAtlas.DestinationScene=null;
         // Present the launch before loading can spend time integrating destination objects.
         Advance();yield return null;
         var load=loading=loading??SceneManager.LoadSceneAsync(destinationPath,LoadSceneMode.Additive);
-        // Loading starts at takeoff. The flight continues even if loading takes longer.
-        while(!load.isDone||!SourceHasLeftScreen()||(flightTitle&&Time.time-flightBeganAt<ChapterFlightTitle.CruiseSeconds)){Advance();yield return null;}
+        // Reuse the dormant chapter; early launches fall back to loading during flight.
+        float clearSkySeconds=0;
+        while(true){
+            bool clear=SourceHasLeftScreen();
+            clearSkySeconds=clear?clearSkySeconds+Mathf.Min(Time.deltaTime,.05f):0;
+            bool departureReady=clear&&(!WaitForVerdantDeparture||(clearSkySeconds>=1f&&launchAge>=4.5f));
+            if(load.isDone&&departureReady&&(!flightTitle||Time.time-flightBeganAt>=ChapterFlightTitle.CruiseSeconds))break;
+            Advance();yield return null;
+        }
+        yield return WakeDestination();
         yield return null;
         SceneManager.sceneLoaded-=HideDestination;
         if(prepared==this)prepared=null;
@@ -176,7 +270,9 @@ public sealed partial class ChapterRecoilTravel:MonoBehaviour {
         // Place the loaded planet ahead of the ongoing flight, aligned to whole grid cells.
         var desiredInner=new Vector2Int(Mathf.FloorToInt(actor.position.x/cellSize)-16,Mathf.RoundToInt(actor.position.z/cellSize));
         var shiftCell=desiredInner-innerCell;var shift=new Vector3(shiftCell.x*cellSize,0,shiftCell.y*cellSize);
-        foreach(var root in destination.GetRootGameObjects())root.transform.position+=shift;
+        foreach(var root in destination.GetRootGameObjects()){
+            root.transform.position+=shift;Advance();yield return null;
+        }
         board.InvalidateTileLookup();
         shore+=shiftCell;innerCell+=shiftCell;
         var targetIsland=targetView.island;var targetCenters=targetIsland.islandCenters;
@@ -207,7 +303,11 @@ public sealed partial class ChapterRecoilTravel:MonoBehaviour {
         var center=landingIsland.position;var displayedCenter=origin+(center-origin)*scale;
         targetPlanet.position=displayedCenter+view.transform.forward*(radius+1.5f)+view.transform.up*view.globeVerticalOffset;
         targetPlanet.localScale=Vector3.one*(radius/10);targetPlanet.rotation=Quaternion.identity;
-        foreach(var renderer in destinationRenderers)if(renderer&&renderer.gameObject.activeInHierarchy)renderer.enabled=true;
+        int revealed=0;
+        foreach(var renderer in destinationRenderers){
+            if(renderer&&renderer.gameObject.activeInHierarchy)renderer.enabled=true;
+            if(++revealed%128==0){Advance();yield return null;}
+        }
         if(window)window.Show(startRoom);
         // The arrival offsets must be evaluated against destination bounds, never
         // the previous world's gradually moving flat rectangle.
@@ -220,6 +320,7 @@ public sealed partial class ChapterRecoilTravel:MonoBehaviour {
         var nextExit=board.GetComponent<ChapterRecoilExit>();if(nextExit)nextExit.enabled=true;
         float remainingDistance=Vector3.Distance(actor.position,new Vector3(innerCell.x*cellSize,actor.position.y,innerCell.y*cellSize));
         var colorBlend=StartCoroutine(BlendBackground(Mathf.Max(.5f,remainingDistance/speed*.85f)));
+        arrivalStarted=true;
         var arrival=board.StartCoroutine(board.ArriveFromChapter(magnet,shore,origin,speed));
         // Keep the authored source state alive until touchdown so in-flight Z can
         // return across the scene handoff without rebuilding or losing puzzle state.

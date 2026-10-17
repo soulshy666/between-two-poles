@@ -141,7 +141,7 @@ namespace BetweenPoles {
    if(planet)Shader.SetGlobalVector("_IceDiskCenter",planet.position);
    Shader.SetGlobalVector("_IceDiskRight",transform.right);Shader.SetGlobalVector("_IceDiskUp",transform.up);
    var camera=GetComponent<Camera>();if(camera){
-    if(ChapterRecoilTravel.Active&&ChapterRecoilTravel.FlightView==this&&recoil){
+    if(ChapterRecoilTravel.TryGetFlightFocus(this,out var chapterFlightFocus)){
      camera.orthographicSize=ChapterRecoilTravel.FlightSize;
      targetZoomSize=camera.orthographicSize;zoomVelocity=0;zoomInitialized=true;return;
     }

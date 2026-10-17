@@ -29,7 +29,7 @@ public sealed class MagnetPiece:MonoBehaviour {
     void OnTransformChildrenChanged(){unchecked{VisualHierarchyRevision++;}}
     void OnEnable(){
         unchecked{VisualHierarchyRevision++;}
-        if(Application.isPlaying)MagnetVisuals.HideLegacyBridgeTrim(geometry);
+        if(Application.isPlaying){MagnetVisuals.HideLegacyBridgeTrim(geometry);MagnetVisuals.RefreshBridgeSurface(geometry);}
         if(Application.isPlaying&&!GetComponent<MagnetFieldIdentity>())gameObject.AddComponent<MagnetFieldIdentity>();
     }
     void Awake(){

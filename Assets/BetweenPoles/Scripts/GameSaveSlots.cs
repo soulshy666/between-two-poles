@@ -69,9 +69,19 @@ public sealed class GameSaveSlots:MonoBehaviour {
         // Authored Start methods first configure room windows and the initial checkpoint.
         yield return null;yield return null;yield return null;
         GridPlayground board=null;foreach(var root in scene.GetRootGameObjects()){board=root.GetComponentInChildren<GridPlayground>(true);if(board)break;}
+        bool failed=false;
         try{if(!board)throw new InvalidDataException("Missing board");board.RestoreDiskState(current.world);SessionExploration.Import(current.explored);SessionPlayTime.Restore(current.seconds);}
-        catch(Exception e){LastError="存档读取失败";Debug.LogError("Save restore: "+e);activeSlot=-1;}
+        catch(Exception e){
+            LastError=e.Message=="Scene layout no longer matches this save"?"关卡已更新，旧存档无法恢复，请选择其他存档位":"存档恢复失败，请选择其他存档位";
+            Debug.LogWarning("Save restore blocked; original file preserved: "+e.Message);
+            activeSlot=-1;failed=true;
+        }
         finally{restoring=false;nextSave=Time.unscaledTime+3;}
+        if(failed){
+            yield return ChapterRecoilTravel.CancelPreloadForMenu();
+            while(TelevisionSceneTransition.Busy)yield return null;
+            TelevisionSceneTransition.Load("Cover");
+        }
     }
     void Update(){if(Time.unscaledTime<nextSave)return;nextSave=Time.unscaledTime+3;SaveNow();}
     public static void SaveNow(){

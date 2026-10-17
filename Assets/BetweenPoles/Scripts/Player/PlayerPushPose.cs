@@ -59,6 +59,12 @@ public sealed partial class PlayerPushPose:MonoBehaviour {
     public static PlayerPushPose Begin(Transform player){
         var pose=GetPose(player);pose.EndEdgeBalance();pose.flowPushing=false;pose.walking=false;pose.pushing=true;pose.Sample(0);return pose;
     }
+    public static PlayerPushPose BeginRecoil(Transform player){
+        var pose=GetPose(player);pose.EndEdgeBalance();
+        pose.flowPushing=false;pose.walking=false;pose.pushing=true;
+        // The flight driver samples once after moving; no throwaway generic push pose.
+        return pose;
+    }
     public static PlayerPushPose BeginFlowPush(Transform player,float cellSize,FlowPushStyle style=FlowPushStyle.Standard){
         var pose=GetPose(player);
         if(!pose.flowPushing){pose.End();pose.flowDistance=0;pose.flowEffort=0;}
@@ -135,15 +141,22 @@ public sealed partial class PlayerPushPose:MonoBehaviour {
     // the authored joint distances. No hand-target vertex translations/scaling.
     void SampleRecoilJoints(float shoulderPitch,float elbowPitch,float hipPitch,float kneePitch,float flutter){
         if(!posed)return;
+        // Four joint orientations are shared by every vertex on the same limb.
+        var leftArm=Quaternion.Euler(shoulderPitch,0,12);
+        var rightArm=Quaternion.Euler(shoulderPitch,0,-12);
+        var leftLeg=Quaternion.Euler(hipPitch-flutter,0,0);
+        var rightLeg=Quaternion.Euler(hipPitch+flutter,0,0);
+        var elbow=Quaternion.Euler(elbowPitch,0,0);
+        var knee=Quaternion.Euler(kneePitch,0,0);
         for(int i=0;i<vertices.Length;i++){
             var point=vertices[i];var normal=i<normals.Length?normals[i]:Vector3.up;
             if(arms[i]||legs[i]){
                 bool arm=arms[i];float side=Mathf.Sign(point.x);
                 var root=arm?new Vector3(side*.235f,.635f,0):new Vector3(side*.097f,.34f,0);
                 var joint=arm?new Vector3(side*.235f,.51f,0):new Vector3(side*.097f,.19f,0);
-                var proximal=Quaternion.Euler(arm?shoulderPitch:hipPitch+side*flutter,0,arm?-side*12:0);
+                var proximal=arm?(side<0?leftArm:rightArm):(side<0?leftLeg:rightLeg);
                 if(point.y<joint.y){
-                    var distal=Quaternion.Euler(arm?elbowPitch:kneePitch,0,0);
+                    var distal=arm?elbow:knee;
                     point=joint+distal*(point-joint);normal=distal*normal;
                 }
                 point=root+proximal*(point-root);normal=proximal*normal;
@@ -156,10 +169,12 @@ public sealed partial class PlayerPushPose:MonoBehaviour {
         if(!body||!posed)return;
         const float gap=.025f;
         float bottom=float.PositiveInfinity,front=float.NegativeInfinity;
+        var bodyToWorld=body.transform.localToWorldMatrix;
+        var actorPosition=transform.position;var forward=transform.forward;
         foreach(var vertex in workVertices){
-            var p=body.transform.TransformPoint(vertex);
+            var p=bodyToWorld.MultiplyPoint3x4(vertex);
             bottom=Mathf.Min(bottom,p.y);
-            front=Mathf.Max(front,Vector3.Dot(p-transform.position,transform.forward));
+            front=Mathf.Max(front,Vector3.Dot(p-actorPosition,forward));
         }
         // Ground correction and contact correction move the complete visual,
         // never stretch limbs or alter the authoritative grid position.
@@ -171,9 +186,10 @@ public sealed partial class PlayerPushPose:MonoBehaviour {
             // Chapter meshes carry enlarged culling bounds; only real geometry
             // can determine how far the complete body needs to move back.
             filter.sharedMesh.GetVertices(recoilContactVertices);
+            var magnetToWorld=filter.transform.localToWorldMatrix;
             foreach(var vertex in recoilContactVertices){
-                var p=filter.transform.TransformPoint(vertex);
-                nearest=Mathf.Min(nearest,Vector3.Dot(p-transform.position,transform.forward));
+                var p=magnetToWorld.MultiplyPoint3x4(vertex);
+                nearest=Mathf.Min(nearest,Vector3.Dot(p-actorPosition,forward));
             }
         }
         if(front+gap>nearest)visual.position-=transform.forward*(front+gap-nearest);

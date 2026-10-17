@@ -7,7 +7,7 @@ public sealed partial class CoverMenu {
     int saveSelection,deleteSlot=-1;
     readonly bool[] occupiedSlots=new bool[3];
     string saveError;
-    void OpenSavePage(){savePage=true;saveSelection=0;deleteSlot=-1;saveError=null;RefreshSlots();}
+    void OpenSavePage(){savePage=true;saveSelection=0;deleteSlot=-1;var error=GameSaveSlots.LastError;RefreshSlots();saveError=error;}
     void RefreshSlots(){for(int i=0;i<3;i++)occupiedSlots[i]=Application.isPlaying&&GameSaveSlots.Exists(i);}
     void ChooseSlot(int slot){
         if(!Application.isPlaying||loading||deleteSlot>=0)return;

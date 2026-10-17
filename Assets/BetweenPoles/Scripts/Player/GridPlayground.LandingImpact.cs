@@ -19,7 +19,7 @@ public sealed partial class GridPlayground {
         foreach(var r in magnet.GetComponentsInChildren<Renderer>(true)){
             r.GetPropertyBlock(recoilBlock);recoilBlock.SetFloat("_RecoilFlying",flying?1:0);
             recoilBlock.SetVector("_RecoilDisplayOffset",offset);r.SetPropertyBlock(recoilBlock);
-            if(flying){var bounds=r.localBounds;bounds.Encapsulate(new Bounds(Vector3.zero,Vector3.one*300));r.localBounds=bounds;}
+            if(flying){if(r is MeshRenderer||r is SkinnedMeshRenderer){r.ResetLocalBounds();var bounds=r.localBounds;bounds.Encapsulate(new Bounds(Vector3.zero,Vector3.one*300));r.localBounds=bounds;}}
         }
     }
     IEnumerable<Vector2Int> Footprint(MagnetPiece magnet,Vector2Int at){
