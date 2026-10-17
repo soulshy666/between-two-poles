@@ -30,6 +30,16 @@ public sealed class FiveIslandWindow : MonoBehaviour {
     readonly Dictionary<Vector2Int,MagnetPiece> bridgeSpans=new Dictionary<Vector2Int,MagnetPiece>();
     bool BridgeCandidate(MagnetPiece m){return m&&m.enabled&&m.gameObject.activeInHierarchy&&!board.IsKnockedFlying(m)&&!(board.RecoilFlying&&m==board.RecoilMagnet)&&(m.walkable||(!m.combined&&m.shape==MagnetShape.Bar&&!MagnetPiece.VerticalBar(m.Pose)));}
     Vector4 previewBounds;
+    ChapterMapReturn effectMap;
+    // Presentation only: keep remote puzzle state and travel simulations alive.
+    public bool NeedsDynamicEffects(Vector3 position){
+        if(!Application.isPlaying||!enabled||!board||!board.enabled||visible.Count==0)return true;
+        if(!effectMap)effectMap=GetComponent<ChapterMapReturn>();
+        if((effectMap&&effectMap.MapSessionActive)||BlackHoleTravel.Selecting||BlackHoleTravel.InTransit||ChapterRecoilTravel.Active||board.RecoilFlying)return true;
+        float padding=board.cellSize*2;
+        return position.x>=previewBounds.x-padding&&position.x<=previewBounds.z+padding&&
+            position.z>=previewBounds.y-padding&&position.z<=previewBounds.w+padding;
+    }
     MaterialPropertyBlock previewBlock;
     sealed class PieceView {
         public Transform geometry;

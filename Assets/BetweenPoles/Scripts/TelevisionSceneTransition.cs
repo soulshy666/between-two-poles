@@ -22,6 +22,8 @@ public sealed class TelevisionSceneTransition : MonoBehaviour {
         yield return Animate(0, 1, .55f);
         yield return new WaitForEndOfFrame();
         yield return new WaitForSecondsRealtime(.12f);
+        // Release a dormant chapter before a direct load can replace its scene handle.
+        yield return ChapterRecoilTravel.CancelPreloadForMenu();
         var operation = SceneManager.LoadSceneAsync(scene, LoadSceneMode.Single);
         if (operation == null) { Destroy(gameObject); yield break; }
         operation.allowSceneActivation = false;

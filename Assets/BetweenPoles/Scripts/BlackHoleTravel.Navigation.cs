@@ -314,7 +314,16 @@ public sealed partial class BlackHoleTravel {
         if(inspectionBoard){if(inspectionPosition.HasValue)DrawOriginIndicator();return;}
         if(testPortals==null||busy||!Selecting)return;
         DrawOriginIndicator();
-        GUI.Label(new Rect(20,Screen.height-50,Screen.width-40,32),testMessage);
+        var hint=ElementGameUI.Asset("portal-hint");
+        if(hint){
+            var safe=ElementGameUI.SafeRect;
+            float scale=Mathf.Max(1,Mathf.Floor(Mathf.Min(ElementGameUI.TextScale,(safe.width-24)/hint.width)));
+            float top=safe.y+6*ElementGameUI.K;
+            if(navigationCamera&&navigationWindow&&navigationMapPresentation)top+=18*ElementGameUI.TextScale;
+            var color=GUI.color;GUI.color=Color.white;
+            GUI.DrawTexture(new Rect(Mathf.Round(safe.center.x-hint.width*scale*.5f),Mathf.Round(top),hint.width*scale,hint.height*scale),hint);
+            GUI.color=color;
+        }
     }
 }
 }

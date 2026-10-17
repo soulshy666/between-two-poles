@@ -6,12 +6,20 @@ public sealed class ChapterRecoilExit:MonoBehaviour {
     public int exitRow=18;
     public string destinationScene="Assets/BetweenPoles/Scenes/Chapter02_VerdantWorld.unity";
     public Vector2Int testCell=new Vector2Int(4,18);
-    GridPlayground Board {get{return GetComponent<GridPlayground>();}}
+    float preloadAfter;
+    void OnEnable(){preloadAfter=Time.unscaledTime+8f;}
     void Update(){
-        if(!Application.isPlaying||ChapterAtlas.IsInspectionScene(gameObject.scene)||!Board||!Board.enabled||Board.Busy)return;
-        var tile=Board.TileAt(Board.PlayerCell);var owner=tile?tile.GetComponentInParent<IslandSurfaceAnchor>():null;
-        if(owner&&owner.center&&owner.center.name==sourceRoom)ChapterRecoilTravel.Prepare(this);
+        if(!Application.isPlaying||Time.unscaledTime<preloadAfter)return;
+        preloadAfter=Time.unscaledTime+2f;
+        var board=Board;
+        if(!board||!board.enabled||board.Busy||board.OpeningCinematic||GameSaveSlots.Restoring
+            ||ElementGameUI.Paused||BlackHoleTravel.Selecting||BlackHoleTravel.InTransit
+            ||ChapterRecoilTravel.Active||ChapterMapReturn.HasSuspendedGame
+            ||gameObject.scene!=UnityEngine.SceneManagement.SceneManager.GetActiveScene()
+            ||ChapterAtlas.IsInspectionScene(gameObject.scene))return;
+        ChapterRecoilTravel.Preload(this);
     }
+    GridPlayground Board {get{return GetComponent<GridPlayground>();}}
     public bool Matches(Vector2Int from,Vector2Int direction){
         var tile=Board.TileAt(from);var owner=tile?tile.GetComponentInParent<IslandSurfaceAnchor>():null;
         return direction==Vector2Int.left&&from.y==exitRow&&owner&&owner.center&&owner.center.name==sourceRoom;

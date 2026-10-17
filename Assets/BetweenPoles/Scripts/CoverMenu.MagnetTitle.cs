@@ -4,7 +4,8 @@ public sealed partial class CoverMenu {
  // Pixel-built pole marks and field lines share the title's canvas in play and edit mode.
  void DrawMagneticSignature(Rect titleRect){
   var previous=GUI.color;
-  float x=Mathf.Round(titleRect.x+8),y=Mathf.Round(titleRect.yMax+24);
+  const float signatureWidth=280;
+  float x=Mathf.Round(titleRect.center.x-signatureWidth*.5f),y=Mathf.Round(titleRect.yMax+24);
   Color north=new Color(.94f,.30f,.27f),south=new Color(.23f,.68f,.83f);
   MagnetPixel(x,y,60,16,north);MagnetPixel(x,y,16,16,new Color(.77f,.78f,.73f));
   MagnetPixel(x+220,y,60,16,south);MagnetPixel(x+264,y,16,16,new Color(.77f,.78f,.73f));

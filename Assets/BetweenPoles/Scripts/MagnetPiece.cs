@@ -11,10 +11,25 @@ public struct MagnetRollStep {
 }
 [DefaultExecutionOrder(-1000)]
 public sealed class MagnetPiece:MonoBehaviour {
+    FiveIslandWindow effectWindow;
+    IslandSurfaceAnchor effectAnchor;
+    GridPlayground effectGround;
+    public bool NeedsDynamicEffects {
+        get {
+            if(!effectAnchor)effectAnchor=GetComponent<IslandSurfaceAnchor>();
+            var ground=effectAnchor?effectAnchor.ground:null;
+            if(effectGround!=ground||(!effectWindow&&ground)){
+                effectGround=ground;
+                effectWindow=ground?ground.GetComponent<FiveIslandWindow>():null;
+            }
+            return !effectWindow||effectWindow.NeedsDynamicEffects(transform.position);
+        }
+    }
     public int VisualHierarchyRevision { get; private set; }
     void OnTransformChildrenChanged(){unchecked{VisualHierarchyRevision++;}}
     void OnEnable(){
         unchecked{VisualHierarchyRevision++;}
+        if(Application.isPlaying){MagnetVisuals.HideLegacyBridgeTrim(geometry);MagnetVisuals.RefreshBridgeSurface(geometry);}
         if(Application.isPlaying&&!GetComponent<MagnetFieldIdentity>())gameObject.AddComponent<MagnetFieldIdentity>();
     }
     void Awake(){

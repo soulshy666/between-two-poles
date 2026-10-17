@@ -5,12 +5,13 @@ public sealed class MagneticLinkPulse:MonoBehaviour {
     float begin,end,lane;
     public bool horizontalOnly;
     Transform[] waveSegments,pulses;
+    MagnetPiece owner;
 
     public void Configure(float start,float finish,float z) {
         begin=start;end=finish;lane=z;Cache();
     }
 
-    void OnEnable(){Cache();}
+    void OnEnable(){owner=GetComponentInParent<MagnetPiece>();Cache();}
 
     void Cache() {
         var waves=new System.Collections.Generic.List<Transform>();
@@ -24,6 +25,7 @@ public sealed class MagneticLinkPulse:MonoBehaviour {
     }
 
     void Update() {
+        if(owner&&!owner.NeedsDynamicEffects)return;
         if(waveSegments==null||waveSegments.Length==0||pulses==null||pulses.Length==0)Cache();
         float time=Time.time;
         for(int i=0;i<waveSegments.Length;i++){

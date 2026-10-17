@@ -49,7 +49,7 @@ public sealed partial class GridPlayground {
         if(recoilBlock==null)recoilBlock=new MaterialPropertyBlock();
         // Shader motion is outside the source mesh bounds. Keep the same conservative
         // bounds used by island surfaces, including after this actor lands in a new frame.
-        foreach(var r in recoilRenderers){var bounds=r.localBounds;bounds.Encapsulate(new Bounds(Vector3.zero,Vector3.one*300));r.localBounds=bounds;r.GetPropertyBlock(recoilBlock);recoilBlock.SetFloat("_RecoilFlying",1);r.SetPropertyBlock(recoilBlock);}
+        foreach(var r in recoilRenderers){if(r is MeshRenderer||r is SkinnedMeshRenderer){r.ResetLocalBounds();var bounds=r.localBounds;bounds.Encapsulate(new Bounds(Vector3.zero,Vector3.one*300));r.localBounds=bounds;}r.GetPropertyBlock(recoilBlock);recoilBlock.SetFloat("_RecoilFlying",1);r.SetPropertyBlock(recoilBlock);}
         if(!preserveOffsets){playerFlightOffset=SurfaceOffset(player.position);magnetFlightOffset=SurfaceOffset(magnet.transform.position);FlightOffset(player,playerFlightOffset);FlightOffset(magnet.transform,magnetFlightOffset);}
         var window=GetComponent<FiveIslandWindow>();if(window)window.PreviewRecoilTarget(destination);
     }
@@ -58,6 +58,7 @@ public sealed partial class GridPlayground {
         if(recoilRenderers!=null)foreach(var r in recoilRenderers)if(r){r.GetPropertyBlock(recoilBlock);recoilBlock.SetFloat("_RecoilFlying",0);r.SetPropertyBlock(recoilBlock);}
         recoilRenderers=null;
     }
+    internal void FinishSolarFlight(){EndRecoilFlight();Busy=false;}
     IEnumerator RecoilAcrossIslands(MagnetPiece magnet,Vector2Int from,Vector2Int travel,Vector3 playerStart,Vector3 magnetStart,Quaternion facing,Vector3 axis){
         if(Application.isPlaying&&!recordingPush&&!finishingMovement){
             var audio=PlayerFootstepAudio.For(player);if(audio)audio.PlayRecoil();
@@ -72,14 +73,16 @@ public sealed partial class GridPlayground {
             yield return RecoilIntoObstacle(magnet,travel,stop,releaseCell,playerStart,magnetStart,facing);
             yield break;
         }
-        Vector2Int shore;Vector3 magnetEnd,playerEnd;int exitDistance;
-        bool lands=FindRecoilLanding(from,travel,out shore,out magnetEnd,out playerEnd,out exitDistance);
         var chapterExit=GetComponent<ChapterRecoilExit>();bool nextChapter=chapterExit&&chapterExit.Matches(from,travel);
-        if(nextChapter)lands=false;
+        var finale=GetComponent<SolarEnding>();bool solarEnding=finale&&finale.Matches(this,from,travel);
+        Vector2Int shore=from;Vector3 magnetEnd=Vector3.zero,playerEnd=Vector3.zero;int exitDistance=1;
+        // Chapter travel owns its destination; do not search every local island for an unused landing.
+        bool lands=!nextChapter&&!solarEnding&&FindRecoilLanding(from,travel,out shore,out magnetEnd,out playerEnd,out exitDistance);
         var direction=new Vector3(travel.x,0,travel.y);
         if(!lands){playerEnd=Position(from+travel*(exitDistance+5),playerStart.y);magnetEnd=playerEnd-direction*cellSize;}
         var focus=Shader.GetGlobalVector("_IceFocus");
         BeginRecoilFlight(magnet,new Vector3(focus.x,focus.y,focus.z),lands?Owner(Tile(shore)):null);
+        if(solarEnding){finale.Begin(this,magnet);yield break;}
         // Play once at takeoff, not again when crossing into the destination scene.
         if(nextChapter){ChapterRecoilTravel.Begin(chapterExit,magnet);yield break;}
         // Position and rendered offset interpolate together, producing one straight trajectory.

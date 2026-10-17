@@ -79,8 +79,12 @@ public sealed partial class ChapterRecoilTravel {
     }
     IEnumerator ReleaseCancelledDestination(){
         if(loading!=null)while(!loading.isDone)yield return null;
+        RestoreLoadingPriority();
+        sleepingRoots.Clear();
         SceneManager.sceneLoaded-=HideDestination;
-        if(destination.IsValid()&&destination.isLoaded){var unload=SceneManager.UnloadSceneAsync(destination);if(unload!=null)yield return unload;}
+        if(destination.IsValid()&&destination.isLoaded&&destination!=SceneManager.GetActiveScene()){
+            var unload=SceneManager.UnloadSceneAsync(destination);if(unload!=null)yield return unload;
+        }
         if(prepared==this)prepared=null;
         Destroy(gameObject);
     }

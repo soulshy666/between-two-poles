@@ -20,6 +20,8 @@ public static class MagnetVisuals {
     static readonly Unity.Profiling.ProfilerMarker buildMarker=new Unity.Profiling.ProfilerMarker("Magnets.BuildVisuals");
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     static void ResetArcMeshes(){
+        if(softBridgeSurface)Object.DestroyImmediate(softBridgeSurface);
+        softBridgeSurface=null;
         vertexCache=new System.Runtime.CompilerServices.ConditionalWeakTable<Mesh,Vector3[]>();
         foreach(var mesh in arcMeshes.Values)if(mesh)Object.DestroyImmediate(mesh);
         arcMeshes.Clear();
@@ -37,6 +39,12 @@ public static class MagnetVisuals {
     }
 #endif
     const string LinkName="磁流连接",BridgeSurfaceName="通路电屏障",RingSurfaceName="圆环电屏障";
+    public static void HideLegacyBridgeTrim(Transform geometry){
+        if(!geometry)return;
+        foreach(var renderer in geometry.GetComponentsInChildren<MeshRenderer>(true))
+            if(renderer.transform.parent&&renderer.transform.parent.name==BridgeSurfaceName&&
+                (renderer.name=="通路边线"||renderer.name=="桥头踏边"))renderer.gameObject.SetActive(false);
+    }
     static Material red,blue,link,bridgeSurface,bridgeTrim;
     static Material Color(bool north) {
         var m=north?red:blue;if(m)return m;
@@ -72,6 +80,33 @@ public static class MagnetVisuals {
         bridgeSurface.SetFloat("_Painted",0);bridgeSurface.SetFloat("_Snow",0);bridgeSurface.SetFloat("_Grid",0);
         return bridgeSurface;
     }
+    static Material softBridgeSurface;
+    static Material SoftBridgeMaterial(){
+        if(softBridgeSurface)return softBridgeSurface;
+        var shader=Resources.Load<Shader>("Shaders/BridgeSoftLight");
+        if(!shader)return BridgeSurfaceMaterial();
+        softBridgeSurface=new Material(shader){name="桥面 · 柔光青蓝",hideFlags=HideFlags.DontSave};
+        softBridgeSurface.color=new Color(.30f,.70f,.78f,.62f);
+        return softBridgeSurface;
+    }
+    static void ApplySoftBridge(Renderer renderer,float minX,float maxX,float radius,float centerZ){
+        renderer.sharedMaterial=SoftBridgeMaterial();
+        var properties=new MaterialPropertyBlock();renderer.GetPropertyBlock(properties);
+        properties.SetVector("_DeckExtent",new Vector4(minX+radius,maxX,radius,centerZ));
+        renderer.SetPropertyBlock(properties);
+    }
+    public static void RefreshBridgeSurface(Transform geometry){
+        if(!geometry)return;
+        foreach(var filter in geometry.GetComponentsInChildren<MeshFilter>(true)){
+            if(filter.name!="连续桥面"||!filter.transform.parent||filter.transform.parent.name!=BridgeSurfaceName||!filter.sharedMesh)continue;
+            var renderer=filter.GetComponent<Renderer>();if(!renderer)continue;
+            // Read actual vertices: gameplay deliberately enlarges mesh culling bounds.
+            var vertices=CachedVertices(filter.sharedMesh);
+            if(vertices.Length==0)continue;
+            var bounds=new Bounds(vertices[0],Vector3.zero);foreach(var vertex in vertices)bounds.Encapsulate(vertex);
+            ApplySoftBridge(renderer,bounds.min.x,bounds.max.x,bounds.extents.z,bounds.center.z);
+        }
+    }
     static Material BridgeTrimMaterial(){
         if(bridgeTrim)return bridgeTrim;
         bridgeTrim=new Material(Shader.Find("BetweenPoles/PaintedIceTrial"));
@@ -97,10 +132,6 @@ public static class MagnetVisuals {
         // corners (including its trim) otherwise poke through the curved shell.
         float arcCenter=begin+.48f,radius=.35f;
         RoundedBridgeDeck(root,arcCenter,end,radius);
-        float length=end-arcCenter,center=(arcCenter+end)*.5f;
-        foreach(float side in new[]{-1f,1f})
-            Box(root,new Vector3(center,.23f,side*(radius-.025f)),new Vector3(length,.02f,.04f),BridgeTrimMaterial(),"通路边线");
-        Box(root,new Vector3(end-.045f,.23f,0),new Vector3(.09f,.02f,radius*2),BridgeTrimMaterial(),"桥头踏边");
     }
     static void RoundedBridgeDeck(Transform parent,float arcCenter,float end,float radius){
         const int segments=20;
@@ -128,7 +159,7 @@ public static class MagnetVisuals {
         var mesh=new Mesh{name="圆头连续桥面"};mesh.vertices=vertices;mesh.triangles=triangles;mesh.RecalculateNormals();mesh.RecalculateBounds();
         var deck=Group(parent,"连续桥面");deck.gameObject.AddComponent<MeshFilter>().sharedMesh=mesh;
         deck.gameObject.AddComponent<RuntimeMagnetMesh>().ownedMesh=mesh;
-        deck.gameObject.AddComponent<MeshRenderer>().sharedMaterial=BridgeSurfaceMaterial();
+        ApplySoftBridge(deck.gameObject.AddComponent<MeshRenderer>(),arcCenter-radius,end,radius,0);
     }
     static void RingSurface(Transform parent){
         var root=Group(parent,RingSurfaceName);
