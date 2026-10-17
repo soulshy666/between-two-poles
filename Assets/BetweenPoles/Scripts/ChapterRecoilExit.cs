@@ -7,11 +7,6 @@ public sealed class ChapterRecoilExit:MonoBehaviour {
     public string destinationScene="Assets/BetweenPoles/Scenes/Chapter02_VerdantWorld.unity";
     public Vector2Int testCell=new Vector2Int(4,18);
     GridPlayground Board {get{return GetComponent<GridPlayground>();}}
-    void Update(){
-        if(!Application.isPlaying||ChapterAtlas.IsInspectionScene(gameObject.scene)||!Board||!Board.enabled||Board.Busy)return;
-        var tile=Board.TileAt(Board.PlayerCell);var owner=tile?tile.GetComponentInParent<IslandSurfaceAnchor>():null;
-        if(owner&&owner.center&&owner.center.name==sourceRoom)ChapterRecoilTravel.Prepare(this);
-    }
     public bool Matches(Vector2Int from,Vector2Int direction){
         var tile=Board.TileAt(from);var owner=tile?tile.GetComponentInParent<IslandSurfaceAnchor>():null;
         return direction==Vector2Int.left&&from.y==exitRow&&owner&&owner.center&&owner.center.name==sourceRoom;
