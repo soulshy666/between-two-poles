@@ -7,6 +7,37 @@ using UnityEngine;
 namespace BetweenPoles.EditorTools {
 public static class PortalRepulsionRegression {
     static void Check(bool value,string message){if(!value)throw new Exception(message);}
+    [MenuItem("两极之间/测试/黑洞共享存储")]
+    public static void RunSharedStorage(){
+        var scene=EditorSceneManager.NewPreviewScene();
+        try{
+            var root=new GameObject("Shared portal storage fixture");root.SetActive(false);
+            UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(root,scene);
+            var board=root.AddComponent<GridPlayground>();board.enabled=false;
+            var other=new GameObject("Other board");other.transform.SetParent(root.transform);
+            var otherBoard=other.AddComponent<GridPlayground>();otherBoard.enabled=false;otherBoard.magnets=new MagnetPiece[0];
+            var portals=new BlackHolePortal[3];
+            for(int i=0;i<3;i++){
+                var go=new GameObject("Mouth "+i);go.transform.SetParent(root.transform);go.transform.position=Vector3.right*i*3;
+                var tile=go.AddComponent<GridTile>();var portal=go.AddComponent<BlackHolePortal>();portal.board=board;portal.tile=tile;portals[i]=portal;
+            }
+            var cargoObject=new GameObject("Stored magnet");cargoObject.transform.SetParent(root.transform);
+            var cargo=cargoObject.AddComponent<MagnetPiece>();cargo.geometry=new GameObject("Geometry").transform;cargo.geometry.SetParent(cargo.transform);
+            cargo.geometry.rotation=Quaternion.Euler(90,0,45);cargo.portalRollSpeed=4;cargo.portalEntryPosition=Vector3.left;
+            cargo.gameObject.SetActive(false);board.magnets=new[]{cargo};
+            var direction=typeof(BlackHoleTravel).GetMethod("CargoExitDirection",System.Reflection.BindingFlags.Static|System.Reflection.BindingFlags.NonPublic);
+            for(int i=0;i<3;i++){
+                cargo.storedInPortal=portals[i];cargo.portalEntryPosition=portals[i].transform.position-Vector3.right*board.cellSize;
+                foreach(var mouth in portals)Check(mouth.Cargo==cargo,"Different mouth cannot retrieve stored cargo");
+                Check(cargo.storedInPortal==portals[i]&&cargo.portalRollSpeed==4&&Quaternion.Angle(cargo.Pose,Quaternion.Euler(90,0,45))<.001f,"Storage query changed entry state");
+                Check((Vector2Int)direction.Invoke(null,new object[]{cargo,Vector2Int.down})==Vector2Int.right,"Cargo direction followed player instead of stored entry");
+            }
+            portals[2].board=otherBoard;otherBoard.magnets=new[]{cargo};
+            Check(!portals[0].Cargo&&portals[2].Cargo==cargo,"Storage leaked across boards");
+            cargo.storedInPortal=null;Check(!portals[2].Cargo,"Ejected cargo still occupies storage");
+            Debug.Log("PASS: shared retrieval, preserved pose/momentum/direction, board isolation and cleared storage.");
+        }finally{EditorSceneManager.ClosePreviewScene(scene);}
+    }
     [MenuItem("两极之间/测试/黑洞同极受阻反弹")]
     public static void Run(){
         var scene=EditorSceneManager.NewPreviewScene();int checks=0;

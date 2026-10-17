@@ -134,6 +134,7 @@ public sealed partial class GridPlayground {
         pushPresentations.Remove(presentation);
     }
     internal void ClearPushPresentations(){
+        uLandingBounces.Clear();
         pendingRingRelease=null;
         foreach(var flight in liveRings.ToArray()){
             if(flight.playback!=null)StopCoroutine(flight.playback);

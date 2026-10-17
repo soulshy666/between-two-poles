@@ -434,8 +434,10 @@ public sealed partial class GridPlayground {
     static float ShoveBarPoseProgress(float progress){float phase=Mathf.Clamp01(progress/.78f);return phase*phase;}
     IEnumerator FlowingRoll(MagnetPiece m,MagnetRollStep step,Vector2Int target,Vector2Int next){
         flowingPush=true;pushFlowProgress=0;
+        uLandingBounces.Remove(m);
         bool u=PlainU(m),uSettles=u&&UHasLanding(target);
-        float normalSpeed=1/Mathf.Max(.01f,u?UFlipDuration():m.shape==MagnetShape.Bar?barPushSeconds:uRollSeconds);
+        // Complete the gameplay step at impact; rebound must never hold Busy.
+        float normalSpeed=1/Mathf.Max(.01f,u?UFlipDuration()*(uSettles?UTouchdownPhase:1):m.shape==MagnetShape.Bar?barPushSeconds:uRollSeconds);
         if(pushFlowSpeed<=0)pushFlowSpeed=normalSpeed;
         var start=m.transform.position;var end=Position(target,TransportHeight(m,target));
         var actorStart=player.position;var actorEnd=PushPlayerEnd(next,m);
@@ -466,7 +468,7 @@ public sealed partial class GridPlayground {
                 touchdownAge=touchdownAge<0?Mathf.Max(0,used-(.78f-previousProgress)/Mathf.Max(.001f,pushFlowSpeed)):touchdownAge+used;
             }
             var previous=player.position;
-            float roll=u?UFlipProgress(pushFlowProgress,uSettles):pushFlowProgress;
+            float roll=u?UFlipProgress(pushFlowProgress,false):pushFlowProgress;
             player.position=Vector3.Lerp(actorStart,actorEnd,roll);
             if(groundBar){
                 // Gravity accelerates the fall; lifting accelerates under effort then brakes at vertical.
@@ -484,7 +486,6 @@ public sealed partial class GridPlayground {
             float followRock=inheritedRock*(1-Mathf.SmoothStep(0,1,Mathf.Clamp01(pushFlowProgress/.22f)));
             m.geometry.rotation=Quaternion.AngleAxis(step.degrees*roll,axis)*rotation;
             MagnetVisuals.Ground(m);
-            if(uSettles)ApplyUTouchdown(m,pushFlowProgress);
             if(Mathf.Abs(followRock)>.001f)ApplyBarRock(m,axis,followRock);
             if(touchdownAge>=0)ApplyBarRock(m,axis,BarTouchdownAngle(touchdownAge));
             pose.AdvanceFlowPush(Vector3.Distance(previous,player.position),dt,groundBar?roll:pushFlowProgress);
@@ -492,6 +493,7 @@ public sealed partial class GridPlayground {
             yield return null;
         }
         m.transform.position=end;m.geometry.rotation=step.pose;MagnetVisuals.Ground(m);
+        if(uSettles&&!recordingPush&&!finishingMovement)uLandingBounces[m]=Time.time;
         if(groundBar&&!falling&&!recordingPush&&!finishingMovement)StartBarRock(m,axis);
         if(groundBar&&falling&&touchdownAge<.52f&&!recordingPush&&!finishingMovement)StartBarTouchdown(m,axis,touchdownAge);
         yield return SettleMagnetArrival(m,start);
