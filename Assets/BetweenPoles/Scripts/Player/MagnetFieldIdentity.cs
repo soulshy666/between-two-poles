@@ -4,13 +4,14 @@ namespace BetweenPoles {
 [DefaultExecutionOrder(1100)]
 public sealed class MagnetFieldIdentity:MonoBehaviour {
  MagnetPiece piece;Transform geometry;Renderer reference;
+ float nextBind;
  [SerializeField,HideInInspector] ParticleSystem particles;ParticleSystemRenderer particleRenderer;
  [SerializeField,HideInInspector] Material material;MaterialPropertyBlock block;
  void OnEnable(){geometry=null;reference=null;block=new MaterialPropertyBlock();}
  void LateUpdate(){
   if(!piece)piece=GetComponent<MagnetPiece>();
   if(!piece||!piece.geometry)return;
-  if(geometry!=piece.geometry||block==null||!reference||!particles){Bind();}
+  if(geometry!=piece.geometry||block==null||((!reference||!particles)&&Time.unscaledTime>=nextBind)){nextBind=Time.unscaledTime+.5f;Bind();}
   if(!reference||!particles)return;
   // Keep the same curved-world/island mapping as the magnet, including portal transitions.
   reference.GetPropertyBlock(block);block.SetFloat("_MagnetSpark",.65f);block.SetColor("_Color",material.color);particleRenderer.SetPropertyBlock(block);
@@ -20,7 +21,9 @@ public sealed class MagnetFieldIdentity:MonoBehaviour {
   geometry=piece.geometry;if(block==null)block=new MaterialPropertyBlock();
   reference=null;var bounds=new Bounds();bool hasBounds=false;
   foreach(var r in geometry.GetComponentsInChildren<MeshRenderer>(true)){
-   if(MagnetVisuals.IsMagneticEffect(r)||!r.sharedMaterial||!r.sharedMaterial.HasProperty("_MagnetSpark"))continue;
+   if(MagnetVisuals.IsMagneticEffect(r)||!r.sharedMaterial||!r.sharedMaterial.HasProperty("_Color"))continue;
+   var shader=r.sharedMaterial.shader;
+   if(!r.sharedMaterial.HasProperty("_MagnetSpark")&&(!shader||shader.name!="BetweenPoles/ChapterIslandSurface"))continue;
    Color color=r.sharedMaterial.color;bool red=color.r>color.b*1.4f;bool blue=color.b>color.r*1.4f;
    if(!red&&!blue)continue;
    if(!reference)reference=r;
