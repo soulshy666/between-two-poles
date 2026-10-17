@@ -12,6 +12,7 @@ public sealed partial class CoverMenu:MonoBehaviour {
  public Font font;
  public Shader backgroundShader;
  public bool pixelArtwork;
+ public bool classicArtwork;
  public CoverWorld coverWorld;
  Material backdrop;RenderTexture backgroundFrame;
  int selected;bool settings,exitPrompt,loading;
@@ -44,13 +45,14 @@ public sealed partial class CoverMenu:MonoBehaviour {
 #endif
  }
  void EnsurePreview(){
-  if(coverWorld)return;
+  if(coverWorld||classicArtwork)return;
   if(!background||!backgroundShader)return;
   if(!backdrop){backdrop=new Material(backgroundShader){hideFlags=HideFlags.HideAndDontSave};backdrop.SetTexture("_MapTex",solarMask);}
   if(!backgroundFrame)backgroundFrame=new RenderTexture(1376,768,0){hideFlags=HideFlags.HideAndDontSave};
   RenderBackground();
  }
  void ReleasePreview(){
+  ReleaseCRT();
   if(signalFrame){signalFrame.Release();if(Application.isPlaying)Destroy(signalFrame);else DestroyImmediate(signalFrame);signalFrame=null;}
   if(titleSignal){if(Application.isPlaying)Destroy(titleSignal);else DestroyImmediate(titleSignal);titleSignal=null;}
   if(backgroundFrame){backgroundFrame.Release();if(Application.isPlaying)Destroy(backgroundFrame);else DestroyImmediate(backgroundFrame);backgroundFrame=null;}
@@ -77,7 +79,7 @@ public sealed partial class CoverMenu:MonoBehaviour {
   if(coverWorld){if(coverWorld.Frame)GUI.DrawTexture(rect,coverWorld.Frame);return;}
   // Draw the supplied artwork directly: an intermediate linear render texture
   // was making its sRGB colours too dark in the IMGUI presentation pass.
-  if(pixelArtwork&&background){
+  if((pixelArtwork||classicArtwork)&&background){
    GUI.DrawTextureWithTexCoords(rect,background,new Rect(-parallax.x*.004f,parallax.y*.004f,1,1));
   }else GUI.DrawTexture(rect,backgroundFrame?backgroundFrame:(Texture)background);
  }
@@ -94,12 +96,13 @@ public sealed partial class CoverMenu:MonoBehaviour {
    float k=Mathf.Max(Screen.width/1376f,Screen.height/768f);
    float ox=Screen.width/1376f<Screen.height/768f?0:(Screen.width-1376*k)*.5f;
    var point=new Vector2((mouse.x-ox)/k,(Screen.height-mouse.y-(Screen.height-768*k)*.5f)/k);
+   point=CRTContentPoint(point);
    for(int i=0;i<3;i++)if(new Rect(30,330+i*106,350,92).Contains(point))selected=i;
   }
   float screenScale=Mathf.Max(Screen.width/1376f,Screen.height/768f);
   float screenLeft=Screen.width/1376f<Screen.height/768f?0:(Screen.width-1376*screenScale)*.5f;
   var coverMouse=new Vector2((mouse.x-screenLeft)/screenScale,(Screen.height-mouse.y-(Screen.height-768*screenScale)*.5f)/screenScale);
-  UpdateAstronaut(coverMouse,!settings&&!exitPrompt&&!savePage&&mouse.x>=0&&mouse.x<=Screen.width&&mouse.y>=0&&mouse.y<=Screen.height);
+  UpdateAstronaut(CRTContentPoint(coverMouse),!settings&&!exitPrompt&&!savePage&&mouse.x>=0&&mouse.x<=Screen.width&&mouse.y>=0&&mouse.y<=Screen.height);
   lastMouse=mouse;
   parallax=Vector2.Lerp(parallax,new Vector2(Mathf.Clamp01(Input.mousePosition.x/Screen.width)-.5f,.5f-Mathf.Clamp01(Input.mousePosition.y/Screen.height))*2,1-Mathf.Exp(-Time.unscaledDeltaTime*2.4f));
   if(savePage){UpdateSavePage();return;}
@@ -160,7 +163,6 @@ public sealed partial class CoverMenu:MonoBehaviour {
   var previous=RenderTexture.active;titleSignal.SetFloat("_SignalTime",AnimationTime);
   Graphics.Blit(signalTitle,signalFrame,titleSignal);RenderTexture.active=previous;
   GUI.DrawTexture(new Rect(Mathf.Round(rect.x-2*k),Mathf.Round(rect.center.y-height*.5f),width,height),signalFrame);
-  DrawMagneticSignature(rect);
  }
  Vector2 AstronautPosition(float t){if(coverWorld){// Independent slow waves keep the drift bounded without a repeating circular path.
   t=Mathf.Floor(t*8)/8;
@@ -201,13 +203,17 @@ public sealed partial class CoverMenu:MonoBehaviour {
   var matrix=GUI.matrix;var color=GUI.color;
   float scale=Mathf.Max(Screen.width/1376f,Screen.height/768f);
   GUI.matrix=Matrix4x4.TRS(new Vector3(Screen.width/1376f<Screen.height/768f?0:(Screen.width-1376*scale)*.5f,(Screen.height-768*scale)*.5f,0),Quaternion.identity,Vector3.one*scale);
+  var originalMouse=Event.current.mousePosition;
+  Event.current.mousePosition=CRTContentPoint(originalMouse);
   float t=AnimationTime;
   DrawCoverBackground();
   DrawAstronaut(t);
   if(loading){
+   DrawCRT();
+   Event.current.mousePosition=originalMouse;
    GUI.matrix=matrix;if(fade>0){GUI.color=new Color(0,0,0,fade);GUI.DrawTexture(new Rect(0,0,Screen.width,Screen.height),Texture2D.whiteTexture);}GUI.color=color;return;
   }
-  DrawPixelTitle(coverWorld?new Rect(42,46,510,150):new Rect(24,60,title.width*.5f,title.height*.5f));
+  DrawPixelTitle(new Rect(42,46,510,150));
   var labels=new[]{startLabel,settingsLabel,exitLabel};
   var highlights=new[]{startHover,settingsHover,exitHover};
   if(!(savePage||(!Application.isPlaying&&previewSavePage)))for(int i=0;i<3;i++){
@@ -234,6 +240,8 @@ public sealed partial class CoverMenu:MonoBehaviour {
     if(Application.isPlaying)StartCoroutine(QuitAfterClick());
    }}
   }
+  DrawCRT();
+  Event.current.mousePosition=originalMouse;
   GUI.matrix=matrix;if(fade>0){GUI.color=new Color(0,0,0,fade);GUI.DrawTexture(new Rect(0,0,Screen.width,Screen.height),Texture2D.whiteTexture);}GUI.color=color;
  }
 #if UNITY_EDITOR
@@ -250,15 +258,18 @@ public sealed partial class CoverMenu:MonoBehaviour {
   DrawCoverBackground();
   float t=AnimationTime;
   DrawAstronaut(t);
-  DrawPixelTitle(coverWorld?new Rect(42,46,510,150):new Rect(24,60,title.width*.5f,title.height*.5f));
+  DrawPixelTitle(new Rect(42,46,510,150));
   var labels=new[]{startHover?startHover:startLabel,settingsLabel,exitLabel};
   if(previewSavePage)DrawSavePage();
   else for(int i=0;i<3;i++)if(labels[i]){
    float x=44+(i==0?12:0),y=330+i*106;
-   GUI.color=i==0?Color.white:new Color(.80f,.85f,.88f);PixelText(new Rect(x,y+6,320,75),new[]{"开始游戏","设置","退出"}[i],5,false);GUI.color=Color.white;
+   GUI.color=i==0?Color.white:new Color(.80f,.85f,.88f);
+   PixelText(new Rect(x,y+6,320,75),new[]{"开始游戏","设置","退出"}[i],5,false);
+   GUI.color=Color.white;
    if(menuLine)GUI.DrawTexture(new Rect(x+14,y+80.5f,i==0?300:230,1.5f),menuLine);
    if(i==0&&triangle)GUI.DrawTexture(new Rect(x-14,y+32,10,14),triangle);
   }
+  DrawCRT();
   GUI.matrix=old;GUI.color=color;UnityEditor.Handles.EndGUI();
  }
 #endif

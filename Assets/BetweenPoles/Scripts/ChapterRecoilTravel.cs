@@ -23,6 +23,7 @@ public sealed partial class ChapterRecoilTravel:MonoBehaviour {
     static ChapterRecoilTravel prepared;
     AsyncOperation loading;
     ChapterFlightTitle flightTitle;float flightBeganAt;
+    float launchAge;
     public static bool IsPreparing(Scene scene){return prepared&&scene.path==prepared.destinationPath;}
     public static IEnumerator CancelPreloadForMenu(){
         if(!Active&&prepared)yield return prepared.ReleaseCancelledDestination();
@@ -36,12 +37,13 @@ public sealed partial class ChapterRecoilTravel:MonoBehaviour {
         DontDestroyOnLoad(prepared.gameObject);
         prepared.source=exit.GetComponent<GridPlayground>();prepared.destinationPath=exit.destinationScene;
         SceneManager.sceneLoaded+=prepared.HideDestination;
-        prepared.loading=SceneManager.LoadSceneAsync(exit.destinationScene,LoadSceneMode.Additive);
+        // Reserve ownership only; scene loading starts with the visible launch.
     }
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     static void ResetStatics(){Active=false;FlightView=null;FlightSize=0;prepared=null;activeFlight=null;UndoInputFrame=-1;}
     public static void Begin(ChapterRecoilExit exit,MagnetPiece incoming){
         if(Active)return;
+        Prepare(exit);
         var runner=prepared&&prepared.source==exit.GetComponent<GridPlayground>()?prepared:new GameObject("连续星际飞行").AddComponent<ChapterRecoilTravel>();DontDestroyOnLoad(runner.gameObject);
         runner.source=exit.GetComponent<GridPlayground>();runner.magnet=incoming;
         runner.view=FindObjectsOfType<CurvedTrialCamera>().First(c=>c.island&&c.island.board==runner.source);
@@ -92,7 +94,16 @@ public sealed partial class ChapterRecoilTravel:MonoBehaviour {
         float right=Vector3.Dot(planet.position-camera.transform.position,camera.transform.right);
         return right-radius>camera.orthographicSize*camera.aspect+source.cellSize;
     }
-    void Advance(){var delta=heading*speed*Time.deltaTime;source.player.position+=delta;magnet.transform.position+=delta;var pose=source.player.GetComponent<PlayerPushPose>();if(pose)pose.SampleRecoilFlight(Time.time-flightBeganAt,magnet);}
+    void Advance(){
+        // Local cinematic slow motion: audio, UI, pause and undo retain their normal clocks.
+        float dt=Mathf.Min(Time.deltaTime,.05f);
+        launchAge+=dt;
+        float acceleration=Mathf.SmoothStep(0,1,Mathf.InverseLerp(.55f,1.65f,launchAge));
+        float multiplier=Mathf.Lerp(.18f,1,acceleration);
+        var delta=heading*speed*dt*multiplier;
+        source.player.position+=delta;magnet.transform.position+=delta;
+        var pose=source.player.GetComponent<PlayerPushPose>();if(pose)pose.SampleRecoilFlight(Time.time-flightBeganAt,magnet);
+    }
     IEnumerator BlendBackground(float duration){
         if(!flightBackground||!targetBackground)yield break;
         flightBackground.EnsureData();targetBackground.EnsureData();
@@ -131,6 +142,8 @@ public sealed partial class ChapterRecoilTravel:MonoBehaviour {
         previousLoadingPriority=Application.backgroundLoadingPriority;
         Application.backgroundLoadingPriority=ThreadPriority.Low;changedLoadingPriority=true;
         ChapterAtlas.DestinationIsland=-1;ChapterAtlas.DestinationScene=null;
+        // Present the launch before loading can spend time integrating destination objects.
+        Advance();yield return null;
         var load=loading=loading??SceneManager.LoadSceneAsync(destinationPath,LoadSceneMode.Additive);
         // Loading starts at takeoff. The flight continues even if loading takes longer.
         while(!load.isDone||!SourceHasLeftScreen()||(flightTitle&&Time.time-flightBeganAt<ChapterFlightTitle.CruiseSeconds)){Advance();yield return null;}
