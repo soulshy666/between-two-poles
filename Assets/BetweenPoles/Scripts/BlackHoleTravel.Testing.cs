@@ -6,7 +6,10 @@ public sealed partial class BlackHoleTravel {
     BlackHolePortal[] testPortals;
     BlackHolePortal testDestination,previewPortal;
     string testMessage;
+    BlackHolePortal chainedEntry;
+    Vector2Int chainedEntryDirection;
     IEnumerator TestTravel(BlackHolePortal source){
+        chainedEntry=null;
         origin=source;Selecting=true;busy=true;var board=source.board;
         bool wasEnabled=board.enabled;board.BeginPortalMagnetPresentation();board.enabled=false;
         var playerScale=board.player.localScale;
@@ -49,6 +52,10 @@ public sealed partial class BlackHoleTravel {
             if(board&&board.player){var audio=board.player.GetComponent<PortalAudio>();if(audio)audio.StopAll();}
             if(undoRequested&&board)board.UndoStep();
         }
+        // Begin only after the previous journey releases selection and board
+        // ownership. No extra frame or grounded entry animation is needed.
+        var nextEntry=chainedEntry;var nextDirection=chainedEntryDirection;chainedEntry=null;
+        if(!undoRequested&&nextEntry&&nextEntry.CanArrive)nextEntry.Enter(nextDirection);
     }
     IEnumerator CompleteExitJourney(BlackHolePortal source,BlackHolePortal destination,Vector2Int direction,MagnetPiece cargo,ExitPlan plan,Vector3 playerScale){
         var board=source.board;
@@ -57,18 +64,45 @@ public sealed partial class BlackHoleTravel {
             board.CompletePortalLanding(destination.Cell);
             yield return WaitForExitView(destination);
             bool split=SeparateCargo(cargo,direction);
+            bool ringHitPlayer=false,ringPushedObstacle=false;
             if(split){
                 bool rolling=cargo.portalRollSpeed>0;
-                yield return EjectIndependentCargo(destination,CargoExitDirection(cargo,direction),cargo,playerScale);
+                yield return EjectIndependentCargo(destination,CargoExitDirection(cargo,direction),cargo,playerScale,direction,()=>ringHitPlayer=true,()=>ringPushedObstacle=true);
+                if(ringHitPlayer&&cargo.storedInPortal==destination){
+                    // The collision sends both bodies back through the journey's
+                    // entrance. Keep the ring's newly reversed entry momentum;
+                    // changing the destination must not rewrite its stored lane.
+                    direction=CargoExitDirection(cargo,-direction);
+                    var reboundMouth=destination;
+                    destination=source;destination.Disarm();
+                    board.player.SetPositionAndRotation(
+                        new Vector3(destination.tile.transform.position.x,destination.tile.surfaceHeight,destination.tile.transform.position.z),
+                        Quaternion.LookRotation(new Vector3(direction.x,0,direction.y)));
+                    board.CompletePortalLanding(destination.Cell);
+                    if(destination!=reboundMouth)yield return WaitForExitView(destination);
+                    ringHitPlayer=false;ringPushedObstacle=false;
+                    yield return EjectIndependentCargo(destination,CargoExitDirection(cargo,direction),cargo,playerScale,direction,
+                        ()=>ringHitPlayer=true,()=>ringPushedObstacle=true);
+                    // Retry only once: two obstructed sides retain the existing
+                    // safe recovery instead of bouncing forever.
+                }
                 cargo=null;
                 PlanJourneyExit(destination,direction,null,out plan);
                 // A wheel stopped immediately outside the mouth is an obstacle,
                 // not a new request to topple it across its rolling axis.
                 if(rolling&&plan.exitKickTarget&&plan.exitKickTarget.product==MagnetProduct.Ring)
                     plan=new ExitPlan{failedExit=true};
+                if(ringPushedObstacle&&!plan.kick){
+                    GridTile landingTile;Vector3 landing;
+                    // Keep a validated follow-up kick, including a flat ring shove.
+                    // If no legal kick exists, retain the safe landing fallback.
+                    if(destination.TryExitLanding(direction,out landingTile,out landing))plan=new ExitPlan{player=landing};
+                }
+                if(ringHitPlayer)plan=new ExitPlan{failedExit=true};
             }
             board.player.localScale=playerScale;
-            if(plan.failedExit)yield return FailedPortalExit(destination,direction,cargo,playerScale);
+            if(ringHitPlayer)board.player.localScale=Vector3.zero;
+            else if(plan.failedExit)yield return FailedPortalExit(destination,direction,cargo,playerScale);
             else yield return Eject(destination,direction,cargo,plan);
             if(plan.unstableLanding||plan.failedExit||plan.kickRebound){
                 // Return to the original entrance automatically, without reopening
@@ -116,7 +150,33 @@ public sealed partial class BlackHoleTravel {
         if(delta==Vector2Int.zero)return fallback;
         return Mathf.Abs(delta.x)>Mathf.Abs(delta.y)?new Vector2Int(delta.x>0?1:-1,0):new Vector2Int(0,delta.y>0?1:-1);
     }
-    IEnumerator EjectIndependentCargo(BlackHolePortal target,Vector2Int direction,MagnetPiece cargo,Vector3 playerScale){
+    IEnumerator EjectIndependentCargo(BlackHolePortal target,Vector2Int direction,MagnetPiece cargo,Vector3 playerScale,Vector2Int playerDirection=default(Vector2Int),System.Action onPlayerHit=null,System.Action onObstaclePushed=null){
+        var receiver=target.board.PortalObstacle(target.Cell+direction);
+        var exitStone=target.board.TileAt(target.Cell+direction);
+        bool solidExit=SolidRingExit(target,exitStone);
+        // Walkable decks can be terrain; only intercept an actual blocked ring lane.
+        if(cargo.product==MagnetProduct.Ring&&(solidExit||receiver)&&!target.board.CanPortalRingEnter(cargo,target.Cell,target.tile.surfaceHeight,target.Cell+direction)){
+            Vector3 pushed;
+            if(!solidExit&&TryRingExitPush(target,cargo,receiver,direction,out pushed)){
+                yield return PushRingExitObstacle(target,direction,cargo,receiver,pushed);
+                if(playerDirection==direction)onObstaclePushed?.Invoke();
+                yield break;
+            }
+            if(playerDirection==direction){
+                var impactHole=new Vector3(target.tile.transform.position.x,target.tile.surfaceHeight,target.tile.transform.position.z);
+                var impactPose=cargo.Pose;var impactScale=cargo.geometry.localScale;
+                var impactPoint=solidExit?StoneContact(target,exitStone,cargo,direction):MagnetContact(target,receiver,cargo,direction);
+                cargo.transform.position=impactHole;cargo.gameObject.SetActive(true);
+                var binding=cargo.GetComponent<IslandSurfaceAnchor>();var owner=target.tile.GetComponentInParent<IslandSurfaceAnchor>();
+                if(binding&&owner){binding.center=owner.center;binding.Apply();}
+                target.board.player.localScale=Vector3.zero;
+                if(cargo.portalRollSpeed>0)yield return ThrowRollingRebound(cargo,impactHole,impactPoint,impactPose,impactScale,direction,false);
+                else yield return ThrowCargo(cargo,impactHole,impactPoint,impactPose,impactScale,.28f,.24f,landingSound:false);
+                yield return BounceCargo(cargo,target,target,impactPoint,impactHole,cargo.Pose,impactScale,playerScale,true);
+                cargo.portalEntryPosition=impactHole+new Vector3(direction.x,0,direction.y)*target.board.cellSize;
+                onPlayerHit?.Invoke();yield break;
+            }
+        }
         ExitPlan cargoPlan;
         if(PlanExitCore(target,direction,cargo,out cargoPlan,true)&&!cargoPlan.bounce){
             cargoPlan.separateCargo=true;
@@ -156,6 +216,45 @@ public sealed partial class BlackHoleTravel {
     }
     static bool SolidRingExit(BlackHolePortal portal,GridTile tile){
         return tile&&(tile.blocked||tile.surfaceHeight>portal.tile.surfaceHeight+.01f);
+    }
+    static bool TryRingExitPush(BlackHolePortal portal,MagnetPiece ring,MagnetPiece receiver,Vector2Int direction,out Vector3 destination){
+        destination=Vector3.zero;
+        if(!receiver||!receiver.CanBePushed||!receiver.enabled||!receiver.gameObject.activeInHierarchy)return false;
+        var board=portal.board;var cell=portal.Cell+direction;float floorHeight;
+        if(!board.TryPortalFloor(cell,out floorHeight)||Mathf.Abs(floorHeight-portal.tile.surfaceHeight)>.01f
+            ||Mathf.Abs(receiver.transform.position.y-floorHeight)>.01f||board.PortalObstacle(cell)!=receiver)return false;
+        var arrival=board.InspectMagnetDestination(cell,receiver.transform.position.y,cell+direction,receiver);
+        // Never push a second cargo into the occupied shared box, or a chain of magnets.
+        if(arrival.kind!=GridPlayground.MagnetLandingKind.Ground&&arrival.kind!=GridPlayground.MagnetLandingKind.Deck
+            &&arrival.kind!=GridPlayground.MagnetLandingKind.Space)return false;
+        destination=arrival.position;return true;
+    }
+    IEnumerator PushRingExitObstacle(BlackHolePortal portal,Vector2Int direction,MagnetPiece ring,MagnetPiece receiver,Vector3 destination){
+        var board=portal.board;var start=new Vector3(portal.tile.transform.position.x,portal.tile.surfaceHeight,portal.tile.transform.position.z);
+        var end=receiver.transform.position;var pose=ring.Pose;var scale=ring.geometry.localScale;
+        var axis=new Vector3(direction.y,0,-direction.x);bool rolling=ring.portalRollSpeed>0;
+        var receiverPose=receiver.Pose;float receiverDegrees=ImpactPushDegrees(receiver,direction);
+        float contact=Mathf.Clamp01(Vector3.Distance(start,MagnetContact(portal,receiver,ring,direction))/board.cellSize);
+        float seconds=rolling?board.cellSize/Mathf.Max(.01f,ring.portalRollSpeed):.55f;
+        var binding=ring.GetComponent<IslandSurfaceAnchor>();var owner=portal.tile.GetComponentInParent<IslandSurfaceAnchor>();
+        if(binding&&owner){binding.center=owner.center;binding.Apply();}
+        ring.gameObject.SetActive(true);ring.storedInPortal=null;
+        board.AnimatePortalMagnet(ring,true);board.AnimatePortalMagnet(receiver,true);
+        try{
+            for(float elapsed=0;elapsed<seconds;){
+                elapsed=Mathf.Min(seconds,elapsed+AnimationDeltaTime);float p=elapsed/seconds;
+                ring.transform.position=Vector3.Lerp(start,end,p);
+                ring.geometry.rotation=rolling?Quaternion.AngleAxis(180*p,axis)*pose:pose;
+                ring.geometry.localScale=scale*Mathf.SmoothStep(0,1,Mathf.Clamp01(p/.2f));
+                MagnetVisuals.Ground(ring);ring.geometry.position+=Vector3.up*(1.52f*p*(1-p));
+                ApplyImpactPush(receiver,end,destination,receiverPose,axis,receiverDegrees,Mathf.InverseLerp(contact,1,p));
+                if(elapsed<seconds)yield return null;
+            }
+            ring.transform.position=end;ring.geometry.localScale=scale;MagnetVisuals.Ground(ring);
+            ApplyImpactPush(receiver,end,destination,receiverPose,axis,receiverDegrees,1);
+            yield return board.SettleMagnetArrival(receiver,end,true);
+            ring.portalRollSpeed=0;
+        }finally{ring.geometry.localScale=scale;board.AnimatePortalMagnet(ring,false);board.AnimatePortalMagnet(receiver,false);}
     }
     IEnumerator ReboundIndependentRing(BlackHolePortal target,Vector2Int direction,MagnetPiece cargo,GridTile stone,MagnetPiece obstacle){
         var board=target.board;var pose=cargo.Pose;var scale=cargo.geometry.localScale;

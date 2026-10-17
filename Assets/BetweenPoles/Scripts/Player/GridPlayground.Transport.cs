@@ -3,7 +3,7 @@ using System.Collections.Generic;
 namespace BetweenPoles {
 public sealed partial class GridPlayground {
     bool GapWideBar(MagnetPiece m){
-        return m&&!Tile(Cell(m.transform))&&(m.product==MagnetProduct.WideBar
+        return m&&!Floor(Cell(m.transform))&&(m.product==MagnetProduct.WideBar
             ||(m.product==MagnetProduct.None&&m.combined&&m.walkable&&m.shape==MagnetShape.Bar));
     }
     bool AlongDeck(MagnetPiece deck,Vector2Int direction){
@@ -87,19 +87,51 @@ public sealed partial class GridPlayground {
         return result;
     }
     bool SpaceRing(MagnetPiece ring){
-        return ring&&ring.product==MagnetProduct.Ring&&!Tile(Cell(ring.transform));
+        if(!ring||ring.product!=MagnetProduct.Ring||Tile(Cell(ring.transform)))return false;
+        // Two rings can share a grid root: the floating floor is aligned with
+        // its TOP at shore level, while the carried ring rests on its bottom.
+        // Use their saved visual centres to distinguish them without recursive
+        // Deck/Supported queries or depending on the magnets array order.
+        var cell=Cell(ring.transform);
+        var centre=RingRestCentre(ring);
+        foreach(var other in magnets){
+            if(!other||other==ring||other.product!=MagnetProduct.Ring||!other.enabled
+                ||!other.gameObject.activeInHierarchy||!other.walkable||!other.geometry
+                ||!MagnetPiece.FlatU(other.Pose)||!other.Occupies(cell,cellSize)
+                ||MagnetStillAnimating(other)||!SameHeight(other.transform.position.y,ring.transform.position.y))continue;
+            if(RingRestCentre(other)<centre-.01f)return false;
+        }
+        return true;
+    }
+    float RingRestCentre(MagnetPiece ring){
+        if(!ring.geometry)return ring.transform.position.y;
+        return hoverRenderPositions.TryGetValue(ring.geometry,out var saved)?saved.y:ring.geometry.position.y;
     }
     bool RingShore(MagnetPiece ring){
         return SpaceRing(ring)&&ring.enabled&&ring.gameObject.activeInHierarchy&&ring.geometry
-            &&ring.walkable&&MagnetPiece.FlatU(ring.Pose)&&!MagnetStillAnimating(ring)
-            &&!Deck(Cell(ring.transform),ring,true);
+            &&ring.walkable&&MagnetPiece.FlatU(ring.Pose)&&!MagnetStillAnimating(ring);
+    }
+    internal bool TryPortalFloor(Vector2Int cell,out float height){
+        var tile=Tile(cell);height=tile?tile.surfaceHeight:0;
+        if(tile)return !tile.blocked;
+        foreach(var ring in magnets)if(RingShore(ring)&&ring.Occupies(cell,cellSize)){
+            height=DeckHeight(ring);return true;
+        }
+        return false;
+    }
+    internal MagnetPiece PortalObstacle(Vector2Int cell){
+        MagnetPiece result=null;
+        foreach(var m in magnets)if(m&&m.enabled&&m.gameObject.activeInHierarchy
+            &&m.Occupies(cell,cellSize)&&!RingShore(m))
+            if(!result||m.transform.position.y>result.transform.position.y)result=m;
+        return result;
     }
     bool ShoreLevelBridge(MagnetPiece deck){
         if(!deck||!deck.walkable)return false;
         var cell=Cell(deck.transform);
         return SpaceRing(deck)&&MagnetPiece.FlatU(deck.Pose)
-            ||deck.product==MagnetProduct.WideBar&&!Tile(cell)
-            ||deck.product==MagnetProduct.Bridge&&(!Tile(cell)||!Tile(cell+deck.bridgeDirection));
+            ||deck.product==MagnetProduct.WideBar&&!Floor(cell)
+            ||deck.product==MagnetProduct.Bridge&&(!Floor(cell)||!Floor(cell+deck.bridgeDirection));
     }
     float DeckHeight(MagnetPiece deck){
         if(ShoreLevelBridge(deck))return deck.transform.position.y;
@@ -112,6 +144,7 @@ public sealed partial class GridPlayground {
         var cell=Cell(m.transform);var tile=Tile(cell);
         if(tile&&!tile.blocked&&SameHeight(tile.surfaceHeight,m.transform.position.y))return true;
         var deck=Deck(cell,m);
+        if(RingShore(m))return false; // A floating floor cannot support itself or rest on its rider.
         return deck&&(!GapWideBar(deck)||TraversableSpan(deck))&&SameHeight(DeckHeight(deck),m.transform.position.y);
     }
     public enum MagnetLandingKind { Ground, Deck, Portal, Space, Magnet, Blocked }
@@ -150,13 +183,13 @@ public sealed partial class GridPlayground {
         if((tile&&tile.blocked)||!BridgePassage(from,to,moving))return false;
         // A two-cell bridge is a route only on its unsupported cells, including
         // when a material is pushed across it and the player follows behind.
-        if(tile&&deck&&deck.product==MagnetProduct.Bridge)return false;
+        if(Floor(to)&&deck&&deck.product==MagnetProduct.Bridge)return false;
         bool onDeck=source&&SameHeight(height,DeckHeight(source));
         if(deck){
             landing=DeckHeight(deck);
             if(SameHeight(height,landing))return true;
             // Match player entry rules: an island's raised wide bar is an obstacle.
-            bool entry=deck.product!=MagnetProduct.WideBar||!tile;
+            bool entry=deck.product!=MagnetProduct.WideBar||!Floor(to);
             return entry&&(SameHeight(height,deck.transform.position.y)
                 ||(onDeck&&SameHeight(source.transform.position.y,deck.transform.position.y)));
         }
@@ -166,7 +199,7 @@ public sealed partial class GridPlayground {
     }
     MagnetPiece TransportObstacle(Vector2Int cell,MagnetPiece moving){
         var deck=Deck(cell,moving);MagnetPiece result=null;
-        foreach(var m in magnets)if(m&&m!=moving&&m!=deck&&m.enabled&&m.gameObject.activeInHierarchy&&m.Occupies(cell,cellSize))
+        foreach(var m in magnets)if(m&&m!=moving&&m!=deck&&!RingShore(m)&&m.enabled&&m.gameObject.activeInHierarchy&&m.Occupies(cell,cellSize))
             if(!result||m.transform.position.y>result.transform.position.y)result=m;
         return result;
     }
@@ -176,7 +209,7 @@ public sealed partial class GridPlayground {
     Vector3 PushPlayerEnd(Vector2Int cell,MagnetPiece moving){
         if(cell==Cell(player))return player.position;
         var deck=Deck(cell,moving);var end=Position(cell,deck?DeckHeight(deck):GroundHeight(cell));
-        if(deck&&deck.product==MagnetProduct.Ring){
+        if(deck&&deck.product==MagnetProduct.Ring&&!RingShore(deck)){
             var side=deck.transform.forward;float sign=Vector3.Dot(player.position-deck.transform.position,side)>=0?1:-1;
             end+=side*.48f*sign;
         }

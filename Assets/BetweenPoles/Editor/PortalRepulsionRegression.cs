@@ -7,6 +7,147 @@ using UnityEngine;
 namespace BetweenPoles.EditorTools {
 public static class PortalRepulsionRegression {
     static void Check(bool value,string message){if(!value)throw new Exception(message);}
+    [MenuItem("两极之间/测试/悬浮圆环地面规则")]
+    public static void RunRingTerrain(){
+        var scene=EditorSceneManager.NewPreviewScene();
+        var root=new GameObject("Ring terrain fixture");root.SetActive(false);
+        UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(root,scene);
+        try{
+            var b=root.AddComponent<GridPlayground>();b.enabled=false;
+            b.player=new GameObject("Actor").transform;b.player.SetParent(root.transform);b.player.position=Vector3.left*b.cellSize;
+            var tileObject=new GameObject("Portal tile");tileObject.transform.SetParent(root.transform);
+            var tile=tileObject.AddComponent<GridTile>();b.tiles=new[]{tile};
+            var portal=tileObject.AddComponent<BlackHolePortal>();portal.board=b;portal.tile=tile;
+            var ring=MagnetVisuals.Create(root.transform,Vector3.right*b.cellSize,MagnetShape.Horseshoe,true,Quaternion.identity,b.cellSize,root.transform);
+            MagnetVisuals.Product(ring,MagnetProduct.Ring,b.cellSize,Quaternion.identity,true);ring.walkable=true;
+            var u=MagnetVisuals.Create(root.transform,Vector3.zero,MagnetShape.Horseshoe,false,Quaternion.identity,b.cellSize,root.transform);
+            b.magnets=new[]{ring,u};root.SetActive(true);u.storedInPortal=portal;u.gameObject.SetActive(false);
+            BlackHoleTravel.ExitPlan plan;
+            Check(BlackHoleTravel.PlanExit(portal,Vector2Int.right,u,out plan)&&!plan.unstableLanding&&!plan.receiver&&!plan.displaced,"Floating floor treated as cargo obstacle");
+            Check(Vector3.Distance(plan.magnet,ring.transform.position)<.001f,"Cargo floor height changed");
+            u.storedInPortal=null;u.gameObject.SetActive(true);u.transform.position=ring.transform.position;
+            Check(BlackHoleTravel.PlanExit(portal,Vector2Int.right,null,out plan)&&!plan.unstableLanding,"Supported U treated as unsupported");
+            var flags=System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic;
+            var floor=typeof(GridPlayground).GetMethod("Floor",flags);
+            var supported=typeof(GridPlayground).GetMethod("Supported",flags);
+            Check((bool)floor.Invoke(b,new object[]{Vector2Int.right})&&(bool)supported.Invoke(b,new object[]{u}),"Floor/support missing");
+            var incomingU=MagnetVisuals.Create(root.transform,Vector3.zero,MagnetShape.Horseshoe,true,Quaternion.identity,b.cellSize,root.transform);
+            var portalRecipe=typeof(BlackHoleTravel).GetMethod("PortalCargoRecipe",System.Reflection.BindingFlags.Static|System.Reflection.BindingFlags.NonPublic);
+            foreach(var dir in new[]{Vector2Int.right,Vector2Int.left,Vector2Int.up,Vector2Int.down}){
+                float degrees;
+                var stored=MagnetPiece.Rolled(MagnetShape.Horseshoe,Quaternion.LookRotation(new Vector3(dir.x,0,dir.y)),dir,out degrees);
+                incomingU.geometry.rotation=stored;u.geometry.rotation=stored;
+                Check((MagnetProduct)portalRecipe.Invoke(null,new object[]{incomingU,u,true,dir})==MagnetProduct.ThickU,"Same-facing portal U pair incorrectly formed ring");
+                incomingU.storedInPortal=portal;incomingU.gameObject.SetActive(false);b.magnets=new[]{ring,u,incomingU};
+                Check(BlackHoleTravel.PlanExit(portal,Vector2Int.right,incomingU,out plan)&&plan.receiver==u&&plan.product==MagnetProduct.ThickU,"Portal rejected U stack on ring terrain");
+                Check(Quaternion.Angle(incomingU.Pose,stored)<.001f,"Portal planning changed saved entry pose");
+            }
+            UnityEngine.Object.DestroyImmediate(incomingU.gameObject);u.geometry.rotation=Quaternion.identity;b.magnets=new[]{ring,u};
+            var rider=MagnetVisuals.Create(root.transform,ring.transform.position,MagnetShape.Horseshoe,true,Quaternion.identity,b.cellSize,root.transform);
+            MagnetVisuals.Product(rider,MagnetProduct.Ring,b.cellSize,Quaternion.identity,true);
+            MagnetVisuals.Ground(ring);MagnetVisuals.Ground(rider);
+            ring.geometry.position-=Vector3.up*.24f;
+            var shore=typeof(GridPlayground).GetMethod("RingShore",flags);
+            foreach(bool reverse in new[]{false,true}){
+                b.magnets=reverse?new[]{rider,ring}:new[]{ring,rider};
+                Check((bool)shore.Invoke(b,new object[]{ring})&&!(bool)shore.Invoke(b,new object[]{rider}),"Upper ring became floating terrain");
+                Check(!(bool)supported.Invoke(b,new object[]{ring})&&(bool)supported.Invoke(b,new object[]{rider}),"Ring platform/rider support inverted");
+                Check(b.MagnetAt(Vector2Int.right)==rider,"Selected platform instead of movable rider");
+                Check(b.CanPortalRingEnter(rider,Vector2Int.right,0,Vector2Int.right*2),"Rider cannot leave platform to next space cell");
+            }
+            UnityEngine.Object.DestroyImmediate(rider.gameObject);b.magnets=new[]{ring,u};
+            u.combined=true;u.product=MagnetProduct.CrossU;u.walkable=true;
+            foreach(bool reverse in new[]{false,true}){
+                b.magnets=reverse?new[]{u,ring}:new[]{ring,u};
+                Check(b.MagnetAt(Vector2Int.right)==u,"Platform hides upper assembly depending on array order");
+                Check((bool)floor.Invoke(b,new object[]{Vector2Int.right}),"Assembly removed supporting floor");
+            }
+            Debug.Log("PASS: ring terrain, cargo landing, supported actor, fixed assembly and order-independent occupancy.");
+        }finally{UnityEngine.Object.DestroyImmediate(root);EditorSceneManager.ClosePreviewScene(scene);}
+    }
+    [MenuItem("两极之间/测试/圆环出洞推动与受阻")]
+    public static void RunRingExitPush(){
+        var scene=EditorSceneManager.NewPreviewScene();int checks=0;
+        try{
+            var planner=typeof(BlackHoleTravel).GetMethod("TryRingExitPush",System.Reflection.BindingFlags.Static|System.Reflection.BindingFlags.NonPublic);
+            foreach(var dir in new[]{Vector2Int.right,Vector2Int.left,Vector2Int.up,Vector2Int.down}){
+                var root=new GameObject("Ring exit push fixture");root.SetActive(false);
+                UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(root,scene);
+                var board=root.AddComponent<GridPlayground>();board.enabled=false;
+                board.player=new GameObject("Player").transform;board.player.SetParent(root.transform);board.player.position=Vector3.one*50;
+                var floor=new GridTile[4];var forward=new Vector3(dir.x,0,dir.y);
+                for(int i=0;i<4;i++){
+                    var tileObject=new GameObject("Floor "+i);tileObject.transform.SetParent(root.transform);tileObject.transform.position=forward*i*board.cellSize;
+                    floor[i]=tileObject.AddComponent<GridTile>();
+                }
+                board.tiles=floor;
+                var portal=floor[0].gameObject.AddComponent<BlackHolePortal>();portal.board=board;portal.tile=floor[0];
+                var ring=MagnetVisuals.Create(root.transform,Vector3.zero,MagnetShape.Horseshoe,true,Quaternion.identity,board.cellSize,root.transform);
+                MagnetVisuals.Product(ring,MagnetProduct.Ring,board.cellSize,Quaternion.Euler(90,0,0),true);
+                ring.storedInPortal=portal;ring.gameObject.SetActive(false);
+                var receiver=MagnetVisuals.Create(root.transform,forward*board.cellSize,MagnetShape.Bar,false,Quaternion.identity,board.cellSize,root.transform);
+                board.magnets=new[]{ring,receiver};root.SetActive(true);board.InvalidateTileLookup();
+                var start=receiver.transform.position;var pose=receiver.Pose;
+                foreach(bool north in new[]{false,true})foreach(float speed in new[]{0f,4f}){
+                    receiver.north=north;ring.portalRollSpeed=speed;
+                    object[] args={portal,ring,receiver,dir,Vector3.zero};
+                    Check((bool)planner.Invoke(null,args),"Free cell rejected: "+dir);
+                    Check(Vector3.Distance((Vector3)args[4],forward*board.cellSize*2)<.001f,"Not exactly one cell");
+                    floor[2].blocked=true;board.InvalidateTileLookup();
+                    Check(!(bool)planner.Invoke(null,args),"Pushed receiver into stone");
+                    floor[2].blocked=false;floor[2].surfaceHeight=board.LayerHeight;board.InvalidateTileLookup();
+                    Check(!(bool)planner.Invoke(null,args),"Pushed receiver onto higher wall");
+                    floor[2].surfaceHeight=0;board.InvalidateTileLookup();
+                    Check(receiver.transform.position==start&&Quaternion.Angle(receiver.Pose,pose)<.001f,"Planner mutated receiver");
+                    Check(ring.storedInPortal==portal&&ring.portalRollSpeed==speed,"Planner changed stored momentum");checks++;
+                }
+                receiver.combined=true;receiver.product=MagnetProduct.CrossU;
+                Check(!(bool)planner.Invoke(null,new object[]{portal,ring,receiver,dir,Vector3.zero}),"Moved fixed assembly");
+                // After the cargo's first shove, the actor must topple it and
+                // push the flat receiver one more cell, in every exit direction.
+                MagnetVisuals.Product(receiver,MagnetProduct.Ring,board.cellSize,Quaternion.identity,true);
+                receiver.geometry.rotation=Quaternion.identity;receiver.walkable=true;
+                receiver.transform.position=forward*board.cellSize*2;MagnetVisuals.Ground(receiver);
+                ring.storedInPortal=null;ring.portalRollSpeed=0;ring.gameObject.SetActive(true);
+                ring.transform.position=forward*board.cellSize;
+                ring.geometry.rotation=Quaternion.AngleAxis(90,new Vector3(dir.y,0,-dir.x));
+                ring.walkable=false;MagnetVisuals.Ground(ring);
+                BlackHoleTravel.ExitPlan followup;
+                Check(BlackHoleTravel.PlanExit(portal,dir,null,out followup)&&followup.kick
+                    &&followup.exitKickTarget==ring&&followup.kickDisplaced==receiver,"Actor skipped ring chain kick");
+                Check(Vector3.Distance(followup.kicked,forward*board.cellSize*2)<.001f
+                    &&Vector3.Distance(followup.kickDisplacedPosition,forward*board.cellSize*3)<.001f,"Ring chain endpoints incorrect");
+                Check(MagnetPiece.FlatU(Quaternion.AngleAxis(90,new Vector3(dir.y,0,-dir.x))*ring.Pose)
+                    &&MagnetPiece.FlatU(receiver.Pose),"Chain does not finish with both rings flat");
+                var singleU=MagnetVisuals.Create(root.transform,receiver.transform.position,MagnetShape.Horseshoe,true,Quaternion.identity,board.cellSize,root.transform);
+                var impactDegrees=typeof(BlackHoleTravel).GetMethod("ImpactPushDegrees",System.Reflection.BindingFlags.Static|System.Reflection.BindingFlags.NonPublic);
+                var applyImpact=typeof(BlackHoleTravel).GetMethod("ApplyImpactPush",System.Reflection.BindingFlags.Static|System.Reflection.BindingFlags.NonPublic);
+                float uDegrees=(float)impactDegrees.Invoke(null,new object[]{singleU,dir});
+                Check(Mathf.Abs(uDegrees-180)<.001f,"Impact failed to flip U by half turn");
+                var uStart=singleU.transform.position;var uPose=singleU.Pose;
+                applyImpact.Invoke(null,new object[]{singleU,uStart,uStart+forward*board.cellSize,uPose,new Vector3(dir.y,0,-dir.x),uDegrees,1f});
+                Check(Vector3.Dot(singleU.Pose*Vector3.up,uPose*Vector3.up)<-.99f,"U impact translated without flipping face");
+                singleU.transform.position=uStart;singleU.geometry.rotation=uPose;MagnetVisuals.Ground(singleU);
+                Check(Mathf.Abs((float)impactDegrees.Invoke(null,new object[]{ring,dir})-90)<.001f,"Upright ring impact did not topple");
+                receiver.gameObject.SetActive(false);board.magnets=new[]{ring,singleU};
+                Check(BlackHoleTravel.PlanExit(portal,dir,null,out followup)&&followup.kickDisplaced==singleU
+                    &&Vector3.Distance(followup.kickDisplacedPosition,forward*board.cellSize*3)<.001f,"Toppling ring did not shove single flat U one cell");
+                floor[3].blocked=true;board.InvalidateTileLookup();
+                Check(!BlackHoleTravel.PlanExit(portal,dir,null,out followup),"Toppling ring shoved U through stone");
+                floor[3].blocked=false;board.InvalidateTileLookup();
+                singleU.combined=true;singleU.product=MagnetProduct.CrossU;
+                Check(!BlackHoleTravel.PlanExit(portal,dir,null,out followup),"Toppling ring shoved fixed U assembly");
+                singleU.gameObject.SetActive(false);receiver.gameObject.SetActive(true);board.magnets=new[]{ring,receiver};
+                floor[3].blocked=true;board.InvalidateTileLookup();
+                Check(!BlackHoleTravel.PlanExit(portal,dir,null,out followup),"Chain pushed flat ring through stone");
+                floor[3].blocked=false;floor[3].surfaceHeight=board.LayerHeight;board.InvalidateTileLookup();
+                Check(!BlackHoleTravel.PlanExit(portal,dir,null,out followup),"Chain pushed flat ring up wall");
+                checks++;
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+            Debug.Log("PASS: "+checks+" ring exit push cases, four directions, both poles, rolling/nonrolling, stone and height obstruction.");
+        }finally{EditorSceneManager.ClosePreviewScene(scene);}
+    }
     [MenuItem("两极之间/测试/黑洞共享存储")]
     public static void RunSharedStorage(){
         var scene=EditorSceneManager.NewPreviewScene();
@@ -529,6 +670,10 @@ public static class PortalRepulsionRegression {
                 typeof(GridPlayground).GetField("finishingMovement",flags).SetValue(b,true);
                 Drain((System.Collections.IEnumerator)typeof(GridPlayground).GetMethod("PushIntoPortalAnimation",flags).Invoke(b,new object[]{ring,portal,dir}));
                 float speed=(float)typeof(GridPlayground).GetMethod("RingRollSpeed",flags).Invoke(b,new object[]{1});
+                foreach(int cells in new[]{2,5,12}){
+                    float longRollSpeed=(float)typeof(GridPlayground).GetMethod("RingRollSpeed",flags).Invoke(b,new object[]{cells});
+                    Check(Mathf.Abs(speed-longRollSpeed)<.0001f,"Short collision/portal route reduced ring cruise speed");checks++;
+                }
                 Check(portal.Cargo==ring&&!ring.gameObject.activeSelf&&Mathf.Abs(ring.portalRollSpeed-speed)<.0001f,"Adjacent portal entry lost ground cruise speed");checks++;
                 Check(Quaternion.Angle(ring.Pose,Quaternion.AngleAxis(180,axis)*pose)<.01f,"Portal entry changed rotation phase");checks++;
                 float cruise=b.cellSize/speed,acceleration=Mathf.Min(.14f,cruise),duration=cruise+acceleration*.5f;

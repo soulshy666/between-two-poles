@@ -134,13 +134,13 @@ public sealed partial class GridPlayground:MonoBehaviour {
     MagnetPiece Piece(Vector2Int p,MagnetPiece ignore=null){
         MagnetPiece result=null;
         foreach(var m in magnets)if(m&&m.enabled&&m!=ignore&&!IsKnockedFlying(m)&&m.gameObject.activeInHierarchy&&m.Occupies(p,cellSize))
-            if(!result||m.transform.position.y>result.transform.position.y+.01f
+            if(!result||(!RingShore(m)&&RingShore(result))||(!RingShore(m)&&m.transform.position.y>result.transform.position.y+.01f)
                 ||(SameHeight(m.transform.position.y,result.transform.position.y)&&result.walkable
-                    &&(!m.walkable||(m.CanBePushed&&!result.CanBePushed))))result=m;
+                    &&!RingShore(m)&&(!m.walkable||(m.CanBePushed&&!result.CanBePushed))))result=m;
         return result;
     }
     Vector3 Position(Vector2Int p,float y=0){return new Vector3(p.x*cellSize,y,p.y*cellSize);}
-    bool Floor(Vector2Int p){var t=Tile(p);return t&&!t.blocked;}
+    bool Floor(Vector2Int p){float height;return TryPortalFloor(p,out height);}
     void Awake(){
         if(ChapterAtlas.IsInspectionScene(gameObject.scene)){enabled=false;return;}
         SharedPlayer.Prepare(this);
