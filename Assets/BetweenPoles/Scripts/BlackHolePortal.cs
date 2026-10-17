@@ -8,7 +8,9 @@ public sealed class BlackHolePortal : MonoBehaviour {
     bool armed;
     Vector2Int lastOutside;
     public Vector2Int EntryDirection {get;private set;}
-    public MagnetPiece Cargo {get{if(board)foreach(var m in board.magnets)if(m&&m.storedInPortal==this)return m;return null;}}
+    // All mouths on this board share one storage slot. Keep storedInPortal as
+    // entry metadata, not ownership: direction, momentum and undo need it.
+    public MagnetPiece Cargo {get{if(board)foreach(var m in board.magnets)if(m&&m.storedInPortal&&m.storedInPortal.board==board)return m;return null;}}
     public static BlackHolePortal At(GridPlayground board,Vector2Int cell){var tile=board.TileAt(cell);return tile?tile.GetComponentInChildren<BlackHolePortal>():null;}
     public string Room { get { var a=tile.GetComponentInParent<IslandSurfaceAnchor>(true);return a&&a.center?a.center.name:""; } }
     void OnEnable(){foreach(var r in GetComponentsInChildren<Renderer>())r.localBounds=new Bounds(Vector3.zero,Vector3.one*300);}

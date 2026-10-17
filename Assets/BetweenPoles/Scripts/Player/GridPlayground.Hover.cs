@@ -2,6 +2,23 @@ using System.Collections.Generic;
 using UnityEngine;
 namespace BetweenPoles {
 public sealed partial class GridPlayground {
+    readonly Dictionary<MagnetPiece,float> uLandingBounces=new Dictionary<MagnetPiece,float>();
+    readonly List<MagnetPiece> expiredUBounces=new List<MagnetPiece>();
+    void RenderULandingBounces(){
+        expiredUBounces.Clear();
+        float duration=UFlipDuration()*(1-UTouchdownPhase);
+        foreach(var entry in uLandingBounces){
+            var m=entry.Key;float p=(Time.time-entry.Value)/duration;
+            if(!m||!m.geometry||!m.enabled||!m.gameObject.activeInHierarchy||!PlainU(m)||m.storedInPortal
+                ||p>=1||pushHoverParticipants.Contains(m)||MagnetStillAnimating(m)||portalAnimatedMagnets.Contains(m)){
+                expiredUBounces.Add(m);continue;
+            }
+            var geometry=m.geometry;
+            if(!hoverRenderPositions.ContainsKey(geometry))hoverRenderPositions[geometry]=geometry.position;
+            geometry.position+=Vector3.up*(cellSize*.035f*4*p*(1-p));
+        }
+        foreach(var m in expiredUBounces)uLandingBounces.Remove(m);
+    }
     MagnetPiece blockedUNudge;
     Vector3 blockedUNudgeDirection;
     float blockedUNudgeOffset;
@@ -51,6 +68,13 @@ public sealed partial class GridPlayground {
     }
     void StartUndoBarSettle(MagnetPiece m,Vector3 previous){
         if(!m||!m.geometry||!m.gameObject.activeInHierarchy||m.storedInPortal)return;
+        if(PlainU(m)){
+            // Undo has already restored the logical pose. Reuse the non-blocking
+            // landing bounce, only for a flat U resting on a valid support.
+            if(m.enabled&&MagnetPiece.FlatU(m.Pose)&&!BlackHolePortal.At(this,Cell(m.transform))&&Supported(m))
+                uLandingBounces[m]=Time.time;
+            return;
+        }
         bool ring=m.product==MagnetProduct.Ring;
         if(!ring&&(m.combined||m.shape!=MagnetShape.Bar||m.product!=MagnetProduct.None))return;
         var tile=Tile(Cell(m.transform));if(!tile||tile.blocked||!SameHeight(tile.surfaceHeight,m.transform.position.y))return;
@@ -245,6 +269,7 @@ public sealed partial class GridPlayground {
             portalHoverFrame=Time.frameCount;UpdateMagnetHover();
         }
         RenderBarRocks();
+        RenderULandingBounces();
         RenderBlockedUNudge();
         float riderOffset=0,riderWeight=0;
         foreach(var entry in hoveringMagnets){
