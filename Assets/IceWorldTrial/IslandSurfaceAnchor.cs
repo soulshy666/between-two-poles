@@ -16,19 +16,27 @@ namespace BetweenPoles {
    foreach(var r in renderers)if(r)r.ResetBounds();
    displayBoundsApplied=false;
   }
+  static bool Finite(Vector3 v){return !float.IsNaN(v.x)&&!float.IsInfinity(v.x)&&!float.IsNaN(v.y)&&!float.IsInfinity(v.y)&&!float.IsNaN(v.z)&&!float.IsInfinity(v.z);}
   // Vertex shaders move the displayed geometry without moving its Transform.
   // Match CPU frustum bounds to that same affine frame immediately before culling.
   public static void UpdatePlanarCullingBounds(){
    bool planar=Shader.GetGlobalFloat("_IslandPlanar")>.5f;
    Vector3 focus=Shader.GetGlobalVector("_IceFocus");
    float scale=Mathf.Max(1,Shader.GetGlobalFloat("_IslandDisplayScale"));
+   if(!Finite(focus)||float.IsNaN(scale)||float.IsInfinity(scale))return;
    foreach(var anchor in activeAnchors){
     if(!anchor)continue;
     if(!planar){anchor.RestoreDisplayBounds();continue;}
     if(anchor.renderers==null)continue;
     foreach(var r in anchor.renderers){
-     if(!r)continue;
-     var local=r.localBounds;var matrix=r.localToWorldMatrix;
+     // Particle/trail bounds belong to their simulation, not the source mesh.
+     if(!r||!r.enabled||!r.gameObject.activeInHierarchy||!(r is MeshRenderer||r is SkinnedMeshRenderer))continue;
+     var matrix=r.localToWorldMatrix;
+     var scaleVector=r.transform.lossyScale;
+     if(!Finite(scaleVector)||Mathf.Abs(scaleVector.x)<.000001f||Mathf.Abs(scaleVector.y)<.000001f||Mathf.Abs(scaleVector.z)<.000001f){r.ResetBounds();continue;}
+     if(!Finite(r.transform.position))continue;
+     var local=r.localBounds;
+     if(!Finite(local.center)||!Finite(local.extents)){r.ResetBounds();r.ResetLocalBounds();continue;}
      var x=matrix.MultiplyVector(new Vector3(local.extents.x,0,0));
      var y=matrix.MultiplyVector(new Vector3(0,local.extents.y,0));
      var z=matrix.MultiplyVector(new Vector3(0,0,local.extents.z));
@@ -36,6 +44,7 @@ namespace BetweenPoles {
      r.GetPropertyBlock(anchor.block);
      Vector3 offset=anchor.block.GetFloat("_RecoilFlying")>.5f?(Vector3)anchor.block.GetVector("_RecoilDisplayOffset"):Vector3.zero;
      var position=focus+(matrix.MultiplyPoint3x4(local.center)-focus)*scale+offset;
+     if(!Finite(position)||!Finite(extent)||extent.x>1000000||extent.y>1000000||extent.z>1000000){r.ResetBounds();continue;}
      r.bounds=new Bounds(position,extent*2+Vector3.one*.02f);
     }
     anchor.displayBoundsApplied=true;

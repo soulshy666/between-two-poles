@@ -65,12 +65,12 @@ public static class WebSketchExporter {
             string key=kind+"-"+pole+"-"+yaw+"-"+vertical;string id;
             if(!catalog.TryGetValue(key,out id)){
                 id="unity-"+key;catalog.Add(key,id);
-                string name=kind=="rock"?"石头":kind=="player"?"出生点":kind=="goal"?"终点":kind=="blackhole"?"黑洞":kind=="collectible"?"收藏品":pole+" "+(kind=="bar"?"长条":kind=="u"?"U型":kind=="wide"?"加宽条":"两格桥");
+                string name=kind=="rock"?"石头":kind=="player"?"出生点":kind=="goal"?"终点":kind=="blackhole"?"黑洞":kind=="collectible"?"收藏品":pole+" "+(kind=="bar"?"长条":kind=="u"?"U型":kind=="wide"?"加宽条":kind=="ring"?"圆环":"两格桥");
                 string color=kind=="blackhole"?"#9a60cf":kind=="rock"?"#85939d":kind=="collectible"?"#f4cb4c":pole=="S"?"#499ed4":"#e95261";
                 var item=new JObject{["id"]=id,["name"]=name,["kind"]=kind,["color"]=color,["w"]=kind=="bridge"&&yaw%180==0?2:1,["h"]=kind=="bridge"&&yaw%180!=0?2:1};
-                bool magnetic=kind=="bar"||kind=="u"||kind=="wide"||kind=="bridge";
+                bool magnetic=kind=="bar"||kind=="u"||kind=="wide"||kind=="bridge"||kind=="ring";
                 if(magnetic||kind=="rock")item["magnet"]=new JObject{["type"]=kind,["pole"]=pole,["direction"]=yaw.ToString()};
-                string shape=kind=="blackhole"?"<circle cx='20' cy='20' r='16' fill='#241332' stroke='#b78be8' stroke-width='4'/>":kind=="collectible"?"<path d='M20 3L25 14L38 15L28 24L31 37L20 30L9 37L12 24L2 15L15 14Z' fill='#f4cb4c'/>":"<rect x='8' y='6' width='24' height='28' fill='"+color+"'/>";
+                string shape=kind=="ring"?"<g transform='rotate("+yaw+" 20 20)'><path d='M7 20a13 13 0 0 1 26 0' stroke='"+(pole=="S"?"#499ed4":"#e95261")+"' stroke-width='7' fill='none'/><path d='M33 20a13 13 0 0 1-26 0' stroke='"+(pole=="S"?"#e95261":"#499ed4")+"' stroke-width='7' fill='none'/></g>":kind=="blackhole"?"<circle cx='20' cy='20' r='16' fill='#241332' stroke='#b78be8' stroke-width='4'/>":kind=="collectible"?"<path d='M20 3L25 14L38 15L28 24L31 37L20 30L9 37L12 24L2 15L15 14Z' fill='#f4cb4c'/>":"<rect x='8' y='6' width='24' height='28' fill='"+color+"'/>";
                 item["img"]="data:image/svg+xml;charset=utf-8,"+Uri.EscapeDataString("<svg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 40 40'>"+shape+"</svg>");
                 items.Add(item);
             }
@@ -92,6 +92,14 @@ public static class WebSketchExporter {
                     if(Quaternion.Angle(q,m.Pose)<.5f){yaw=y;vertical=v;found=true;break;}
                 }
                 if(!found)throw new Exception("网页无法表达此磁铁姿态："+m.name);
+            }else if(m.product==MagnetProduct.Ring){
+                kind="ring";bool found=false;
+                // Ring import uses yaw * local Z rotation, without the U prefab's 180-degree correction.
+                for(int y=0;y<360&&!found;y+=90)for(int v=0;v<360;v+=90){
+                    var pose=Quaternion.Euler(0,y,0)*Quaternion.Euler(0,0,v);
+                    if(Quaternion.Angle(pose,m.Pose)<.5f){yaw=y;vertical=v;found=true;break;}
+                }
+                if(!found)throw new Exception("网页无法表达此圆环姿态："+m.name+"，请对齐到90度旋转后导出。");
             }else if(m.product==MagnetProduct.WideBar||m.product==MagnetProduct.Bridge){
                 kind=m.product==MagnetProduct.Bridge?"bridge":"wide";
                 Vector3 axis=kind=="bridge"?new Vector3(m.bridgeDirection.x,0,m.bridgeDirection.y):m.Pose*Vector3.right;
