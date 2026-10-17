@@ -37,6 +37,12 @@ public static class MagnetVisuals {
     }
 #endif
     const string LinkName="磁流连接",BridgeSurfaceName="通路电屏障",RingSurfaceName="圆环电屏障";
+    public static void HideLegacyBridgeTrim(Transform geometry){
+        if(!geometry)return;
+        foreach(var renderer in geometry.GetComponentsInChildren<MeshRenderer>(true))
+            if(renderer.transform.parent&&renderer.transform.parent.name==BridgeSurfaceName&&
+                (renderer.name=="通路边线"||renderer.name=="桥头踏边"))renderer.gameObject.SetActive(false);
+    }
     static Material red,blue,link,bridgeSurface,bridgeTrim;
     static Material Color(bool north) {
         var m=north?red:blue;if(m)return m;
@@ -97,10 +103,6 @@ public static class MagnetVisuals {
         // corners (including its trim) otherwise poke through the curved shell.
         float arcCenter=begin+.48f,radius=.35f;
         RoundedBridgeDeck(root,arcCenter,end,radius);
-        float length=end-arcCenter,center=(arcCenter+end)*.5f;
-        foreach(float side in new[]{-1f,1f})
-            Box(root,new Vector3(center,.23f,side*(radius-.025f)),new Vector3(length,.02f,.04f),BridgeTrimMaterial(),"通路边线");
-        Box(root,new Vector3(end-.045f,.23f,0),new Vector3(.09f,.02f,radius*2),BridgeTrimMaterial(),"桥头踏边");
     }
     static void RoundedBridgeDeck(Transform parent,float arcCenter,float end,float radius){
         const int segments=20;

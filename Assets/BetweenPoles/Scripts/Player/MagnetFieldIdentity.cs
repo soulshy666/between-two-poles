@@ -11,6 +11,10 @@ public sealed class MagnetFieldIdentity:MonoBehaviour {
  void LateUpdate(){
   if(!piece)piece=GetComponent<MagnetPiece>();
   if(!piece||!piece.geometry)return;
+  if(!piece.NeedsDynamicEffects){
+   if(particles&&particles.isPlaying)particles.Pause(true);
+   return;
+  }
   if(geometry!=piece.geometry||block==null||((!reference||!particles)&&Time.unscaledTime>=nextBind)){nextBind=Time.unscaledTime+.5f;Bind();}
   if(!reference||!particles)return;
   // Keep the same curved-world/island mapping as the magnet, including portal transitions.
@@ -43,7 +47,7 @@ public sealed class MagnetFieldIdentity:MonoBehaviour {
    if(!material)material=new Material(Shader.Find("BetweenPoles/PaintedIceTrial")){name="磁极微粒 · 轻微辉光",hideFlags=HideFlags.HideAndDontSave};particleRenderer.sharedMaterial=material;
   }
   particles.Stop(true,ParticleSystemStopBehavior.StopEmittingAndClear);
-   var main=particles.main;main.playOnAwake=false;main.loop=true;main.maxParticles=10;main.startLifetime=2.6f;main.startSpeed=.025f;main.startSize=new ParticleSystem.MinMaxCurve(.07f,.10f);main.simulationSpace=ParticleSystemSimulationSpace.Local;main.scalingMode=ParticleSystemScalingMode.Hierarchy;main.cullingMode=ParticleSystemCullingMode.PauseAndCatchup;
+   var main=particles.main;main.playOnAwake=false;main.loop=true;main.maxParticles=10;main.startLifetime=2.6f;main.startSpeed=.025f;main.startSize=new ParticleSystem.MinMaxCurve(.07f,.10f);main.simulationSpace=ParticleSystemSimulationSpace.Local;main.scalingMode=ParticleSystemScalingMode.Shape;main.cullingMode=ParticleSystemCullingMode.PauseAndCatchup;
    var emission=particles.emission;emission.rateOverTime=3f;
    var size=particles.sizeOverLifetime;size.enabled=true;size.size=new ParticleSystem.MinMaxCurve(1,new AnimationCurve(new Keyframe(0,0),new Keyframe(.25f,1),new Keyframe(.7f,.7f),new Keyframe(1,0)));
    var velocity=particles.velocityOverLifetime;velocity.enabled=true;velocity.space=ParticleSystemSimulationSpace.Local;velocity.y=.075f;velocity.x=.018f;velocity.z=.012f;velocity.orbitalY=.25f;

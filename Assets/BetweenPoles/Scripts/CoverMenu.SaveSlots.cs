@@ -11,6 +11,7 @@ public sealed partial class CoverMenu {
     void RefreshSlots(){for(int i=0;i<3;i++)occupiedSlots[i]=Application.isPlaying&&GameSaveSlots.Exists(i);}
     void ChooseSlot(int slot){
         if(!Application.isPlaying||loading||deleteSlot>=0)return;
+        PlayMenuClick();
         string scene;if(GameSaveSlots.Select(slot,out scene)){saveError=null;StartCoroutine(Begin(scene));}
         else saveError=GameSaveSlots.LastError;
     }
@@ -44,7 +45,7 @@ public sealed partial class CoverMenu {
                 if(occupiedSlots[i]){
                     var cross=new Rect(510,row.y+8,50,50);GUI.color=cross.Contains(Event.current.mousePosition)?new Color(1,.48f,.42f):new Color(.8f,.8f,.8f);
                     PixelText(cross,"×",3);
-                    if(GUI.Button(cross,GUIContent.none,GUIStyle.none)&&interactive){deleteSlot=i;saveError=null;}
+                    if(GUI.Button(cross,GUIContent.none,GUIStyle.none)&&interactive){PlayMenuClick();deleteSlot=i;saveError=null;}
                 }
             }
             GUI.color=Color.white;if(ExitChoice(new Rect(245,627,160,48),"返回")&&interactive)savePage=false;
