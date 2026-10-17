@@ -21,6 +21,10 @@ fixed4 frag(v2f_img i):SV_Target{
  float2 uv=i.uv;
  uv.x=(uv.x-.5)/stretch+.5-amount*wave*.015;
  fixed4 base=sampleTitle(uv);
+ // Colour only the upper pixel strokes of the two poles; retain the ivory wordmark.
+ float3 pole=uv.x<.26?float3(.96,.28,.25):float3(.20,.68,.85);
+ float accent=step(.73,uv.y)*(1-step(.49,uv.x));
+ base.rgb=lerp(base.rgb,pole,accent*.88);
  float separation=.0015+amount*.004;
  float red=sampleTitle(uv+float2(separation,0)).a;
  float blue=sampleTitle(uv-float2(separation,0)).a;

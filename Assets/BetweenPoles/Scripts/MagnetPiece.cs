@@ -10,6 +10,7 @@ public struct MagnetRollStep {
     public MagnetRollStep(Vector2Int direction,Quaternion pose,float degrees){this.direction=direction;this.pose=pose;this.degrees=degrees;}
 }
 public sealed class MagnetPiece:MonoBehaviour {
+    void OnEnable(){if(Application.isPlaying&&!GetComponent<MagnetFieldIdentity>())gameObject.AddComponent<MagnetFieldIdentity>();}
     public MagnetShape shape;
     public bool north=true;
     public bool combined;

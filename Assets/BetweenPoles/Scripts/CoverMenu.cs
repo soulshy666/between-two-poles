@@ -1,4 +1,4 @@
-﻿using System.Collections;
+using System.Collections;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 namespace BetweenPoles {
@@ -12,6 +12,7 @@ public sealed partial class CoverMenu:MonoBehaviour {
  public Font font;
  public Shader backgroundShader;
  public bool pixelArtwork;
+ public CoverWorld coverWorld;
  Material backdrop;RenderTexture backgroundFrame;
  int selected;bool settings,exitPrompt,loading;
  float fade;Vector2 parallax;
@@ -43,6 +44,7 @@ public sealed partial class CoverMenu:MonoBehaviour {
 #endif
  }
  void EnsurePreview(){
+  if(coverWorld)return;
   if(!background||!backgroundShader)return;
   if(!backdrop){backdrop=new Material(backgroundShader){hideFlags=HideFlags.HideAndDontSave};backdrop.SetTexture("_MapTex",solarMask);}
   if(!backgroundFrame)backgroundFrame=new RenderTexture(1376,768,0){hideFlags=HideFlags.HideAndDontSave};
@@ -72,20 +74,21 @@ public sealed partial class CoverMenu:MonoBehaviour {
  }
  void DrawCoverBackground(){
   var rect=new Rect(0,0,1376,768);
+  if(coverWorld){if(coverWorld.Frame)GUI.DrawTexture(rect,coverWorld.Frame);return;}
   // Draw the supplied artwork directly: an intermediate linear render texture
   // was making its sRGB colours too dark in the IMGUI presentation pass.
   if(pixelArtwork&&background){
    GUI.DrawTextureWithTexCoords(rect,background,new Rect(-parallax.x*.004f,parallax.y*.004f,1,1));
   }else GUI.DrawTexture(rect,backgroundFrame?backgroundFrame:(Texture)background);
  }
- void LateUpdate(){EnsurePreview();}
+ void LateUpdate(){EnsurePreview();if(coverWorld){float t=AnimationTime;coverWorld.PoseActor(AstronautPosition(t)+astronautOffset+new Vector2(142.5f,97),Mathf.Sin(t*.23f)*9+Mathf.Sin(t*.61f+2)*3.5f+astronautTilt);}}
  void Update(){
   if(!Application.isPlaying)return;
   if(previousSelection!=selected){previousSelection=selected;hoverAge=0;System.Array.Copy(hover,hoverStart,3);}
   hoverAge+=Time.unscaledDeltaTime;
   float ease=MenuEase(Mathf.Clamp01(hoverAge/.25f));
   for(int i=0;i<3;i++)hover[i]=Mathf.Lerp(hoverStart[i],i==selected?1:0,ease);
-  if(loading)return;
+  if(loading||TelevisionSceneTransition.Busy)return;
   var mouse=Input.mousePosition;
   if(!settings&&!exitPrompt&&!savePage&&(mouse-lastMouse).sqrMagnitude>.01f){
    float k=Mathf.Max(Screen.width/1376f,Screen.height/768f);
@@ -111,12 +114,12 @@ public sealed partial class CoverMenu:MonoBehaviour {
   for(int i=0;i<12;i++){t=(lo+hi)*.5f;float u=1-t;float bx=3*u*u*t*.2f+3*u*t*t*.2f+t*t*t;if(bx<x)lo=t;else hi=t;}
   float v=1-t;return 3*v*v*t*.8f+3*v*t*t+t*t*t;
  }
- void Activate(int item){if(!Application.isPlaying||loading)return;if(item==0)OpenSavePage();else if(item==1)settings=true;else exitPrompt=true;}
+ void Activate(int item){if(!Application.isPlaying||loading||TelevisionSceneTransition.Busy)return;if(item==0)OpenSavePage();else if(item==1)settings=true;else exitPrompt=true;}
  IEnumerator Begin(string scene){
   loading=true;
-  for(float t=0;t<.55f;t+=Time.unscaledDeltaTime){fade=t/.55f;yield return null;}
-  fade=1;Time.timeScale=1;
-  yield return SceneManager.LoadSceneAsync(scene);
+  Time.timeScale=1;
+  TelevisionSceneTransition.Load(scene);
+  yield break;
  }
  const string PixelGlyphs="两极之间开始游戏设置退出确定要吗？取消声音返回0123456789%−+› ";
  Texture2D pixelGlyphs,saveGlyphs;
@@ -157,8 +160,14 @@ public sealed partial class CoverMenu:MonoBehaviour {
   var previous=RenderTexture.active;titleSignal.SetFloat("_SignalTime",AnimationTime);
   Graphics.Blit(signalTitle,signalFrame,titleSignal);RenderTexture.active=previous;
   GUI.DrawTexture(new Rect(Mathf.Round(rect.x-2*k),Mathf.Round(rect.center.y-height*.5f),width,height),signalFrame);
+  DrawMagneticSignature(rect);
  }
- Vector2 AstronautPosition(float t){return new Vector2(620+Mathf.Sin(t*.31f)*26+Mathf.Sin(t*.73f+1.3f)*11+parallax.x*16,345+Mathf.Sin(t*.47f)*22+Mathf.Sin(t*1.07f+.4f)*8+parallax.y*12);}
+ Vector2 AstronautPosition(float t){if(coverWorld){// Independent slow waves keep the drift bounded without a repeating circular path.
+  t=Mathf.Floor(t*8)/8;
+  float x=Mathf.Sin(t*.13f)*48+Mathf.Sin(t*.071f+1.3f)*20;
+  float y=Mathf.Sin(t*.103f+.4f)*26+Mathf.Sin(t*.173f+2.1f)*12;
+  return new Vector2(787.5f+Mathf.Round(x/2)*2,295+Mathf.Round(y/2)*2);}
+  return new Vector2(620+Mathf.Sin(t*.31f)*26+Mathf.Sin(t*.73f+1.3f)*11+parallax.x*16,345+Mathf.Sin(t*.47f)*22+Mathf.Sin(t*1.07f+.4f)*8+parallax.y*12);}
  void UpdateAstronaut(Vector2 mouse,bool interactive){
   var center=AstronautPosition(AnimationTime)+new Vector2(142.5f,97);
   var away=center-mouse;float distance=away.magnitude;
@@ -169,6 +178,7 @@ public sealed partial class CoverMenu:MonoBehaviour {
   astronautTilt=Mathf.Lerp(astronautTilt,Mathf.Clamp(-away.x/180,-1,1)*proximity*16,1-Mathf.Exp(-dt*5));
  }
  void DrawAstronaut(float t){
+  if(coverWorld)return;
   var before=GUI.matrix;var p=AstronautPosition(t)+astronautOffset;
   var pivot=p+new Vector2(142.5f,97);
   GUIUtility.RotateAroundPivot(Mathf.Sin(t*.23f)*9+Mathf.Sin(t*.61f+2)*3.5f+astronautTilt,pivot);
@@ -184,7 +194,7 @@ public sealed partial class CoverMenu:MonoBehaviour {
   return GUI.Button(rect,GUIContent.none,GUIStyle.none);
  }
  void OnGUI(){
-  if(!background||!astronaut||!title)return;
+  if((!coverWorld&&(!background||!astronaut))||!title)return;
   EnsurePreview();
   var matrix=GUI.matrix;var color=GUI.color;
   float scale=Mathf.Max(Screen.width/1376f,Screen.height/768f);
@@ -192,7 +202,10 @@ public sealed partial class CoverMenu:MonoBehaviour {
   float t=AnimationTime;
   DrawCoverBackground();
   DrawAstronaut(t);
-  DrawPixelTitle(new Rect(24,60,title.width*.5f,title.height*.5f));
+  if(loading){
+   GUI.matrix=matrix;if(fade>0){GUI.color=new Color(0,0,0,fade);GUI.DrawTexture(new Rect(0,0,Screen.width,Screen.height),Texture2D.whiteTexture);}GUI.color=color;return;
+  }
+  DrawPixelTitle(coverWorld?new Rect(42,46,510,150):new Rect(24,60,title.width*.5f,title.height*.5f));
   var labels=new[]{startLabel,settingsLabel,exitLabel};
   var highlights=new[]{startHover,settingsHover,exitHover};
   if(!(savePage||(!Application.isPlaying&&previewSavePage)))for(int i=0;i<3;i++){
@@ -227,7 +240,7 @@ public sealed partial class CoverMenu:MonoBehaviour {
  }
 #if UNITY_EDITOR
  void OnDrawGizmos(){
-  if(Application.isPlaying||!background||!astronaut||!title)return;
+  if(Application.isPlaying||(!coverWorld&&(!background||!astronaut))||!title)return;
   var view=UnityEditor.SceneView.currentDrawingSceneView;if(!view)return;
   EnsurePreview();
   UnityEditor.Handles.BeginGUI();
@@ -239,7 +252,7 @@ public sealed partial class CoverMenu:MonoBehaviour {
   DrawCoverBackground();
   float t=AnimationTime;
   DrawAstronaut(t);
-  DrawPixelTitle(new Rect(24,60,title.width*.5f,title.height*.5f));
+  DrawPixelTitle(coverWorld?new Rect(42,46,510,150):new Rect(24,60,title.width*.5f,title.height*.5f));
   var labels=new[]{startHover?startHover:startLabel,settingsLabel,exitLabel};
   if(previewSavePage)DrawSavePage();
   else for(int i=0;i<3;i++)if(labels[i]){

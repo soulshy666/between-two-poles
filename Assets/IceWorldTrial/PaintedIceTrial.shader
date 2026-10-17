@@ -1,9 +1,9 @@
 Shader "BetweenPoles/PaintedIceTrial" {
- Properties{_Color("Tint",Color)=(1,1,1,1) _Grid("Grid",Float)=0 _Snow("Snow",Float)=0 _IceArt("Ice art shading",Float)=0 _Painted("Painted ice",Float)=0 _Cracks("Crack strength",Range(0,1))=.3}
+ Properties{_MagnetSpark("Magnet particle glow",Float)=0 _Color("Tint",Color)=(1,1,1,1) _Grid("Grid",Float)=0 _Snow("Snow",Float)=0 _IceArt("Ice art shading",Float)=0 _Painted("Painted ice",Float)=0 _Cracks("Crack strength",Range(0,1))=.3}
  SubShader{Tags{"RenderType"="Opaque" "DisableBatching"="True"} CGPROGRAM
  #pragma surface surf Lambert vertex:bend addshadow finalcolor:DiscoveryColor
  #include "UnityCG.cginc"
- fixed4 _Color;float _Grid,_Snow,_IceArt,_Painted,_Cracks;float _CockpitClip;float4 _CockpitPlane;struct Input{float3 worldPos;float3 worldNormal;float2 logicalXZ;float4 iceTint;float2 iceSurface;};
+ fixed4 _Color;float _MagnetSpark;float _Grid,_Snow,_IceArt,_Painted,_Cracks;float _CockpitClip;float4 _CockpitPlane;struct Input{float3 worldPos;float3 worldNormal;float2 logicalXZ;float4 iceTint;float2 iceSurface;};
  float4 _IceFocus,_IslandAnchors[16],_ExplicitIsland;int _IslandCount;float _IceRadius,_IslandFlatten;float3 _IslandViewOffset;float _IceDiskRadius;float3 _IceDiskCenter,_IceDiskRight,_IceDiskUp;float4x4 _IceRotation;float _IslandDisplayScale;
  float _IslandWindowClipEnabled;float4 _IslandWindowBounds;
  // Connected gameplay uses one common frame; never stretch a bridge between warped shores.
@@ -132,6 +132,6 @@ Shader "BetweenPoles/PaintedIceTrial" {
   col=lerp(col,float3(.20,.42,.55),seam*.72*top);
   o.Albedo=col*.88;o.Emission=col*.12+crystal*float3(.015,.05,.08);o.Alpha=1;return;
  }
- float up=saturate(i.worldNormal.y);col=lerp(col,lerp(float3(.20,.49,.62),col,smoothstep(.3,.85,up)),_Snow);o.Albedo=col*(1-seam*.38);o.Emission=col*.12*(1-seam*.38);o.Alpha=1;
+ float up=saturate(i.worldNormal.y);col=lerp(col,lerp(float3(.20,.49,.62),col,smoothstep(.3,.85,up)),_Snow);o.Albedo=col*(1-seam*.38);o.Emission=col*(.12+_MagnetSpark)*(1-seam*.38);o.Alpha=1;
  }
  ENDCG} FallBack "Diffuse" }

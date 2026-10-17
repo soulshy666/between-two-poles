@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 namespace BetweenPoles {
 // Small runtime meshes use the same bent-world material as the imported islands.
 public static class MagnetVisuals {
@@ -102,7 +102,7 @@ public static class MagnetVisuals {
     }
     public static bool IsMagneticEffect(Renderer renderer) {
         for(var current=renderer?renderer.transform:null;current;current=current.parent)
-            if(current.name==LinkName||current.name==BridgeSurfaceName||current.name==RingSurfaceName)return true;
+            if(current.name=="磁极微粒"||current.name==LinkName||current.name==BridgeSurfaceName||current.name==RingSurfaceName)return true;
         return false;
     }
     static void Arc(Transform parent,bool north,float begin,float end) {

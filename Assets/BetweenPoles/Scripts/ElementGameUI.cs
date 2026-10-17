@@ -173,7 +173,7 @@ public sealed class ElementGameUI:MonoBehaviour {
         GameSaveSlots.SaveNow();
         yield return ChapterRecoilTravel.CancelPreloadForMenu();
         SetPaused(false);
-        yield return SceneManager.LoadSceneAsync("Cover",LoadSceneMode.Single);
+        TelevisionSceneTransition.Load("Cover");
     }
     void DrawEditorPreview(float width,float height){
         float k=Mathf.Clamp(Mathf.FloorToInt(width/460f+.5f),2,4)*UIScale;
