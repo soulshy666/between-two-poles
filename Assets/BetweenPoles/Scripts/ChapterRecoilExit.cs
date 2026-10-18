@@ -4,6 +4,8 @@ namespace BetweenPoles {
 public sealed class ChapterRecoilExit:MonoBehaviour {
     public string sourceRoom="muxk4c1ufa7uy";
     public int exitRow=18;
+    public Vector2Int exitDirection=Vector2Int.left;
+    public int exitColumn;
     public string destinationScene="Assets/BetweenPoles/Scenes/Chapter02_VerdantWorld.unity";
     public Vector2Int testCell=new Vector2Int(4,18);
     float preloadAfter;
@@ -22,7 +24,8 @@ public sealed class ChapterRecoilExit:MonoBehaviour {
     GridPlayground Board {get{return GetComponent<GridPlayground>();}}
     public bool Matches(Vector2Int from,Vector2Int direction){
         var tile=Board.TileAt(from);var owner=tile?tile.GetComponentInParent<IslandSurfaceAnchor>():null;
-        return direction==Vector2Int.left&&from.y==exitRow&&owner&&owner.center&&owner.center.name==sourceRoom;
+        return direction==exitDirection&&(exitDirection.x!=0?from.y==exitRow:from.x==exitColumn)
+            &&owner&&owner.center&&owner.center.name==sourceRoom;
     }
     public bool JumpToFinalIsland(){return JumpToFinalIsland(Board);}
     // Debug navigation uses the current chapter's room numbering, not the ice exit cell.
@@ -55,7 +58,8 @@ public sealed class ChapterRecoilExit:MonoBehaviour {
         GridTile landing=null;Vector2Int landingCell=Vector2Int.zero;float distance=float.PositiveInfinity;
         var exit=board.GetComponent<ChapterRecoilExit>();
         foreach(var tile in board.tiles){
-            if(!tile||tile.blocked)continue;
+            if(!tile||!tile.gameObject.activeInHierarchy||tile.blocked||tile.goal
+                ||tile.GetComponentInChildren<BlackHolePortal>(true))continue;
             var owner=tile.GetComponentInParent<IslandSurfaceAnchor>();if(!owner||owner.center!=last.center)continue;
             var cell=new Vector2Int(Mathf.RoundToInt(tile.transform.position.x/board.cellSize),Mathf.RoundToInt(tile.transform.position.z/board.cellSize));
             if(board.MagnetAt(cell))continue;

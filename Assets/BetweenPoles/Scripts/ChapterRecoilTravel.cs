@@ -24,6 +24,7 @@ public sealed partial class ChapterRecoilTravel:MonoBehaviour {
     GridPlayground source;MagnetPiece magnet;CurvedTrialCamera view;Scene destination;
     string destinationPath;readonly List<Renderer> destinationRenderers=new List<Renderer>();
     float speed;Vector3 heading=Vector3.left;
+    Vector2Int travelDirection=Vector2Int.left;
     PixelGeneratorLab flightBackground,targetBackground;
     Color originalBackground;Color[] originalPalette;
     float sourceScreenEdge=float.NaN;
@@ -117,11 +118,13 @@ public sealed partial class ChapterRecoilTravel:MonoBehaviour {
         var runner=prepared&&prepared.source==exit.GetComponent<GridPlayground>()?prepared:new GameObject("连续星际飞行").AddComponent<ChapterRecoilTravel>();DontDestroyOnLoad(runner.gameObject);
         if(runner.preloadRoutine!=null){runner.StopCoroutine(runner.preloadRoutine);runner.preloadRoutine=null;}
         runner.source=exit.GetComponent<GridPlayground>();runner.magnet=incoming;
+        runner.travelDirection=exit.exitDirection;
+        runner.heading=new Vector3(exit.exitDirection.x,0,exit.exitDirection.y);
         runner.view=FindObjectsOfType<CurvedTrialCamera>().First(c=>c.isActiveAndEnabled&&c.GetComponent<Camera>().enabled&&c.island&&c.island.board==runner.source);
         // Preserve the departure's vertical framing instead of snapping from island
         // center to the launcher's row as soon as flight begins.
         var framing=runner.view.transform.position-runner.view.island.viewingOffset-runner.source.RecoilCameraFocus;
-        runner.flightFramingOffset=new Vector3(0,framing.y,framing.z);
+        runner.flightFramingOffset=Vector3.ProjectOnPlane(framing,runner.heading);
         FlightView=runner.view;FlightSize=runner.view.GetComponent<Camera>().orthographicSize;
         runner.view.navigationZoomSmoothTime=0;runner.view.ResetZoomVelocity();
         runner.destinationPath=exit.destinationScene;runner.speed=runner.source.cellSize*5;Active=true;
@@ -162,6 +165,7 @@ public sealed partial class ChapterRecoilTravel:MonoBehaviour {
     }
     bool SourceHasLeftScreen(){
         var camera=view.GetComponent<Camera>();var planet=view.planet;
+        if(travelDirection!=Vector2Int.left)return !VerdantIslandsVisible(camera);
         if(WaitForVerdantDeparture)return !VerdantIslandsVisible(camera);
         if(view.PlanarChapter){
             // Wait until the departing island, rather than a hidden globe, is off screen.
@@ -209,7 +213,7 @@ public sealed partial class ChapterRecoilTravel:MonoBehaviour {
             // PixelGeneratorLab.Update uploads these colors once per frame already.
             // Both suns use their camera-following background's local frame, not world coordinates.
             // Keep the same animated sun and ease its placement and apparent size to the destination.
-            if(sun&&targetSun){
+            if(sun&&targetSun&&sun.parent==flightBackground.transform){
                 sun.localPosition=Vector3.Lerp(sunPosition,targetSun.localPosition,t);
                 sun.localScale=Vector3.Lerp(sunScale,targetSun.localScale,t);
                 sun.localRotation=Quaternion.Slerp(sunRotation,targetSun.localRotation,t);
@@ -255,20 +259,21 @@ public sealed partial class ChapterRecoilTravel:MonoBehaviour {
             if(!tile||!tile.gameObject.activeInHierarchy||tile.blocked)continue;
             var owner=tile.GetComponentInParent<IslandSurfaceAnchor>();
             if(!owner||owner.center!=landingIsland)continue;
-            var cell=Cell(tile.transform.position,board.cellSize);var inner=board.TileAt(cell+Vector2Int.left);
+            var cell=Cell(tile.transform.position,board.cellSize);var inner=board.TileAt(cell+travelDirection);
             var innerOwner=inner?inner.GetComponentInParent<IslandSurfaceAnchor>():null;
             if(!inner||!inner.gameObject.activeInHierarchy||inner.blocked||!innerOwner||innerOwner.center!=landingIsland)continue;
             if(tile.GetComponentInChildren<BlackHolePortal>()||inner.GetComponentInChildren<BlackHolePortal>())continue;
             // Landing magnets are handled by the shared impact rule on arrival.
-            float value=tile.transform.position.x*100-Mathf.Abs(tile.transform.position.z-landingIsland.position.z);
+            var offset=tile.transform.position-landingIsland.position;
+            float value=-Vector3.Dot(offset,heading)*100-Mathf.Abs(Vector3.Dot(offset,new Vector3(-heading.z,0,heading.x)));
             if(value>score){score=value;shoreTile=tile;}
         }
-        if(!shoreTile){Abort("目标星球的初始房间没有左右相邻的两个可落脚地块，请在（0，0）房间预留落点");yield break;}
+        if(!shoreTile){Abort("目标星球的初始房间没有沿飞行方向相邻的两个可落脚地块，请预留落点");yield break;}
         arrivalBoard=board;
         var oldScene=source.gameObject.scene;var actor=source.player;var cellSize=board.cellSize;
-        var shore=Cell(shoreTile.transform.position,cellSize);var innerCell=shore+Vector2Int.left;
+        var shore=Cell(shoreTile.transform.position,cellSize);var innerCell=shore+travelDirection;
         // Place the loaded planet ahead of the ongoing flight, aligned to whole grid cells.
-        var desiredInner=new Vector2Int(Mathf.FloorToInt(actor.position.x/cellSize)-16,Mathf.RoundToInt(actor.position.z/cellSize));
+        var desiredInner=Cell(actor.position,cellSize)+travelDirection*16;
         var shiftCell=desiredInner-innerCell;var shift=new Vector3(shiftCell.x*cellSize,0,shiftCell.y*cellSize);
         foreach(var root in destination.GetRootGameObjects()){
             root.transform.position+=shift;Advance();yield return null;
@@ -277,7 +282,7 @@ public sealed partial class ChapterRecoilTravel:MonoBehaviour {
         // the destination, or a later chapter exit fails after playing through
         // the preceding chapter despite working when opened directly.
         var destinationExit=board.GetComponent<ChapterRecoilExit>();
-        if(destinationExit){destinationExit.exitRow+=shiftCell.y;destinationExit.testCell+=shiftCell;}
+        if(destinationExit){destinationExit.exitRow+=shiftCell.y;destinationExit.exitColumn+=shiftCell.x;destinationExit.testCell+=shiftCell;}
         var destinationEnding=board.GetComponent<SolarEnding>();
         if(destinationEnding)destinationEnding.exitRow+=shiftCell.y;
         board.InvalidateTileLookup();
@@ -290,6 +295,10 @@ public sealed partial class ChapterRecoilTravel:MonoBehaviour {
         // Retain source roots only for the shared presentation; puzzle geometry unloads normally.
         var roots=oldScene.GetRootGameObjects();
         flightBackground=roots.Where(r=>r.name=="动态太空背景").Select(r=>r.GetComponent<PixelGeneratorLab>()).FirstOrDefault();
+        // The carried background remains visible after arrival. The finale must
+        // take over that same sun, not detach the hidden destination's duplicate.
+        var carriedSun=flightBackground?FindBackgroundSun(flightBackground):null;
+        if(destinationEnding&&carriedSun)destinationEnding.sunTemplate=carriedSun;
         foreach(var root in roots)if(root==view.transform.root.gameObject||root.name=="动态太空背景"||root.name=="04 LIGHTING"){movedRoots.Add(root);SceneManager.MoveGameObjectToScene(root,destination);}
         var oldActor=board.player;oldActor.gameObject.SetActive(false);
         SharedPlayer.Bind(board,true);actor=board.player;
@@ -330,7 +339,7 @@ public sealed partial class ChapterRecoilTravel:MonoBehaviour {
         float remainingDistance=Vector3.Distance(actor.position,new Vector3(innerCell.x*cellSize,actor.position.y,innerCell.y*cellSize));
         var colorBlend=StartCoroutine(BlendBackground(Mathf.Max(.5f,remainingDistance/speed*.85f)));
         arrivalStarted=true;
-        var arrival=board.StartCoroutine(board.ArriveFromChapter(magnet,shore,origin,speed));
+        var arrival=board.StartCoroutine(board.ArriveFromChapter(magnet,shore,origin,speed,travelDirection));
         // Keep the authored source state alive until touchdown so in-flight Z can
         // return across the scene handoff without rebuilding or losing puzzle state.
         foreach(var root in oldScene.GetRootGameObjects())if(root.activeSelf){suspendedSourceRoots.Add(root);root.SetActive(false);}
