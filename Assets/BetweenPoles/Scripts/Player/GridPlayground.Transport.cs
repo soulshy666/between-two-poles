@@ -104,19 +104,24 @@ public sealed partial class GridPlayground {
         // Use their saved visual centres to distinguish them without recursive
         // Deck/Supported queries or depending on the magnets array order.
         var cell=Cell(ring.transform);
-        var centre=RingRestCentre(ring);
+        float centre=0;bool measured=false;
         foreach(var other in magnets){
             if(!other||other==ring||other.product!=MagnetProduct.Ring||!other.enabled
                 ||!other.gameObject.activeInHierarchy||!other.walkable||!other.geometry
                 ||!MagnetPiece.FlatU(other.Pose)||!other.Occupies(cell,cellSize)
                 ||MagnetStillAnimating(other)||!SameHeight(other.transform.position.y,ring.transform.position.y))continue;
+            if(!measured){centre=RingRestCentre(ring);measured=true;}
             if(RingRestCentre(other)<centre-.01f)return false;
         }
         return true;
     }
     float RingRestCentre(MagnetPiece ring){
         if(!ring.geometry)return ring.transform.position.y;
-        return hoverRenderPositions.TryGetValue(ring.geometry,out var saved)?saved.y:ring.geometry.position.y;
+        // Geometry transforms are authored pivots, not physical body centres.
+        // A different pivot must not invert which of two flat rings is the floor.
+        float centre=AssemblyBounds(AssemblyBodies(ring.geometry)).center.y;
+        if(hoverRenderPositions.TryGetValue(ring.geometry,out var saved))centre+=saved.y-ring.geometry.position.y;
+        return centre;
     }
     bool RingShore(MagnetPiece ring){
         // Most queries concern one cell. Reject non-floor/animated pieces before

@@ -27,8 +27,9 @@ public static class RingPlatformPushRegression {
             foreach(var direction in new[]{Vector2Int.right,Vector2Int.left,Vector2Int.up,Vector2Int.down})
             foreach(bool reverse in new[]{false,true})
             foreach(bool upright in new[]{false,true})
+            foreach(bool shiftedPivot in new[]{false,true})
             foreach(bool lowered in new[]{false,true}){
-                string label=direction+" reverse="+reverse+" upright="+upright+" lowered="+lowered;
+                string label=direction+" reverse="+reverse+" upright="+upright+" lowered="+lowered+" shiftedPivot="+shiftedPivot;
                 var root=new GameObject(label);root.SetActive(false);SceneManager.MoveGameObjectToScene(root,scene);
                 try{
                     var board=root.AddComponent<GridPlayground>();board.enabled=false;
@@ -41,6 +42,12 @@ public static class RingPlatformPushRegression {
                     }
                     var platform=MagnetVisuals.Create(root.transform,forward*board.cellSize,MagnetShape.Horseshoe,true,Quaternion.identity,board.cellSize,root.transform);
                     MagnetVisuals.Product(platform,MagnetProduct.Ring,board.cellSize,Quaternion.identity,true);
+                    // Imported/authored meshes need not share the procedural geometry pivot.
+                    // Move the pivot without changing any visible vertex.
+                    if(shiftedPivot){
+                        platform.geometry.position+=Vector3.up*.5f;
+                        foreach(Transform child in platform.geometry)child.position-=Vector3.up*.5f;
+                    }
                     var wheel=MagnetVisuals.Create(root.transform,Vector3.zero,MagnetShape.Horseshoe,false,Quaternion.identity,board.cellSize,root.transform);
                     var pose=upright?Quaternion.FromToRotation(Vector3.up,forward):Quaternion.identity;
                     MagnetVisuals.Product(wheel,MagnetProduct.Ring,board.cellSize,pose,false);wheel.walkable=!upright;
@@ -48,12 +55,22 @@ public static class RingPlatformPushRegression {
                     board.magnets=reverse?new[]{wheel,platform}:new[]{platform,wheel};root.SetActive(true);
                     typeof(GridPlayground).GetField("recordingPush",Private).SetValue(board,true);
                     Check(board.TryStep(direction),label+": first push rejected: "+board.LastRule);
+                    int frames=0;
+                    while((bool)Call(board,"AdvanceMovement")){
+                        Check(++frames<1000,label+": movement timeout");
+                        Call(board,"UpdateMagnetHover");
+                    }
                     Call(board,"FinishMovement");
                     Check(Vector3.Distance(wheel.transform.position,forward*board.cellSize)<.001f,label+": missed platform");
                     Check((bool)Call(board,"RingShore",platform)&&!(bool)Call(board,"RingShore",wheel),label+": rider classified as terrain");
                     Check(BoundsOf(wheel).min.y>=BoundsOf(platform).max.y-.001f,label+": ring meshes overlap");
                     Check(board.MagnetAt(direction)==wheel&&(bool)Call(board,"Supported",wheel),label+": rider not selectable/supported");
                     Check(board.player.position.sqrMagnitude<.001f,label+": player climbed onto occupied cell");
+                    // Classification must also survive a render-only platform bob.
+                    var saved=(System.Collections.Generic.Dictionary<Transform,Vector3>)typeof(GridPlayground).GetField("hoverRenderPositions",Private).GetValue(board);
+                    saved[platform.geometry]=platform.geometry.position;platform.geometry.position+=Vector3.up*.09f;
+                    Check((bool)Call(board,"RingShore",platform)&&!(bool)Call(board,"RingShore",wheel),label+": bob inverted platform/rider");
+                    Call(board,"RestoreMagnetHover",new object[]{null});
                     Check(board.TryStep(direction),label+": second push rejected: "+board.LastRule);
                     Call(board,"FinishMovement");
                     Check(Vector3.Distance(wheel.transform.position,forward*board.cellSize*2)<.001f,label+": second push did not move rider");
@@ -66,7 +83,7 @@ public static class RingPlatformPushRegression {
                     count++;
                 }finally{UnityEngine.Object.DestroyImmediate(root);}
             }
-            Directory.CreateDirectory("output");File.WriteAllText("output/ring-platform-push-result.txt","PASS: "+count+" cases; four directions, both array orders and postures, authored/settled platforms, second push and undo/replay.");
+            Directory.CreateDirectory("output");File.WriteAllText("output/ring-platform-push-result.txt","PASS: "+count+" cases; four directions, both array orders and postures, authored/settled platforms, shifted geometry pivots, frame-sampled movement/hover, render bob, second push and undo/replay.");
             Debug.Log("PASS: ring platform push "+count+" cases");
         }catch(Exception ex){Directory.CreateDirectory("output");File.WriteAllText("output/ring-platform-push-result.txt","FAIL: "+ex);throw;}
         finally{EditorSceneManager.ClosePreviewScene(scene);}
