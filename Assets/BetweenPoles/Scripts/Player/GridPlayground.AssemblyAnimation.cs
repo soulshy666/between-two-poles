@@ -12,12 +12,19 @@ public sealed partial class GridPlayground {
     static float BarAssemblyPhase(float progress,float begin,float end){return BarAttractionProgress(Mathf.InverseLerp(begin,end,progress));}
     // Bounds are measured in logical world space, before the planet shader bends them.
     static Bounds AssemblyBounds(IEnumerable<Renderer> renderers) {
-        var bounds=new Bounds();bool first=true;
+        var bounds=new Bounds();bool any=false;
+        var min=Vector3.one*float.PositiveInfinity;var max=-min;
         foreach(var renderer in renderers){
             var filter=renderer.GetComponent<MeshFilter>();if(!filter||!filter.sharedMesh)continue;
             var matrix=filter.transform.localToWorldMatrix;
-            foreach(var vertex in MagnetVisuals.CachedVertices(filter.sharedMesh)){var point=matrix.MultiplyPoint3x4(vertex);if(first){bounds=new Bounds(point,Vector3.zero);first=false;}else bounds.Encapsulate(point);}
+            // Accumulate extrema directly: Encapsulate repeatedly rebuilds the
+            // centre/extents for every vertex during every docking sample.
+            foreach(var vertex in MagnetVisuals.CachedVertices(filter.sharedMesh)){
+                var point=matrix.MultiplyPoint3x4(vertex);
+                min=Vector3.Min(min,point);max=Vector3.Max(max,point);any=true;
+            }
         }
+        if(any)bounds.SetMinMax(min,max);
         return bounds;
     }
     static IEnumerable<Renderer> AssemblyBodies(Transform geometry) {

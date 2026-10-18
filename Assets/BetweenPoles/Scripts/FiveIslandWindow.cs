@@ -124,7 +124,9 @@ public sealed class FiveIslandWindow : MonoBehaviour {
         // Level reloads/debug layouts replace this array; do not retain their old objects.
         if(cachedPieces!=board.magnets){pieceViews.Clear();cachedPieces=board.magnets;}
         foreach(var piece in board.magnets){
-            if(!piece||!piece.enabled)continue;
+            if(!piece)continue;
+            piece.BindEffectWindow(this);
+            if(!piece.enabled)continue;
             int children=piece.geometry?piece.geometry.childCount:0;
             if(!pieceViews.TryGetValue(piece,out var state)){
                 state=new PieceView();pieceViews.Add(piece,state);

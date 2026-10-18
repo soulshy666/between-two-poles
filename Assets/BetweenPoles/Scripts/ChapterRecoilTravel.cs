@@ -295,14 +295,16 @@ public sealed partial class ChapterRecoilTravel:MonoBehaviour {
         var window=board.GetComponent<FiveIslandWindow>();if(window){window.view=view.island;window.enabled=true;window.RefreshLayout();window.Show(startRoom);}
         view.rotationOrigin=shift;view.fixedDisplayOrigin=true;view.displayOrigin=origin;view.curveOrigin=landingIsland.position;
         Shader.SetGlobalVector("_IceCurveFocus",view.curveOrigin);
-        var planetStyle=targetPlanet.GetComponent<MainPlanetStyle>();if(planetStyle)planetStyle.targetCamera=view.GetComponent<Camera>();
+        var planetStyle=targetPlanet?targetPlanet.GetComponent<MainPlanetStyle>():null;if(planetStyle)planetStyle.targetCamera=view.GetComponent<Camera>();
         view.planet=targetPlanet;view.displayRadius=targetView.displayRadius;view.globeDisplayScale=targetView.globeDisplayScale;
         view.islandDisplayScale=scale/(window&&window.enabled?1.1f:1f);
-        float radius=view.displayRadius>0?view.displayRadius*view.globeDisplayScale:view.planetRadius;
-        // Convert the planet center into the same rendered frame as the translated tiles.
-        var center=landingIsland.position;var displayedCenter=origin+(center-origin)*scale;
-        targetPlanet.position=displayedCenter+view.transform.forward*(radius+1.5f)+view.transform.up*view.globeVerticalOffset;
-        targetPlanet.localScale=Vector3.one*(radius/10);targetPlanet.rotation=Quaternion.identity;
+        // Planar chapters do not need a legacy globe behind their islands.
+        if(targetPlanet){
+            float radius=view.displayRadius>0?view.displayRadius*view.globeDisplayScale:view.planetRadius;
+            var center=landingIsland.position;var displayedCenter=origin+(center-origin)*scale;
+            targetPlanet.position=displayedCenter+view.transform.forward*(radius+1.5f)+view.transform.up*view.globeVerticalOffset;
+            targetPlanet.localScale=Vector3.one*(radius/10);targetPlanet.rotation=Quaternion.identity;
+        }
         int revealed=0;
         foreach(var renderer in destinationRenderers){
             if(renderer&&renderer.gameObject.activeInHierarchy)renderer.enabled=true;

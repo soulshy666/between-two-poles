@@ -6,7 +6,22 @@ public sealed class MagnetFieldIdentity:MonoBehaviour {
  MagnetPiece piece;Transform geometry;Renderer reference;
  float nextBind;
  [SerializeField,HideInInspector] ParticleSystem particles;ParticleSystemRenderer particleRenderer;
- [SerializeField,HideInInspector] Material material;MaterialPropertyBlock block;
+ static Material sharedMaterial;static int materialUsers;
+ Material materialLease;Color particleColor;MaterialPropertyBlock block;
+ void AcquireMaterial(){
+  if(materialLease&&materialLease==sharedMaterial)return;
+  if(!sharedMaterial)sharedMaterial=new Material(Shader.Find("BetweenPoles/PaintedIceTrial")){name="磁极微粒 · 共享辉光",hideFlags=HideFlags.HideAndDontSave};
+  materialLease=sharedMaterial;materialUsers++;
+ }
+ void ReleaseMaterial(){
+  if(!materialLease)return;
+  if(particleRenderer&&particleRenderer.sharedMaterial==materialLease)particleRenderer.sharedMaterial=null;
+  materialLease=null;
+  if(--materialUsers==0){
+   if(Application.isPlaying)Destroy(sharedMaterial);else DestroyImmediate(sharedMaterial);
+   sharedMaterial=null;
+  }
+ }
  void OnEnable(){geometry=null;reference=null;block=new MaterialPropertyBlock();}
  void LateUpdate(){
   if(!piece)piece=GetComponent<MagnetPiece>();
@@ -18,7 +33,7 @@ public sealed class MagnetFieldIdentity:MonoBehaviour {
   if(geometry!=piece.geometry||block==null||((!reference||!particles)&&Time.unscaledTime>=nextBind)){nextBind=Time.unscaledTime+.5f;Bind();}
   if(!reference||!particles)return;
   // Keep the same curved-world/island mapping as the magnet, including portal transitions.
-  reference.GetPropertyBlock(block);block.SetFloat("_MagnetSpark",.65f);block.SetColor("_Color",material.color);particleRenderer.SetPropertyBlock(block);
+  reference.GetPropertyBlock(block);block.SetFloat("_MagnetSpark",.65f);block.SetColor("_Color",particleColor);particleRenderer.SetPropertyBlock(block);
   if(!particles.isPlaying&&geometry.gameObject.activeInHierarchy)particles.Play();
  }
  void Bind(){
@@ -34,29 +49,32 @@ public sealed class MagnetFieldIdentity:MonoBehaviour {
    var f=r.GetComponent<MeshFilter>();if(!f||!f.sharedMesh)continue;
    // Gameplay inflates mesh.bounds for its curved-world renderer: use real vertices.
    if(!f.sharedMesh.isReadable)continue;
-   foreach(var vertex in f.sharedMesh.vertices){var v=geometry.InverseTransformPoint(r.transform.TransformPoint(vertex));if(!hasBounds){bounds=new Bounds(v,Vector3.zero);hasBounds=true;}else bounds.Encapsulate(v);}
+   var toGeometry=geometry.worldToLocalMatrix*r.transform.localToWorldMatrix;
+   foreach(var vertex in MagnetVisuals.CachedVertices(f.sharedMesh)){var v=toGeometry.MultiplyPoint3x4(vertex);if(!hasBounds){bounds=new Bounds(v,Vector3.zero);hasBounds=true;}else bounds.Encapsulate(v);}
 
   }
   if(!reference)return;
   // Reuse our local effect after an editor domain reload as well as after assembly.
-  if(!particles){var existing=geometry.Find("磁极微粒");if(existing){particles=existing.GetComponent<ParticleSystem>();if(particles)material=existing.GetComponent<ParticleSystemRenderer>().sharedMaterial;}}
+  if(!particles){var existing=geometry.Find("磁极微粒");if(existing)particles=existing.GetComponent<ParticleSystem>();}
   if(particles)particleRenderer=particles.GetComponent<ParticleSystemRenderer>();
   if(!particles){
    var go=new GameObject("磁极微粒");go.layer=gameObject.layer;particles=go.AddComponent<ParticleSystem>();particles.Stop(true,ParticleSystemStopBehavior.StopEmittingAndClear);
    particleRenderer=go.GetComponent<ParticleSystemRenderer>();particleRenderer.shadowCastingMode=UnityEngine.Rendering.ShadowCastingMode.Off;particleRenderer.receiveShadows=false;
-   if(!material)material=new Material(Shader.Find("BetweenPoles/PaintedIceTrial")){name="磁极微粒 · 轻微辉光",hideFlags=HideFlags.HideAndDontSave};particleRenderer.sharedMaterial=material;
   }
+  // One material for every magnet; the per-renderer block keeps red/blue independent.
+  AcquireMaterial();particleRenderer.sharedMaterial=materialLease;
   particles.Stop(true,ParticleSystemStopBehavior.StopEmittingAndClear);
-   var main=particles.main;main.playOnAwake=false;main.loop=true;main.maxParticles=10;main.startLifetime=2.6f;main.startSpeed=.025f;main.startSize=new ParticleSystem.MinMaxCurve(.07f,.10f);main.simulationSpace=ParticleSystemSimulationSpace.Local;main.scalingMode=ParticleSystemScalingMode.Shape;main.cullingMode=ParticleSystemCullingMode.PauseAndCatchup;
+   // Decorative particles resume immediately; never replay time spent off screen.
+   var main=particles.main;main.playOnAwake=false;main.loop=true;main.maxParticles=10;main.startLifetime=2.6f;main.startSpeed=.025f;main.startSize=new ParticleSystem.MinMaxCurve(.07f,.10f);main.simulationSpace=ParticleSystemSimulationSpace.Local;main.scalingMode=ParticleSystemScalingMode.Shape;main.cullingMode=ParticleSystemCullingMode.Pause;
    var emission=particles.emission;emission.rateOverTime=3f;
    var size=particles.sizeOverLifetime;size.enabled=true;size.size=new ParticleSystem.MinMaxCurve(1,new AnimationCurve(new Keyframe(0,0),new Keyframe(.25f,1),new Keyframe(.7f,.7f),new Keyframe(1,0)));
    var velocity=particles.velocityOverLifetime;velocity.enabled=true;velocity.space=ParticleSystemSimulationSpace.Local;velocity.y=.075f;velocity.x=.018f;velocity.z=.012f;velocity.orbitalY=.25f;
   particles.Stop(true,ParticleSystemStopBehavior.StopEmittingAndClear);particles.transform.SetParent(geometry,false);particles.transform.localPosition=bounds.center;
-  material.color=reference.sharedMaterial.color.r>reference.sharedMaterial.color.b?new Color(.95f,.035f,.065f):new Color(.025f,.35f,.95f);
+  particleColor=reference.sharedMaterial.color.r>reference.sharedMaterial.color.b?new Color(.95f,.035f,.065f):new Color(.025f,.35f,.95f);
   var shape=particles.shape;shape.enabled=true;shape.shapeType=ParticleSystemShapeType.Box;shape.scale=bounds.size+new Vector3(.18f,.12f,.18f);
   particles.Play();
  }
- void OnDisable(){if(particles)particles.Stop(true,ParticleSystemStopBehavior.StopEmittingAndClear);}
- void OnDestroy(){if(particles)Destroy(particles.gameObject);if(material)Destroy(material);}
+ void OnDisable(){if(particles)particles.Stop(true,ParticleSystemStopBehavior.StopEmittingAndClear);ReleaseMaterial();}
+ void OnDestroy(){ReleaseMaterial();if(particles)Destroy(particles.gameObject);}
 }
 }

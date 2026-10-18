@@ -731,7 +731,8 @@ public sealed partial class GridPlayground {
             var previous=player.position;
             if(liftDock)travel=Mathf.SmoothStep(0,1,Mathf.InverseLerp(.35f,1,progress));
             player.position=Vector3.Lerp(playerStart,playerEnd,travel);
-            if(liftDock||liftUActor)pushPose.AdvanceFlowPush(Vector3.Distance(previous,player.position),MovementDeltaTime,progress);
+            if(liftDock||liftUActor)pushPose.AdvanceFlowPush(Vector3.Distance(previous,player.position),MovementDeltaTime,progress,
+                applyVisual:!recordingPush||progress>=1f);
             else if(throwing)pushPose.SampleBridgeThrow(progress);else pushPose.Sample(progress);
         };
         yield return AnimateAssembly(incoming,target,dir,product,yaw,bridgeDir,uNorth,tippedReceiver,tippedIncoming,receiverEnd,follow);
