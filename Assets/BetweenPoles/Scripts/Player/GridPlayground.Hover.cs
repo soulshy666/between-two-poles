@@ -129,6 +129,12 @@ public sealed partial class GridPlayground {
     readonly Dictionary<Transform,Vector3> hoverRenderPositions=new Dictionary<Transform,Vector3>();
     readonly List<MagnetPiece> expiredHovers=new List<MagnetPiece>();
     readonly Dictionary<MagnetPiece,float> hoverLevels=new Dictionary<MagnetPiece,float>();
+    FiveIslandWindow hoverWindow;
+    bool NeedsHoverPresentation(MagnetPiece piece){
+        if(portalMagnetPresentation||!Application.isPlaying)return true;
+        if(!hoverWindow)TryGetComponent<FiveIslandWindow>(out hoverWindow);
+        return !hoverWindow||hoverWindow.NeedsMagnetPresentation(piece.transform.position);
+    }
     readonly Dictionary<Vector2Int,MagnetPiece> hoverNeighbors=new Dictionary<Vector2Int,MagnetPiece>();
     bool portalMagnetPresentation;
     int portalHoverFrame=-1;
@@ -257,10 +263,11 @@ public sealed partial class GridPlayground {
     void UpdateMagnetHoverIndexed(){
         expiredHovers.Clear();
         foreach(var entry in hoveringMagnets)
-            if(!ShouldHover(entry.Key))expiredHovers.Add(entry.Key);
+            if(!entry.Key||!entry.Key.enabled||!entry.Key.gameObject.activeInHierarchy
+                ||(NeedsHoverPresentation(entry.Key)&&!ShouldHover(entry.Key)))expiredHovers.Add(entry.Key);
         foreach(var m in expiredHovers){hoveringMagnets.Remove(m);hoverLevels.Remove(m);}
         foreach(var m in magnets){
-            if(!ShouldHover(m))continue;
+            if(!m||!NeedsHoverPresentation(m)||!ShouldHover(m))continue;
             if(portalAnimatedMagnets.Contains(m))continue;
             if(!hoveringMagnets.ContainsKey(m))hoveringMagnets.Add(m,0);
             float target=EdgeHoverLevel(m);
@@ -282,7 +289,7 @@ public sealed partial class GridPlayground {
         RenderBlockedUNudge();
         float riderOffset=0,riderWeight=0;
         foreach(var entry in hoveringMagnets){
-            var m=entry.Key;if(!m||!m.geometry||!m.gameObject.activeInHierarchy||portalAnimatedMagnets.Contains(m)||MagnetFlightOwnsHeight(m))continue;
+            var m=entry.Key;if(!m||!m.geometry||!m.gameObject.activeInHierarchy||!NeedsHoverPresentation(m)||portalAnimatedMagnets.Contains(m)||MagnetFlightOwnsHeight(m))continue;
             float t=entry.Value;
             float bob=MagnetHoverAmplitude*Mathf.Sin(t*Mathf.PI*2/MagnetHoverPeriod)
                 *Mathf.SmoothStep(0,1,Mathf.Clamp01(t/.4f));
@@ -302,6 +309,7 @@ public sealed partial class GridPlayground {
         hoverCargoPlatforms.Clear();
         foreach(var entry in hoveringMagnets){
             var platform=entry.Key;
+            if(!platform||!NeedsHoverPresentation(platform))continue;
             if(!FloatingWidePlatform(platform)&&!FloatingRing(platform))continue;
             float t=entry.Value;
             hoverCargoPlatforms.Add(new HoverCargoPlatform{
@@ -311,6 +319,7 @@ public sealed partial class GridPlayground {
         }
         foreach(var cargo in magnets){
             if(!cargo||!cargo.enabled||!cargo.gameObject.activeInHierarchy||!cargo.geometry
+                ||!NeedsHoverPresentation(cargo)
                 ||hoveringMagnets.ContainsKey(cargo)||MagnetFlightOwnsHeight(cargo)||portalAnimatedMagnets.Contains(cargo))continue;
             float cargoBob=0,totalWeight=0;
             foreach(var platform in hoverCargoPlatforms){
@@ -330,6 +339,7 @@ public sealed partial class GridPlayground {
         // the shore. Keep this display offset out of assembly and undo data.
         foreach(var m in magnets){
             if(!m||!m.enabled||!m.gameObject.activeInHierarchy||!m.geometry
+                ||!NeedsHoverPresentation(m)
                 ||MagnetFlightOwnsHeight(m)||hoveringMagnets.ContainsKey(m)||!ShoreLevelBridge(m)||MagnetStillAnimating(m))continue;
             float offset=DeckHeight(m)-MagnetGeometryTop(m);
             hoverRenderPositions[m.geometry]=m.geometry.position;

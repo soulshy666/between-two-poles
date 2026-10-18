@@ -31,6 +31,41 @@ public sealed class FiveIslandWindow : MonoBehaviour {
     bool BridgeCandidate(MagnetPiece m){return m&&m.enabled&&m.gameObject.activeInHierarchy&&!board.IsKnockedFlying(m)&&!(board.RecoilFlying&&m==board.RecoilMagnet)&&(m.walkable||(!m.combined&&m.shape==MagnetShape.Bar&&!MagnetPiece.VerticalBar(m.Pose)));}
     Vector4 previewBounds;
     ChapterMapReturn effectMap;
+    Camera presentationCamera;
+    IslandCamera presentationView;
+    int presentationFrame=-1;
+    bool presentationUnrestricted;
+    Vector3 presentationFocus,presentationCameraPosition,presentationRight,presentationUp;
+    float presentationScale,presentationHalfWidth,presentationHalfHeight;
+    // This tests the actual camera with a generous margin, not just the current room.
+    // Puzzle state and physics remain active outside the presentation window.
+    public bool NeedsMagnetPresentation(Vector3 position){
+        if(!Application.isPlaying||!enabled||!board||!board.enabled||visible.Count==0)return true;
+        if((effectMap&&effectMap.MapSessionActive)||BlackHoleTravel.Selecting||BlackHoleTravel.InTransit
+            ||ChapterRecoilTravel.Active||board.RecoilFlying)return true;
+        if(presentationView!=view){presentationView=view;presentationCamera=view?view.GetComponent<Camera>():null;presentationFrame=-1;}
+        if(presentationFrame!=Time.frameCount){
+            presentationFrame=Time.frameCount;
+            if(!effectMap)TryGetComponent<ChapterMapReturn>(out effectMap);
+            if(!presentationCamera&&view)presentationCamera=view.GetComponent<Camera>();
+            presentationUnrestricted=!presentationCamera||!presentationCamera.orthographic
+                ||(effectMap&&effectMap.MapSessionActive)||BlackHoleTravel.Selecting||BlackHoleTravel.InTransit
+                ||ChapterRecoilTravel.Active||board.RecoilFlying||Shader.GetGlobalFloat("_IslandPlanar")<.5f;
+            if(!presentationUnrestricted){
+                presentationFocus=Shader.GetGlobalVector("_IceFocus");
+                presentationScale=Mathf.Max(1,Shader.GetGlobalFloat("_IslandDisplayScale"));
+                var cameraTransform=presentationCamera.transform;
+                presentationCameraPosition=cameraTransform.position;presentationRight=cameraTransform.right;presentationUp=cameraTransform.up;
+                float padding=board.cellSize*presentationScale*3;
+                presentationHalfHeight=presentationCamera.orthographicSize+padding;
+                presentationHalfWidth=presentationCamera.orthographicSize*presentationCamera.aspect+padding;
+            }
+        }
+        if(presentationUnrestricted)return true;
+        var delta=presentationFocus+(position-presentationFocus)*presentationScale-presentationCameraPosition;
+        return Mathf.Abs(Vector3.Dot(delta,presentationRight))<=presentationHalfWidth
+            &&Mathf.Abs(Vector3.Dot(delta,presentationUp))<=presentationHalfHeight;
+    }
     // Presentation only: keep remote puzzle state and travel simulations alive.
     public bool NeedsDynamicEffects(Vector3 position){
         if(!Application.isPlaying||!enabled||!board||!board.enabled||visible.Count==0)return true;
@@ -62,6 +97,7 @@ public sealed class FiveIslandWindow : MonoBehaviour {
     public void RefreshLayout(){pieceViews.Clear();tileOwners.Clear();floor.Clear();bridgeSignature=int.MinValue;Show(CurrentRoom);}
     public void Show(int index){
         if(index<0||index>=rooms.Length)return;
+        presentationFrame=-1;
         CurrentRoom=index;visible.Clear();visible.Add(rooms[index].center);
         if(tileOwners.Count==0&&board)foreach(var tile in board.tiles){if(!tile||!tile.gameObject.activeInHierarchy)continue;var owner=tile.GetComponentInParent<IslandSurfaceAnchor>();var key=Cell(tile.transform);floor[key]=tile;if(owner&&owner.center)tileOwners[key]=owner.center;}
         foreach(var room in rooms)if(room.center)visible.Add(room.center);

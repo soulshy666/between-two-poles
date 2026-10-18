@@ -210,7 +210,7 @@ public sealed partial class GridPlayground:MonoBehaviour {
             var pose=player.GetComponent<PlayerPushPose>();if(pose)pose.CancelIdle();
         }
         if(GameSaveSlots.Restoring||OpeningCinematic||collectingStar){ClearMovementInput();return;}
-        var panel=GetComponent<MagnetDebugPanel>();
+        TryGetComponent<MagnetDebugPanel>(out var panel);
         if((panel&&panel.enabled&&panel.IsOpen)||Time.timeScale<=0){ClearMovementInput();return;}
         if(Input.GetKeyDown(KeyCode.Alpha1)||Input.GetKeyDown(KeyCode.Keypad1)){JumpTestRoom(1);return;}
         if(Input.GetKeyDown(KeyCode.Alpha2)||Input.GetKeyDown(KeyCode.Keypad2)){JumpTestRoom(-1);return;}

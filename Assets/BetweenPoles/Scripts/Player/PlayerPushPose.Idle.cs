@@ -21,7 +21,7 @@ public sealed partial class PlayerPushPose {
     }
     void OnApplicationFocus(bool focused){if(!focused){CancelIdle();StopBreathing();}}
     void UpdateIdle(){
-        var panel=board?board.GetComponent<MagnetDebugPanel>():null;
+        MagnetDebugPanel panel=null;if(board)board.TryGetComponent<MagnetDebugPanel>(out panel);
         if(!Application.isPlaying||!Application.isFocused||!board||!board.isActiveAndEnabled
             ||board.Busy||board.OpeningCinematic||Time.timeScale<=0||pushing||walking||balancing||pushingStone
             ||(panel&&panel.enabled&&panel.IsOpen)||BlackHoleTravel.InTransit||BlackHoleTravel.Selecting
