@@ -11,7 +11,39 @@ public static class MagnetVisuals {
         return vertexCache.GetValue(mesh,readVertices);
     }
     static Vector3[] ReadMeshVertices(Mesh mesh){return mesh.vertices;}
-    public static void InvalidateVertices(Mesh mesh){if(mesh)vertexCache.Remove(mesh);}
+    static System.Runtime.CompilerServices.ConditionalWeakTable<Mesh,Vector3[]> boundsVertexCache=new System.Runtime.CompilerServices.ConditionalWeakTable<Mesh,Vector3[]>();
+    static readonly System.Runtime.CompilerServices.ConditionalWeakTable<Mesh,Vector3[]>.CreateValueCallback readBoundsVertices=ReadBoundsVertices;
+    // Bounds need only extreme vertices, not the duplicated vertices of every face.
+    // The convex hull in each equal-Y slice preserves extrema for ANY affine transform.
+    // Keep the original vertex cache intact for geometry construction and deformation.
+    public static Vector3[] CachedBoundsVertices(Mesh mesh){
+        return Application.isPlaying?boundsVertexCache.GetValue(mesh,readBoundsVertices):mesh.vertices;
+    }
+    static double BoundsTurn(Vector3 a,Vector3 b,Vector3 c){
+        return ((double)b.x-a.x)*((double)c.z-a.z)-((double)b.z-a.z)*((double)c.x-a.x);
+    }
+    static Vector3[] ReadBoundsVertices(Mesh mesh){
+        var source=CachedVertices(mesh);
+        var slices=new System.Collections.Generic.Dictionary<float,System.Collections.Generic.List<Vector3>>();
+        foreach(var p in source){
+            if(float.IsNaN(p.x)||float.IsInfinity(p.x)||float.IsNaN(p.y)||float.IsInfinity(p.y)||float.IsNaN(p.z)||float.IsInfinity(p.z))return source;
+            if(!slices.TryGetValue(p.y,out var slice)){slice=new System.Collections.Generic.List<Vector3>();slices.Add(p.y,slice);}slice.Add(p);
+        }
+        var result=new System.Collections.Generic.List<Vector3>();
+        foreach(var slice in slices.Values){
+            slice.Sort((a,b)=>{int order=a.x.CompareTo(b.x);return order!=0?order:a.z.CompareTo(b.z);});
+            int unique=0;
+            for(int i=0;i<slice.Count;i++)if(unique==0||!slice[i].Equals(slice[unique-1]))slice[unique++]=slice[i];
+            if(unique<=2){for(int i=0;i<unique;i++)result.Add(slice[i]);continue;}
+            var hull=new Vector3[unique*2];int count=0;
+            for(int i=0;i<unique;i++){while(count>=2&&BoundsTurn(hull[count-2],hull[count-1],slice[i])<=0)count--;hull[count++]=slice[i];}
+            int lower=count;
+            for(int i=unique-2;i>=0;i--){while(count>lower&&BoundsTurn(hull[count-2],hull[count-1],slice[i])<=0)count--;hull[count++]=slice[i];}
+            for(int i=0;i<count-1;i++)result.Add(hull[i]);
+        }
+        return result.ToArray();
+    }
+    public static void InvalidateVertices(Mesh mesh){if(mesh){vertexCache.Remove(mesh);boundsVertexCache.Remove(mesh);}}
     // Set false before entering Play mode to compare with the original geometry.
     public static bool UseCombinedArcMeshes=true;
     static readonly System.Collections.Generic.Dictionary<string,Mesh> arcMeshes=new System.Collections.Generic.Dictionary<string,Mesh>();
@@ -23,6 +55,7 @@ public static class MagnetVisuals {
         if(softBridgeSurface)Object.DestroyImmediate(softBridgeSurface);
         softBridgeSurface=null;
         vertexCache=new System.Runtime.CompilerServices.ConditionalWeakTable<Mesh,Vector3[]>();
+        boundsVertexCache=new System.Runtime.CompilerServices.ConditionalWeakTable<Mesh,Vector3[]>();
         foreach(var mesh in arcMeshes.Values)if(mesh)Object.DestroyImmediate(mesh);
         arcMeshes.Clear();
         foreach(var mesh in generatedArcs.Values)if(mesh)Object.DestroyImmediate(mesh);
@@ -288,7 +321,7 @@ public static class MagnetVisuals {
         var origin=m.transform.position;
         foreach(var f in m.geometry.GetComponentsInChildren<MeshFilter>(true)){
             var matrix=f.transform.localToWorldMatrix;
-            foreach(var v in CachedVertices(f.sharedMesh)){var p=matrix.MultiplyPoint3x4(v)-origin;min=Vector3.Min(min,p);max=Vector3.Max(max,p);}
+            foreach(var v in CachedBoundsVertices(f.sharedMesh)){var p=matrix.MultiplyPoint3x4(v)-origin;min=Vector3.Min(min,p);max=Vector3.Max(max,p);}
         }
         if(!float.IsInfinity(min.y)){var shift=Vector3.up*min.y;if(m.product==MagnetProduct.None||m.product==MagnetProduct.Ring)shift+=new Vector3((min.x+max.x)*.5f,0,(min.z+max.z)*.5f);m.geometry.position-=shift;}
 
