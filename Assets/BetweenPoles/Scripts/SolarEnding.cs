@@ -71,7 +71,8 @@ public sealed class SolarEnding : MonoBehaviour {
     public void Begin(GridPlayground source, MagnetPiece magnet) {
         if (Running) return;
         foreach (var candidate in FindObjectsOfType<CurvedTrialCamera>())
-            if (candidate.enabled && candidate.island && candidate.island.board == source) { view = candidate; break; }
+            if (candidate.isActiveAndEnabled && candidate.GetComponent<Camera>().enabled
+                && candidate.island && candidate.island.board == source) { view = candidate; break; }
         if (!view || !sunTemplate) return;
         board = source; cargo = magnet; cameraView = view.GetComponent<Camera>();
         playerStart = board.player.position; cargoStart = cargo.transform.position;

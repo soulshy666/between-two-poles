@@ -288,8 +288,8 @@ public sealed partial class GridPlayground {
             if(camera.enabled&&camera.island&&camera.island.board==this)camera.SettleFlight(RecoilOrigin,Owner(Tile(cell)));
     }
     public void ReleaseChapterFlight(){EndRecoilFlight();Busy=false;}
-    public IEnumerator ArriveFromChapter(MagnetPiece magnet,Vector2Int shore,Vector3 origin,float speed){
-        Busy=true;var inner=shore+Vector2Int.left;
+    public IEnumerator ArriveFromChapter(MagnetPiece magnet,Vector2Int shore,Vector3 origin,float speed,Vector2Int direction){
+        Busy=true;var inner=shore+direction;
         var magnetEnd=Position(shore,GroundHeight(shore));var playerEnd=Position(inner,GroundHeight(inner));
         var playerStart=player.position;var magnetStart=magnet.transform.position;
         var initialRotation=player.rotation;
@@ -300,29 +300,30 @@ public sealed partial class GridPlayground {
         var magnetProperties=new MaterialPropertyBlock();magnet.GetComponentInChildren<Renderer>().GetPropertyBlock(magnetProperties);
         Vector3 startPlayerOffset=playerProperties.GetVector("_RecoilDisplayOffset"),startMagnetOffset=magnetProperties.GetVector("_RecoilDisplayOffset");
         Vector3 endPlayerOffset=SurfaceOffset(playerEnd),endMagnetOffset=SurfaceOffset(magnetEnd);
-        float duration=Mathf.Max(.8f,Mathf.Abs(playerStart.x-playerEnd.x)/speed);
+        float travelDistance=Mathf.Max(.001f,Vector3.Distance(playerStart,playerEnd));
+        float duration=Mathf.Max(.8f,travelDistance/speed);
         // Cruise at the same speed, then smoothly brake over the final three cells.
         float braking=Mathf.Min(.9f,duration*.4f);duration+=braking*.5f;
         bool contactHandled=false;
         for(float t=0;t<duration;t+=Time.deltaTime){
             float brake=Mathf.Clamp01((t-(duration-braking))/braking);
             float distance=speed*(t-.5f*braking*brake*brake);
-            float a=Mathf.Clamp01(distance/Mathf.Abs(playerStart.x-playerEnd.x));
+            float a=Mathf.Clamp01(distance/travelDistance);
             player.position=Vector3.Lerp(playerStart,playerEnd,a);magnet.transform.position=Vector3.Lerp(magnetStart,magnetEnd,a);
             FlightOffset(player,Vector3.Lerp(startPlayerOffset,endPlayerOffset,a));FlightOffset(magnet.transform,Vector3.Lerp(startMagnetOffset,endMagnetOffset,a));
             player.rotation=initialRotation;
             if(arrivalPose)arrivalPose.SampleRecoilFlight(t,magnet);
-            if(!contactHandled&&Vector3.Distance(player.position,playerEnd)<=cellSize){contactHandled=true;LaunchLandingMagnets(magnet,shore,Vector2Int.left);}
+            if(!contactHandled&&Vector3.Distance(player.position,playerEnd)<=cellSize){contactHandled=true;LaunchLandingMagnets(magnet,shore,direction);}
             yield return null;
         }
-        if(!contactHandled)LaunchLandingMagnets(magnet,shore,Vector2Int.left);
+        if(!contactHandled)LaunchLandingMagnets(magnet,shore,direction);
         player.SetPositionAndRotation(playerEnd,initialRotation);magnet.transform.position=magnetEnd;
         var binding=magnet.GetComponent<IslandSurfaceAnchor>();if(binding){binding.center=Owner(Tile(shore));binding.Apply();}
         FlightOffset(player,endPlayerOffset);FlightOffset(magnet.transform,endMagnetOffset);
         SettleFlightView(inner);EndRecoilFlight();NotifyLanding(inner);
         if(arrivalPose)arrivalPose.End();
         while(knockedFlights.Exists(f=>f.lands))yield return null;
-        CaptureInitialState();LastRule="已连续飞抵绿色星球";
+        CaptureInitialState();LastRule="已连续飞抵下一章节";
     }
 
 }
