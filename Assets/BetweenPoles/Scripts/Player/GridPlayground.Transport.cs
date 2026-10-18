@@ -22,7 +22,7 @@ public sealed partial class GridPlayground {
             if(tile)return SameHeight(tile.surfaceHeight,baseHeight)||SameHeight(tile.surfaceHeight,top);
             // Settled space rings are shores in every direction, even though
             // rings remain pushable objects elsewhere in the movement system.
-            foreach(var ring in magnets)if(RingShore(ring)&&ring.Occupies(cell,cellSize)
+            foreach(var ring in magnets)if(ring&&ring.product==MagnetProduct.Ring&&ring.Occupies(cell,cellSize)&&RingShore(ring)
                 &&SameHeight(DeckHeight(ring),top))return true;
             var deck=Deck(cell,bridge,true);
             if(!deck||visiting.Contains(deck)||!SameHeight(DeckHeight(deck),top)
@@ -88,6 +88,17 @@ public sealed partial class GridPlayground {
     }
     bool SpaceRing(MagnetPiece ring){
         if(!ring||ring.product!=MagnetProduct.Ring||Tile(Cell(ring.transform)))return false;
+        // A ring carried by a completed floating span is cargo, even when flat.
+        // Do not ask DeckHeight/Supported here: bridge height calls Floor, which
+        // itself queries RingShore. Inspect fixed terrain directly to avoid that cycle.
+        var ringCell=Cell(ring.transform);
+        foreach(var span in magnets){
+            if(!span||span==ring||!span.enabled||!span.gameObject.activeInHierarchy||!span.walkable
+                ||!span.Occupies(ringCell,cellSize)||!SameHeight(span.transform.position.y,ring.transform.position.y))continue;
+            if(span.product==MagnetProduct.Bridge
+                &&(!Tile(Cell(span.transform))||!Tile(Cell(span.transform)+span.bridgeDirection)))return false;
+            if(span.product==MagnetProduct.WideBar&&!Tile(Cell(span.transform)))return false;
+        }
         // Two rings can share a grid root: the floating floor is aligned with
         // its TOP at shore level, while the carried ring rests on its bottom.
         // Use their saved visual centres to distinguish them without recursive
@@ -108,13 +119,15 @@ public sealed partial class GridPlayground {
         return hoverRenderPositions.TryGetValue(ring.geometry,out var saved)?saved.y:ring.geometry.position.y;
     }
     bool RingShore(MagnetPiece ring){
-        return SpaceRing(ring)&&ring.enabled&&ring.gameObject.activeInHierarchy&&ring.geometry
-            &&ring.walkable&&MagnetPiece.FlatU(ring.Pose)&&!MagnetStillAnimating(ring);
+        // Most queries concern one cell. Reject non-floor/animated pieces before
+        // SpaceRing scans their possible supports across the board.
+        return ring&&ring.product==MagnetProduct.Ring&&ring.enabled&&ring.gameObject.activeInHierarchy&&ring.geometry
+            &&ring.walkable&&MagnetPiece.FlatU(ring.Pose)&&!MagnetStillAnimating(ring)&&SpaceRing(ring);
     }
     internal bool TryPortalFloor(Vector2Int cell,out float height){
         var tile=Tile(cell);height=tile?tile.surfaceHeight:0;
         if(tile)return !tile.blocked;
-        foreach(var ring in magnets)if(RingShore(ring)&&ring.Occupies(cell,cellSize)){
+        foreach(var ring in magnets)if(ring&&ring.product==MagnetProduct.Ring&&ring.Occupies(cell,cellSize)&&RingShore(ring)){
             height=DeckHeight(ring);return true;
         }
         return false;
@@ -199,7 +212,7 @@ public sealed partial class GridPlayground {
     }
     MagnetPiece TransportObstacle(Vector2Int cell,MagnetPiece moving){
         var deck=Deck(cell,moving);MagnetPiece result=null;
-        foreach(var m in magnets)if(m&&m!=moving&&m!=deck&&!RingShore(m)&&m.enabled&&m.gameObject.activeInHierarchy&&m.Occupies(cell,cellSize))
+        foreach(var m in magnets)if(m&&m!=moving&&m!=deck&&m.enabled&&m.gameObject.activeInHierarchy&&m.Occupies(cell,cellSize)&&!RingShore(m))
             if(!result||m.transform.position.y>result.transform.position.y)result=m;
         return result;
     }

@@ -1,0 +1,10 @@
+PASS: 20819 assertions in Unity Play mode.
+Legacy bridge refresh: 2.798 ms/refresh, allocation counter unavailable on this runtime
+Optimized bridge refresh: 0.335 ms/refresh, allocation counter unavailable on this runtime
+Ring merge catchup / 145 magnets / four directions: full-map capture 15.278 ms, participant capture 8.665 ms (includes simulation and model swap).
+145 magnets / 1 rings, legacy empty-cell query: 0.035 ms/refresh, allocation counter unavailable on this runtime
+145 magnets / 1 rings, optimized empty-cell query: 0.001 ms/refresh, allocation counter unavailable on this runtime
+145 magnets / 12 rings, legacy empty-cell query: 0.584 ms/refresh, allocation counter unavailable on this runtime
+145 magnets / 12 rings, optimized empty-cell query: 0.005 ms/refresh, allocation counter unavailable on this runtime
+145 magnets / 40 rings, legacy empty-cell query: 3.551 ms/refresh, allocation counter unavailable on this runtime
+145 magnets / 40 rings, optimized empty-cell query: 0.013 ms/refresh, allocation counter unavailable on this runtime

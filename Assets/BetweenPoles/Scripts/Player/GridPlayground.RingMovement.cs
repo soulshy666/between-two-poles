@@ -131,7 +131,7 @@ public sealed partial class GridPlayground {
             height=nextHeight;cells++;
         }
         Busy=true;StartMovement(MoveRing(ring,dir,origin,cells,tip));
-        LastRule=!Tile(origin+dir*cells)?"圆环离岛后放平，板面与岸边齐平，可从四个方向行走":flat?"圆环向前一格并推立":tip?"圆环向推动方向倒下一格，恢复平躺":"圆环连续滚动，在障碍前停下";
+        LastRule=!Tile(origin+dir*cells)&&!Deck(origin+dir*cells,ring)?"圆环离岛后放平，板面与岸边齐平，可从四个方向行走":flat?"圆环向前一格并推立":tip?"圆环向推动方向倒下一格，恢复平躺":"圆环连续滚动，在障碍前停下";
         return true;
     }
     IEnumerator MoveRing(MagnetPiece ring,Vector2Int dir,Vector2Int origin,int cells,bool tip){
@@ -143,7 +143,14 @@ public sealed partial class GridPlayground {
         foreach(var platform in magnets){
             if(platform&&platform!=ring&&RingShore(platform)
                 &&(platform.Occupies(origin,cellSize)||platform.Occupies(origin+dir*cells,cellSize))){
-                ringPlatformPush=true;break;
+                // Authored floating rings may still have ground-aligned geometry;
+                // their shore alignment was previously applied only while rendering.
+                // Persist that resting offset before the rider arrives/flattens, so
+                // SpaceRing can distinguish the floor from its same-cell rider.
+                RestoreMagnetHover(null);
+                platform.geometry.position+=Vector3.up*(platform.transform.position.y-MagnetGeometryTop(platform));
+                hoverLevels.Remove(platform);
+                ringPlatformPush=true;
             }
         }
         rollingRingShove=!tip||ringPlatformPush;

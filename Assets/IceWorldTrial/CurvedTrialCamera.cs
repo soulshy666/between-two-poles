@@ -151,7 +151,11 @@ namespace BetweenPoles {
     if(fitIsland&&count>0&&island.board){
      int selected=0;for(int j=window?count:1;j<count;j++)if(((Vector3)anchors[j]-focus).sqrMagnitude<((Vector3)anchors[selected]-focus).sqrMagnitude)selected=j;
      Vector3 center=anchors[selected];
-     bool cached=Application.isPlaying&&fittedCenter==centers[selected]&&Time.unscaledTime<nextFitTime&&Mathf.Abs(fittedAspect-camera.aspect)<.001f;
+     bool cached=Application.isPlaying&&fittedCenter==centers[selected]&&Mathf.Abs(fittedAspect-camera.aspect)<.001f;
+     if(!cached||Time.unscaledTime>=nextFitTime){
+      bool changed=FramingInputsChanged(centers,count,displayScale,camera.aspect,size,framingMargin,window);
+      cached&=!changed;nextFitTime=Time.unscaledTime+.25f;
+     }
      if(cached)size=fittedSize;
      else {
      foreach(var tile in island.board.tiles){if(!tile||!tile.gameObject.activeInHierarchy)continue;Vector3 p=tile.transform.position;int owner=0;for(int j=1;j<count;j++)if((p-(Vector3)anchors[j]).sqrMagnitude<(p-(Vector3)anchors[owner]).sqrMagnitude)owner=j;var binding=tile.GetComponentInParent<IslandSurfaceAnchor>();if(binding&&binding.center){if(window&&binding.center!=centers[selected])continue;for(int j=0;j<count;j++)if(centers[j]==binding.center){owner=j;break;}}if(owner!=selected)continue;

@@ -5,6 +5,7 @@ namespace BetweenPoles {
 public sealed partial class GridPlayground {
     const float PushSampleSeconds=1f/60f;
     bool recordingPush;
+    MagnetPiece activeAssemblyIncoming,activeAssemblyReceiver;
     PushPresentation recordingPresentation;
     sealed class ContactEvent {
         public float seconds;public Vector3 point,direction;public MaterialPropertyBlock block;
@@ -134,6 +135,7 @@ public sealed partial class GridPlayground {
         pushPresentations.Remove(presentation);
     }
     internal void ClearPushPresentations(){
+        activeAssemblyIncoming=null;activeAssemblyReceiver=null;
         uLandingBounces.Clear();
         pendingRingRelease=null;
         foreach(var flight in liveRings.ToArray()){
@@ -165,6 +167,12 @@ public sealed partial class GridPlayground {
         if(reserved!=null)foreach(var cell in reserved)presentation.reservedCells.Add(cell);
         foreach(var piece in magnets){
             if(!piece||!piece.gameObject.activeInHierarchy||!piece.geometry||MagnetStillAnimating(piece))continue;
+            // An assembly coroutine only animates its two participants and their
+            // children. Sampling every remote magnet at 60 Hz on this one frame
+            // made a rapid tap during docking scale with the entire chapter.
+            if(activeAssemblyIncoming&&activeAssemblyReceiver&&
+                !piece.transform.IsChildOf(activeAssemblyIncoming.transform)&&
+                !piece.transform.IsChildOf(activeAssemblyReceiver.transform))continue;
             foreach(var renderer in piece.geometry.GetComponentsInChildren<MeshRenderer>()){
                 if(!renderer.enabled)continue;
                 var track=new PushTrack{piece=piece,source=renderer};
