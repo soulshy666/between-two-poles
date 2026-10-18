@@ -19,7 +19,7 @@ public sealed partial class GridPlayground {
             var matrix=filter.transform.localToWorldMatrix;
             // Accumulate extrema directly: Encapsulate repeatedly rebuilds the
             // centre/extents for every vertex during every docking sample.
-            foreach(var vertex in MagnetVisuals.CachedVertices(filter.sharedMesh)){
+            foreach(var vertex in MagnetVisuals.CachedBoundsVertices(filter.sharedMesh)){
                 var point=matrix.MultiplyPoint3x4(vertex);
                 min=Vector3.Min(min,point);max=Vector3.Max(max,point);any=true;
             }

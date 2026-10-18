@@ -174,8 +174,15 @@ public sealed partial class GridPlayground {
         // logical result now, then compress the render playback into the catch-up window.
         var presentation=new PushPresentation{playbackSeconds=catchupSeconds};
         if(reserved!=null)foreach(var cell in reserved)presentation.reservedCells.Add(cell);
+        // A plain flowing roll moves one piece only. Keep broad capture for
+        // chains, repulsion and rings, whose later impacts can move other pieces.
+        MagnetPiece rollingMaterial=null;
+        if(flowingPush&&pushHoverParticipants.Count==1)
+            foreach(var participant in pushHoverParticipants)
+                if(participant&&participant.product==MagnetProduct.None)rollingMaterial=participant;
         foreach(var piece in magnets){
             if(!piece||!piece.gameObject.activeInHierarchy||!piece.geometry||MagnetStillAnimating(piece))continue;
+            if(rollingMaterial&&!piece.transform.IsChildOf(rollingMaterial.transform))continue;
             // An assembly coroutine only animates its two participants and their
             // children. Sampling every remote magnet at 60 Hz on this one frame
             // made a rapid tap during docking scale with the entire chapter.

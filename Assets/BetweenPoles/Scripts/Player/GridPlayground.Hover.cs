@@ -193,7 +193,7 @@ public sealed partial class GridPlayground {
         foreach(var filter in m.geometry.GetComponentsInChildren<MeshFilter>()){
             if(!filter.sharedMesh)continue;
             var renderer=filter.GetComponent<Renderer>();if(renderer&&!renderer.enabled)continue;
-            var vertices=MagnetVisuals.CachedVertices(filter.sharedMesh);
+            var vertices=MagnetVisuals.CachedBoundsVertices(filter.sharedMesh);
             // Read the transform once per mesh, not once for every vertex.
             var matrix=filter.transform.localToWorldMatrix;
             foreach(var vertex in vertices)top=Mathf.Max(top,matrix.m10*vertex.x+matrix.m11*vertex.y+matrix.m12*vertex.z+matrix.m13);

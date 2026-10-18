@@ -11,6 +11,8 @@ public sealed partial class GridPlayground {
     GridTile[] junctionTiles;
     float junctionCellSize;
     readonly Dictionary<Vector2Int,MagnetPiece> junctionSources=new Dictionary<Vector2Int,MagnetPiece>();
+    struct JunctionCandidate {public MagnetPiece piece;public Vector2Int cell;public bool ring;}
+    readonly List<JunctionCandidate> junctionCandidates=new List<JunctionCandidate>();
     bool JunctionInputsChanged(){
         bool changed=junctionTerrainRevision!=connectionTerrainRevision||junctionTiles!=tiles||junctionCellSize!=cellSize||junctionInputs.Count!=magnets.Length;
         junctionTerrainRevision=connectionTerrainRevision;junctionTiles=tiles;junctionCellSize=cellSize;
@@ -43,14 +45,22 @@ public sealed partial class GridPlayground {
             return;
         }
         liveJunctionLinks.Clear();
+        junctionCandidates.Clear();
         for(int i=0;i<magnets.Length;i++){
-            var a=magnets[i];if(!JunctionBar(a)&&!RingShore(a))continue;
-            for(int j=i+1;j<magnets.Length;j++){
-                var b=magnets[j];if((!JunctionBar(b)&&!RingShore(b))||(!GapWideBar(a)&&!GapWideBar(b)))continue;
-                var from=Cell(a.transform);var to=Cell(b.transform);var dir=to-from;
-                bool ringA=RingShore(a),ringB=RingShore(b);
+            var piece=magnets[i];bool bar=JunctionBar(piece),ring=!bar&&RingShore(piece);
+            if(bar||ring)junctionCandidates.Add(new JunctionCandidate{piece=piece,cell=Cell(piece.transform),ring=ring});
+        }
+        // Classify floating rings once. While carrying any magnet the input
+        // changes every frame; do not repeat whole-board support scans per pair.
+        for(int i=0;i<junctionCandidates.Count;i++){
+            var first=junctionCandidates[i];var a=first.piece;
+            for(int j=i+1;j<junctionCandidates.Count;j++){
+                var second=junctionCandidates[j];var b=second.piece;
+                var from=first.cell;var to=second.cell;var dir=to-from;
+                if(Mathf.Abs(dir.x)+Mathf.Abs(dir.y)!=1||(!GapWideBar(a)&&!GapWideBar(b)))continue;
+                bool ringA=first.ring,ringB=second.ring;
                 bool sockets=ringA?AlongDeck(b,dir):ringB?AlongDeck(a,dir):AlongDeck(a,dir)!=AlongDeck(b,dir);
-                if(Mathf.Abs(dir.x)+Mathf.Abs(dir.y)!=1||!sockets
+                if(!sockets
                     ||!SameHeight(DeckHeight(a),DeckHeight(b))||!BridgePassage(from,to))continue;
                 if(MagnetStillAnimating(a)||MagnetStillAnimating(b))continue;
                 var key=new Vector2Int(a.GetInstanceID(),b.GetInstanceID());liveJunctionLinks.Add(key);
@@ -84,6 +94,7 @@ public sealed partial class GridPlayground {
         foreach(var link in junctionLinks.Values)if(link){link.gameObject.SetActive(false);Destroy(link.gameObject);}
         junctionLinks.Clear();
         junctionSources.Clear();junctionInputs.Clear();junctionTerrainRevision=-1;
+        junctionCandidates.Clear();
     }
 }
 }

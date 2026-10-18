@@ -506,7 +506,8 @@ public sealed partial class GridPlayground {
             MagnetVisuals.Ground(m);
             if(Mathf.Abs(followRock)>.001f)ApplyBarRock(m,axis,followRock);
             if(touchdownAge>=0)ApplyBarRock(m,axis,BarTouchdownAngle(touchdownAge));
-            pose.AdvanceFlowPush(Vector3.Distance(previous,player.position),dt,groundBar?roll:pushFlowProgress);
+            pose.AdvanceFlowPush(Vector3.Distance(previous,player.position),dt,groundBar?roll:pushFlowProgress,
+                applyVisual:!recordingPush||pushFlowProgress>=1f);
             if(pushFlowProgress>=1){pushFlowCarryTime=Mathf.Max(0,dt-remainingTime);break;}
             yield return null;
         }
