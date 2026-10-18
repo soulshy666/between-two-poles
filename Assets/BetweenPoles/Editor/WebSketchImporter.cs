@@ -195,7 +195,7 @@ public static class WebSketchImporter {
         if(!scene.IsValid()||!scene.isLoaded||string.IsNullOrEmpty(scene.path))throw new Exception("请先打开并保存要修改的世界场景。");
         if(scene.name.Contains("测试"))throw new Exception("当前是磁铁测试场景，请打开要导入的星球世界，测试画布不会被替换。");
         var board=Find<GridPlayground>(scene);var camera=Find<IslandCamera>(scene);var curved=Find<CurvedTrialCamera>(scene);
-        if(!board||!board.player||!camera||!curved||!curved.planet)throw new Exception("当前场景不是可导入的小岛世界：缺少棋盘、人物或星球镜头。");
+        if(!board||!board.player||!camera||!curved||(!curved.PlanarChapter&&!curved.planet))throw new Exception("当前场景不是可导入的小岛世界：缺少棋盘、人物或星球镜头。");
     }
     static Material CopySurface(Scene scene,string folder){
         var material=scene.GetRootGameObjects().SelectMany(r=>r.GetComponentsInChildren<Renderer>())
@@ -232,12 +232,12 @@ public static class WebSketchImporter {
         var board=Find<GridPlayground>(scene);var camera=Find<IslandCamera>(scene);var curved=Find<CurvedTrialCamera>(scene);
         var existingWindow=Find<FiveIslandWindow>(scene);
         var oldObjects=scene.GetRootGameObjects().SelectMany(r=>r.GetComponentsInChildren<IslandSurfaceAnchor>())
-            .Where(a=>a.gameObject.activeInHierarchy&&!a.transform.IsChildOf(board.player)&&!board.transform.IsChildOf(a.transform)&&!camera.transform.IsChildOf(a.transform)&&!curved.planet.IsChildOf(a.transform))
+            .Where(a=>a.gameObject.activeInHierarchy&&!a.transform.IsChildOf(board.player)&&!board.transform.IsChildOf(a.transform)&&!camera.transform.IsChildOf(a.transform)&&(!curved.planet||!curved.planet.IsChildOf(a.transform)))
             .Select(a=>a.gameObject).Concat(board.tiles.Where(t=>t).Select(t=>t.gameObject)).Concat(board.magnets.Where(m=>m).Select(m=>m.gameObject)).Distinct().ToArray();
         // Legacy rocks and the goal live together under SET DRESSING rather than under GridTile.
         // Archive complete gameplay roots only when they contain none of the preserved systems.
         var roots=oldObjects.Select(o=>o.transform.root.gameObject).Concat(board.goalLight?new[]{board.goalLight.transform.root.gameObject}:new GameObject[0])
-            .Where(o=>!board.transform.IsChildOf(o.transform)&&!camera.transform.IsChildOf(o.transform)&&!curved.planet.IsChildOf(o.transform)&&!board.player.IsChildOf(o.transform));
+            .Where(o=>!board.transform.IsChildOf(o.transform)&&!camera.transform.IsChildOf(o.transform)&&(!curved.planet||!curved.planet.IsChildOf(o.transform))&&!board.player.IsChildOf(o.transform));
         oldObjects=oldObjects.Concat(roots).Distinct().ToArray();
         var helpers=scene.GetRootGameObjects().SelectMany(r=>r.GetComponentsInChildren<IslandGroundCenters>()).ToArray();
         Undo.IncrementCurrentGroup();int undo=Undo.GetCurrentGroup();Undo.SetCurrentGroupName("导入 JSON 到当前世界");

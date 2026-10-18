@@ -14,8 +14,12 @@ public sealed class MagnetPiece:MonoBehaviour {
     FiveIslandWindow effectWindow;
     IslandSurfaceAnchor effectAnchor;
     GridPlayground effectGround;
+    // Authored magnets often have no anchor.ground. The owning window binds
+    // directly, including imported layouts and pieces restored from a save.
+    internal void BindEffectWindow(FiveIslandWindow window){effectWindow=window;effectGround=window?window.board:null;}
     public bool NeedsDynamicEffects {
         get {
+            if(effectWindow)return effectWindow.NeedsDynamicEffects(transform.position);
             if(!effectAnchor)effectAnchor=GetComponent<IslandSurfaceAnchor>();
             var ground=effectAnchor?effectAnchor.ground:null;
             if(effectGround!=ground||(!effectWindow&&ground)){

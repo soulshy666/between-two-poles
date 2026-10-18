@@ -11,6 +11,7 @@ public sealed partial class GridPlayground {
         public float seconds;public Vector3 point,direction;public MaterialPropertyBlock block;
     }
     readonly List<MagnetContactSpark> contactSparks=new List<MagnetContactSpark>();
+    const int ContactSparkPoolLimit=4;
     void AssemblyContact(MagnetPiece incoming,MagnetPiece receiver){
         var a=AssemblyBounds(AssemblyBodies(incoming.geometry));
         var b=AssemblyBounds(AssemblyBodies(receiver.geometry));
@@ -38,7 +39,15 @@ public sealed partial class GridPlayground {
                 if(camera.board==this)camera.PlayMergeShake(contact.direction,cellSize);
         }
         contactSparks.RemoveAll(effect=>!effect);
-        contactSparks.Add(MagnetContactSpark.Spawn(contact.point,contact.block));
+        int pooled=0;
+        foreach(var effect in contactSparks){
+            if(!effect.Reusable)continue;
+            pooled++;
+            if(!effect.gameObject.activeSelf){effect.Play(contact.point,contact.block);return;}
+        }
+        // Keep a small idle pool. Overlapping bursts beyond the cap still play,
+        // but release themselves instead of permanently growing the pool.
+        contactSparks.Add(MagnetContactSpark.Spawn(contact.point,contact.block,transform,pooled<ContactSparkPoolLimit));
     }
     struct PushFrame {
         public Vector3 position,scale; public Quaternion rotation;
@@ -145,8 +154,8 @@ public sealed partial class GridPlayground {
         liveRings.Clear();
         RestoreMagnetHover(null);barRocks.Clear();
         foreach(var presentation in pushPresentations.ToArray())RemovePushPresentation(presentation);
-        foreach(var effect in contactSparks)if(effect){effect.gameObject.SetActive(false);Destroy(effect.gameObject);}
-        contactSparks.Clear();
+        foreach(var effect in contactSparks)if(effect)effect.Stop();
+        contactSparks.RemoveAll(effect=>!effect||!effect.Reusable);
         foreach(var camera in FindObjectsOfType<IslandCamera>())
             if(camera.board==this)camera.CancelMergeShake();
     }

@@ -79,7 +79,7 @@ public sealed partial class PlayerPushPose:MonoBehaviour {
         if(!flowPushing)return;
         flowReleaseSeconds=Mathf.Max(.01f,seconds);flowReleaseRequested=true;
     }
-    public void AdvanceFlowPush(float distance,float seconds,float progress=0){
+    public void AdvanceFlowPush(float distance,float seconds,float progress=0,bool applyVisual=true){
         flowDistance+=distance;
         flowEffort=Mathf.MoveTowards(flowEffort,1,seconds/.07f);
         float stride=Mathf.Sin(flowDistance/flowCellSize*Mathf.PI);
@@ -102,7 +102,9 @@ public sealed partial class PlayerPushPose:MonoBehaviour {
         // Cross-fade from the actual last stance, including when a quick tap
         // changes a flat bar into an upright bar on the very next grid step.
         flowStance=FlowStance.Blend(flowStartStance,target,Mathf.SmoothStep(0,1,p/.24f));
-        ApplyFlowStance(flowStance,1);
+        // Catch-up recording needs the final stance, but does not record actor
+        // mesh vertices. Keep all state updates and upload only visible poses.
+        if(applyVisual)ApplyFlowStance(flowStance,1);
     }
     void ApplyFlowStance(FlowStance stance,float weight){
         if(!visual)return;

@@ -53,7 +53,7 @@ public static class MagnetVisuals {
         if(north)red=m;else blue=m;return m;
     }
     static Transform Group(Transform parent,string name){var g=new GameObject(name);g.transform.SetParent(parent,false);return g.transform;}
-    static Mesh PrimitiveMesh(PrimitiveType type){
+    internal static Mesh PrimitiveMesh(PrimitiveType type){
         var mesh=type==PrimitiveType.Cube?cubeMesh:cylinderMesh;if(mesh)return mesh;
         // Obtain Unity's exact built-in mesh once, without keeping a physics object.
         var sample=GameObject.CreatePrimitive(type);sample.SetActive(false);
