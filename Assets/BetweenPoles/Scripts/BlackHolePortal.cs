@@ -87,7 +87,7 @@ public sealed class BlackHolePortal : MonoBehaviour {
     }
     void Update(){
         if(!Application.isPlaying||!board||!tile||!board.player)return;
-        var panel=board.GetComponent<MagnetDebugPanel>();if(panel&&panel.IsOpen)return;
+        if(board.TryGetComponent<MagnetDebugPanel>(out var panel)&&panel.IsOpen)return;
         // A new arrival must leave the cell before it can activate again.
         if(board.Busy||!board.enabled)return;
         if(board.PlayerCell!=Cell){lastOutside=board.PlayerCell;armed=true;return;}

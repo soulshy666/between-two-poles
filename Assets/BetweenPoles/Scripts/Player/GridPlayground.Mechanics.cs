@@ -825,7 +825,8 @@ public sealed partial class GridPlayground {
         TickKnockedMagnets();
         foreach(var m in magnets){if(!m||!m.enabled||!m.gameObject.activeInHierarchy)continue;
             bool active=m.product==MagnetProduct.Lift||(m.product==MagnetProduct.Cross&&RotorActive(m));
-            var flow=m.GetComponent<MagnetFlow>();if(active&&!flow)flow=m.gameObject.AddComponent<MagnetFlow>();
+            // Most pieces have no flow component; a failed GetComponent allocates in the Editor.
+            m.TryGetComponent<MagnetFlow>(out var flow);if(active&&!flow)flow=m.gameObject.AddComponent<MagnetFlow>();
             if(flow){flow.height=LayerHeight*(m.product==MagnetProduct.Cross?2:1);flow.active=active;}
             if(active&&m.product==MagnetProduct.Cross&&!Busy)m.geometry.Rotate(Vector3.up,MovementDeltaTime*60,Space.World);
         }
