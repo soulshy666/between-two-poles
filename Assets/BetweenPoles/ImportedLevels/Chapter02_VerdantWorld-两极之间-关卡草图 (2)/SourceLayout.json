@@ -1,0 +1,3879 @@
+{
+  "schemaVersion": 1,
+  "cellPixels": 40,
+  "roomW": 5,
+  "roomH": 5,
+  "originId": "muzb4fp7gmlk5",
+  "rooms": [
+    {
+      "id": "muzb4fp7gmlk5",
+      "name": "(0, 0)",
+      "roomNumber": 1,
+      "x": 0,
+      "y": 0,
+      "w": 7,
+      "h": 6,
+      "cells": {
+        "1,3": true,
+        "2,1": true,
+        "2,2": true,
+        "2,3": true,
+        "3,1": true,
+        "3,2": true,
+        "3,3": true,
+        "4,1": true,
+        "4,2": true,
+        "4,3": true,
+        "5,2": true,
+        "5,3": true,
+        "0,3": true,
+        "5,1": true,
+        "5,0": true,
+        "4,0": true,
+        "3,0": true,
+        "2,0": true,
+        "6,1": true,
+        "1,4": true,
+        "0,4": true,
+        "2,4": true,
+        "3,4": true,
+        "5,4": true,
+        "4,4": true,
+        "2,5": true,
+        "3,5": true,
+        "4,5": true,
+        "5,5": true,
+        "1,2": true
+      }
+    },
+    {
+      "id": "mv0lptprfar38",
+      "name": "(2, 2)",
+      "roomNumber": 2,
+      "x": 80,
+      "y": 320,
+      "w": 5,
+      "h": 5,
+      "cells": {
+        "0,1": true,
+        "0,3": true,
+        "1,1": true,
+        "1,3": true,
+        "2,1": true,
+        "2,3": true,
+        "3,0": true,
+        "3,3": true,
+        "4,1": true,
+        "4,2": true,
+        "4,3": true,
+        "3,1": true,
+        "0,0": true,
+        "1,0": true,
+        "2,0": true,
+        "4,4": true,
+        "3,4": true,
+        "2,4": true,
+        "1,4": true,
+        "0,4": true
+      }
+    },
+    {
+      "id": "mv0o6wm28f2mq",
+      "name": "(3, 1)",
+      "roomNumber": 3,
+      "x": 320,
+      "y": 320,
+      "w": 6,
+      "h": 5,
+      "cells": {
+        "0,1": true,
+        "1,1": true,
+        "1,2": true,
+        "1,3": true,
+        "2,1": true,
+        "2,2": true,
+        "2,3": true,
+        "3,1": true,
+        "3,2": true,
+        "3,3": true,
+        "4,1": true,
+        "4,2": true,
+        "4,3": true,
+        "4,0": true,
+        "5,0": true,
+        "5,1": true,
+        "5,2": true,
+        "3,0": true,
+        "1,4": true,
+        "2,4": true,
+        "3,4": true,
+        "4,4": true
+      }
+    },
+    {
+      "id": "mv221u9sspr5z",
+      "name": "(3, 3)",
+      "roomNumber": 4,
+      "x": 480,
+      "y": 560,
+      "w": 5,
+      "h": 3,
+      "cells": {
+        "0,1": true,
+        "1,1": true,
+        "2,0": true,
+        "2,1": true,
+        "3,1": true,
+        "4,0": true,
+        "0,2": true,
+        "1,2": true,
+        "2,2": true,
+        "3,2": true
+      }
+    },
+    {
+      "id": "mv228t318jsqu",
+      "name": "(5, 4)",
+      "roomNumber": 5,
+      "x": 720,
+      "y": 560,
+      "w": 4,
+      "h": 6,
+      "cells": {
+        "0,0": true,
+        "0,1": true,
+        "0,2": true,
+        "1,0": true,
+        "1,1": true,
+        "1,2": true,
+        "1,3": true,
+        "1,4": true,
+        "2,0": true,
+        "2,1": true,
+        "2,2": true,
+        "2,3": true,
+        "2,4": true,
+        "0,5": true,
+        "2,5": true,
+        "3,2": true,
+        "3,1": true,
+        "3,0": true
+      }
+    },
+    {
+      "id": "mv22cmtccn8l5",
+      "name": "(3, 3)",
+      "roomNumber": 6,
+      "x": 480,
+      "y": 720,
+      "w": 5,
+      "h": 5,
+      "cells": {
+        "0,1": true,
+        "0,2": true,
+        "0,3": true,
+        "0,4": true,
+        "1,0": true,
+        "1,1": true,
+        "1,2": true,
+        "1,3": true,
+        "1,4": true,
+        "2,0": true,
+        "2,1": true,
+        "2,2": true,
+        "2,3": true,
+        "2,4": true,
+        "3,0": true,
+        "3,1": true,
+        "3,2": true,
+        "3,3": true,
+        "4,0": true,
+        "4,1": true,
+        "4,2": true,
+        "4,3": true
+      }
+    },
+    {
+      "id": "mv0mjiii141z8",
+      "name": "(1, 2)",
+      "roomNumber": 7,
+      "x": 440,
+      "y": 1000,
+      "w": 5,
+      "h": 7,
+      "cells": {
+        "0,1": true,
+        "0,2": true,
+        "0,3": true,
+        "0,5": true,
+        "1,1": true,
+        "1,2": true,
+        "1,3": true,
+        "1,4": true,
+        "1,5": true,
+        "2,1": true,
+        "2,2": true,
+        "2,3": true,
+        "2,4": true,
+        "2,5": true,
+        "3,2": true,
+        "3,3": true,
+        "3,4": true,
+        "3,5": true,
+        "2,0": true,
+        "4,2": true,
+        "4,0": true,
+        "4,1": true,
+        "3,1": true,
+        "0,4": true,
+        "0,6": true,
+        "1,6": true,
+        "2,6": true
+      }
+    },
+    {
+      "id": "mv3rc4ng9muvh",
+      "name": "(5, 8)",
+      "roomNumber": 8,
+      "x": 440,
+      "y": 1360,
+      "w": 5,
+      "h": 5,
+      "cells": {
+        "0,2": true,
+        "0,3": true,
+        "0,4": true,
+        "1,4": true,
+        "2,4": true,
+        "3,2": true,
+        "3,3": true,
+        "3,4": true,
+        "4,2": true,
+        "4,3": true,
+        "4,4": true,
+        "1,3": true,
+        "1,2": true,
+        "0,1": true,
+        "1,1": true,
+        "2,1": true,
+        "3,1": true,
+        "4,1": true,
+        "0,0": true,
+        "1,0": true,
+        "2,0": true,
+        "3,0": true,
+        "4,0": true
+      }
+    },
+    {
+      "id": "mv3reiyu8dgpc",
+      "name": "(4, 10)",
+      "roomNumber": 9,
+      "x": 440,
+      "y": 1600,
+      "w": 4,
+      "h": 5,
+      "cells": {
+        "0,1": true,
+        "0,2": true,
+        "0,3": true,
+        "0,4": true,
+        "1,0": true,
+        "1,1": true,
+        "1,2": true,
+        "1,3": true,
+        "1,4": true,
+        "2,0": true,
+        "2,1": true,
+        "3,0": true,
+        "2,2": true,
+        "2,3": true
+      }
+    },
+    {
+      "id": "mv0nf9ixrggv4",
+      "name": "(0, 3)",
+      "roomNumber": 10,
+      "x": 400,
+      "y": 1880,
+      "w": 8,
+      "h": 4,
+      "cells": {
+        "0,1": true,
+        "0,2": true,
+        "0,3": true,
+        "1,0": true,
+        "1,1": true,
+        "1,2": true,
+        "1,3": true,
+        "2,2": true,
+        "2,3": true,
+        "3,2": true,
+        "4,2": true,
+        "4,3": true,
+        "5,1": true,
+        "5,2": true,
+        "5,3": true,
+        "6,1": true,
+        "6,2": true,
+        "6,3": true,
+        "3,0": true,
+        "5,0": true,
+        "0,0": true,
+        "6,0": true,
+        "4,0": true,
+        "4,1": true,
+        "3,1": true,
+        "3,3": true,
+        "7,3": true,
+        "7,2": true,
+        "7,1": true,
+        "7,0": true
+      }
+    },
+    {
+      "id": "mv1si3qs35eo6",
+      "name": "(-3, 2)",
+      "roomNumber": 11,
+      "x": -160,
+      "y": 1840,
+      "w": 4,
+      "h": 5,
+      "cells": {
+        "0,0": true,
+        "0,1": true,
+        "0,2": true,
+        "0,3": true,
+        "0,4": true,
+        "1,1": true,
+        "1,2": true,
+        "1,3": true,
+        "1,4": true,
+        "2,1": true,
+        "2,2": true,
+        "2,3": true,
+        "2,4": true,
+        "3,1": true,
+        "3,2": true,
+        "3,3": true,
+        "3,4": true,
+        "1,0": true
+      }
+    },
+    {
+      "id": "mv1ufokdn73hm",
+      "name": "(-4, 4)",
+      "roomNumber": 12,
+      "x": -160,
+      "y": 1480,
+      "w": 4,
+      "h": 7,
+      "cells": {
+        "0,1": true,
+        "1,1": true,
+        "2,1": true,
+        "3,1": true,
+        "3,0": true,
+        "2,0": true,
+        "1,0": true,
+        "3,2": true,
+        "2,2": true,
+        "1,2": true,
+        "0,2": true,
+        "0,3": true,
+        "1,3": true,
+        "2,3": true,
+        "3,3": true,
+        "3,4": true,
+        "3,5": true,
+        "2,5": true,
+        "1,5": true,
+        "0,5": true,
+        "0,6": true,
+        "1,6": true,
+        "2,6": true,
+        "3,6": true
+      }
+    },
+    {
+      "id": "mv5dilba54kz0",
+      "name": "(0, 7)",
+      "roomNumber": 13,
+      "x": 40,
+      "y": 1600,
+      "w": 5,
+      "h": 5,
+      "cells": {
+        "0,2": true,
+        "1,1": true,
+        "1,2": true,
+        "2,1": true,
+        "2,2": true,
+        "2,3": true,
+        "2,4": true,
+        "3,1": true,
+        "3,2": true,
+        "3,3": true,
+        "3,4": true,
+        "4,2": true,
+        "4,3": true,
+        "2,0": true
+      }
+    },
+    {
+      "id": "mv58wcpg4pctg",
+      "name": "(0, 8)",
+      "roomNumber": 14,
+      "x": -360,
+      "y": 1440,
+      "w": 4,
+      "h": 5,
+      "cells": {
+        "0,2": true,
+        "0,3": true,
+        "0,4": true,
+        "1,1": true,
+        "1,2": true,
+        "1,3": true,
+        "1,4": true,
+        "2,1": true,
+        "2,2": true,
+        "2,3": true,
+        "2,4": true,
+        "3,2": true,
+        "3,3": true,
+        "3,4": true,
+        "0,1": true,
+        "0,0": true,
+        "1,0": true,
+        "2,0": true,
+        "3,1": true,
+        "3,0": true
+      }
+    },
+    {
+      "id": "mv58yoc494mdj",
+      "name": "(1, 7)",
+      "roomNumber": 15,
+      "x": 40,
+      "y": 1360,
+      "w": 4,
+      "h": 5,
+      "cells": {
+        "0,1": true,
+        "0,2": true,
+        "0,3": true,
+        "0,4": true,
+        "1,1": true,
+        "1,2": true,
+        "1,3": true,
+        "1,4": true,
+        "2,1": true,
+        "2,2": true,
+        "2,3": true,
+        "2,4": true,
+        "3,0": true,
+        "3,1": true,
+        "3,2": true,
+        "3,3": true
+      }
+    },
+    {
+      "id": "mv590pjc236sl",
+      "name": "(3, 7)",
+      "roomNumber": 16,
+      "x": 240,
+      "y": 1280,
+      "w": 4,
+      "h": 5,
+      "cells": {
+        "0,1": true,
+        "0,2": true,
+        "0,3": true,
+        "0,4": true,
+        "1,0": true,
+        "1,1": true,
+        "1,2": true,
+        "1,3": true,
+        "1,4": true,
+        "2,0": true,
+        "2,1": true,
+        "2,2": true,
+        "2,3": true,
+        "2,4": true,
+        "3,1": true,
+        "3,2": true,
+        "3,3": true,
+        "3,4": true
+      }
+    },
+    {
+      "id": "mv3q5ffuqwmp2",
+      "name": "(-1, 1)",
+      "roomNumber": 17,
+      "x": -400,
+      "y": 40,
+      "w": 10,
+      "h": 1,
+      "cells": {
+        "0,0": true,
+        "1,0": true,
+        "2,0": true,
+        "3,0": true,
+        "4,0": true,
+        "5,0": true,
+        "6,0": true,
+        "7,0": true,
+        "8,0": true,
+        "9,0": true
+      }
+    },
+    {
+      "id": "muzb662ruucgg",
+      "name": "(0, 0)",
+      "roomNumber": 18,
+      "x": -720,
+      "y": -40,
+      "w": 7,
+      "h": 3,
+      "cells": {
+        "2,1": true,
+        "2,2": true,
+        "3,1": true,
+        "3,2": true,
+        "4,1": true,
+        "4,2": true,
+        "5,1": true,
+        "5,2": true,
+        "1,1": true,
+        "1,2": true,
+        "3,0": true,
+        "4,0": true,
+        "6,2": true,
+        "6,1": true,
+        "0,1": true,
+        "0,2": true,
+        "2,0": true,
+        "0,0": true,
+        "1,0": true
+      }
+    },
+    {
+      "id": "mv3qjzy1vmcfl",
+      "name": "(-5, 0)",
+      "roomNumber": 19,
+      "x": -920,
+      "y": -40,
+      "w": 4,
+      "h": 1,
+      "cells": {
+        "0,0": true,
+        "1,0": true,
+        "2,0": true,
+        "3,0": true
+      }
+    },
+    {
+      "id": "mv3qk71w8022m",
+      "name": "(-5, 0)",
+      "roomNumber": 20,
+      "x": -920,
+      "y": 40,
+      "w": 4,
+      "h": 1,
+      "cells": {
+        "0,0": true,
+        "1,0": true,
+        "2,0": true,
+        "3,0": true
+      }
+    },
+    {
+      "id": "mv3q7rc78fkqo",
+      "name": "(-2, 1)",
+      "roomNumber": 21,
+      "x": -1160,
+      "y": -40,
+      "w": 5,
+      "h": 4,
+      "cells": {
+        "0,2": true,
+        "0,3": true,
+        "1,2": true,
+        "1,3": true,
+        "2,0": true,
+        "2,1": true,
+        "2,2": true,
+        "2,3": true,
+        "3,0": true,
+        "3,1": true,
+        "3,2": true,
+        "3,3": true,
+        "4,1": true,
+        "4,2": true,
+        "4,0": true,
+        "1,1": true
+      }
+    },
+    {
+      "id": "mv0wd5hyppx7d",
+      "name": "(-1, 0)",
+      "roomNumber": 22,
+      "x": -1400,
+      "y": -80,
+      "w": 5,
+      "h": 6,
+      "cells": {
+        "0,1": true,
+        "0,2": true,
+        "0,4": true,
+        "1,1": true,
+        "1,2": true,
+        "1,4": true,
+        "2,0": true,
+        "2,1": true,
+        "2,2": true,
+        "2,4": true,
+        "3,0": true,
+        "3,1": true,
+        "3,2": true,
+        "3,4": true,
+        "4,0": true,
+        "4,1": true,
+        "4,2": true,
+        "4,3": true,
+        "4,4": true,
+        "0,5": true,
+        "1,5": true,
+        "2,5": true,
+        "4,5": true,
+        "3,5": true,
+        "0,3": true
+      }
+    },
+    {
+      "id": "mv1roghwam60s",
+      "name": "(-2, 2)",
+      "roomNumber": 23,
+      "x": -1440,
+      "y": 200,
+      "w": 5,
+      "h": 4,
+      "cells": {
+        "0,1": true,
+        "0,2": true,
+        "1,1": true,
+        "1,2": true,
+        "1,3": true,
+        "2,1": true,
+        "2,2": true,
+        "2,3": true,
+        "3,1": true,
+        "3,2": true,
+        "3,3": true,
+        "4,1": true,
+        "4,2": true,
+        "4,0": true,
+        "3,0": true
+      }
+    },
+    {
+      "id": "mv1rzz4hyu0nx",
+      "name": "(-4, 2)",
+      "roomNumber": 24,
+      "x": -1200,
+      "y": 200,
+      "w": 5,
+      "h": 5,
+      "cells": {
+        "0,1": true,
+        "0,2": true,
+        "0,3": true,
+        "1,0": true,
+        "1,1": true,
+        "1,2": true,
+        "1,3": true,
+        "1,4": true,
+        "2,0": true,
+        "2,1": true,
+        "2,2": true,
+        "2,3": true,
+        "2,4": true,
+        "3,1": true,
+        "3,2": true,
+        "3,3": true,
+        "4,1": true,
+        "4,2": true,
+        "4,3": true
+      }
+    },
+    {
+      "id": "mv1qrrnep2643",
+      "name": "(-2, 1)",
+      "roomNumber": 25,
+      "x": -1480,
+      "y": 400,
+      "w": 6,
+      "h": 3,
+      "cells": {
+        "2,0": true,
+        "2,1": true,
+        "3,0": true,
+        "4,0": true,
+        "5,0": true,
+        "5,1": true,
+        "1,1": true,
+        "1,2": true,
+        "3,1": true,
+        "4,1": true,
+        "4,2": true,
+        "3,2": true,
+        "2,2": true,
+        "0,1": true
+      }
+    },
+    {
+      "id": "mv1s11vlpygpg",
+      "name": "(-3, 2)",
+      "roomNumber": 26,
+      "x": -1440,
+      "y": 560,
+      "w": 5,
+      "h": 5,
+      "cells": {
+        "0,1": true,
+        "0,2": true,
+        "0,3": true,
+        "1,1": true,
+        "1,2": true,
+        "1,3": true,
+        "1,4": true,
+        "2,0": true,
+        "2,1": true,
+        "2,2": true,
+        "2,3": true,
+        "2,4": true,
+        "3,0": true,
+        "3,1": true,
+        "3,2": true,
+        "3,3": true,
+        "3,4": true,
+        "4,1": true,
+        "4,2": true,
+        "4,3": true
+      }
+    },
+    {
+      "id": "mv3r4lv1mew2f",
+      "name": "(-7, 2)",
+      "roomNumber": 27,
+      "x": -1680,
+      "y": 160,
+      "w": 5,
+      "h": 8,
+      "cells": {
+        "0,1": true,
+        "0,2": true,
+        "0,3": true,
+        "0,4": true,
+        "1,1": true,
+        "1,2": true,
+        "1,3": true,
+        "1,4": true,
+        "2,0": true,
+        "2,1": true,
+        "2,2": true,
+        "2,3": true,
+        "3,0": true,
+        "3,1": true,
+        "3,2": true,
+        "3,3": true,
+        "4,1": true,
+        "4,2": true,
+        "4,3": true,
+        "3,4": true,
+        "3,6": true,
+        "3,5": true,
+        "2,4": true,
+        "2,5": true,
+        "2,6": true,
+        "2,7": true,
+        "3,7": true
+      }
+    },
+    {
+      "id": "mv1te7zqpmtlh",
+      "name": "(-5, 1)",
+      "roomNumber": 28,
+      "x": -1880,
+      "y": 80,
+      "w": 3,
+      "h": 4,
+      "cells": {
+        "0,1": true,
+        "0,2": true,
+        "1,1": true,
+        "1,2": true,
+        "2,1": true,
+        "2,2": true,
+        "1,0": true,
+        "0,0": true,
+        "1,3": true,
+        "2,3": true,
+        "0,3": true
+      }
+    },
+    {
+      "id": "mv1sfta0d8zx8",
+      "name": "(-4, 2)",
+      "roomNumber": 29,
+      "x": -2080,
+      "y": 280,
+      "w": 9,
+      "h": 3,
+      "cells": {
+        "2,0": true,
+        "3,0": true,
+        "3,1": true,
+        "4,1": true,
+        "5,1": true,
+        "6,1": true,
+        "6,0": true,
+        "5,0": true,
+        "0,0": true,
+        "1,0": true,
+        "0,1": true,
+        "1,1": true,
+        "3,2": true,
+        "7,0": true,
+        "7,1": true,
+        "8,0": true,
+        "8,1": true
+      }
+    },
+    {
+      "id": "mv1ust1by276u",
+      "name": "(-3, 3)",
+      "roomNumber": 30,
+      "x": -1840,
+      "y": 400,
+      "w": 4,
+      "h": 6,
+      "cells": {
+        "1,2": true,
+        "1,3": true,
+        "1,4": true,
+        "2,1": true,
+        "2,2": true,
+        "2,3": true,
+        "2,4": true,
+        "2,5": true,
+        "3,1": true,
+        "3,2": true,
+        "3,3": true,
+        "3,4": true,
+        "3,5": true,
+        "0,4": true,
+        "0,5": true,
+        "1,5": true,
+        "1,1": true,
+        "1,0": true,
+        "2,0": true,
+        "3,0": true
+      }
+    },
+    {
+      "id": "mv5dw54h82rip",
+      "name": "(-7, 2)",
+      "roomNumber": 31,
+      "x": -2200,
+      "y": 400,
+      "w": 9,
+      "h": 4,
+      "cells": {
+        "2,1": true,
+        "2,2": true,
+        "3,1": true,
+        "3,2": true,
+        "4,1": true,
+        "4,2": true,
+        "5,1": true,
+        "5,2": true,
+        "6,1": true,
+        "6,2": true,
+        "2,3": true,
+        "3,3": true,
+        "4,3": true,
+        "5,3": true,
+        "6,3": true,
+        "7,3": true,
+        "8,3": true,
+        "7,2": true,
+        "1,0": true,
+        "0,0": true,
+        "1,1": true,
+        "1,2": true
+      }
+    },
+    {
+      "id": "mv5cadbhjyu19",
+      "name": "(-10, 2)",
+      "roomNumber": 32,
+      "x": -2240,
+      "y": 80,
+      "w": 4,
+      "h": 4,
+      "cells": {
+        "2,1": true,
+        "2,2": true,
+        "2,3": true,
+        "1,0": true,
+        "1,1": true,
+        "1,2": true,
+        "1,3": true,
+        "0,1": true,
+        "0,2": true,
+        "0,0": true,
+        "0,3": true,
+        "2,0": true,
+        "3,1": true,
+        "3,2": true
+      }
+    },
+    {
+      "id": "mv5cle7xdrymh",
+      "name": "(-8, 1)",
+      "roomNumber": 33,
+      "x": -2440,
+      "y": 280,
+      "w": 7,
+      "h": 3,
+      "cells": {
+        "3,1": true,
+        "4,1": true,
+        "5,1": true,
+        "1,1": true,
+        "0,1": true,
+        "3,0": true,
+        "6,1": true,
+        "2,0": true,
+        "1,0": true,
+        "0,0": true,
+        "3,2": true,
+        "5,0": true,
+        "6,0": true
+      }
+    },
+    {
+      "id": "mv5ds091afwbc",
+      "name": "(-10, 2)",
+      "roomNumber": 34,
+      "x": -2320,
+      "y": 440,
+      "w": 3,
+      "h": 2,
+      "cells": {
+        "0,0": true,
+        "0,1": true,
+        "1,0": true,
+        "1,1": true,
+        "2,0": true,
+        "2,1": true
+      }
+    },
+    {
+      "id": "mv5dmxg4g7lte",
+      "name": "(-9, 1)",
+      "roomNumber": 35,
+      "x": -2320,
+      "y": -160,
+      "w": 5,
+      "h": 5,
+      "cells": {
+        "0,1": true,
+        "0,2": true,
+        "0,3": true,
+        "1,0": true,
+        "1,1": true,
+        "1,2": true,
+        "1,3": true,
+        "1,4": true,
+        "2,0": true,
+        "2,1": true,
+        "2,2": true,
+        "2,3": true,
+        "2,4": true,
+        "3,0": true,
+        "3,1": true,
+        "3,2": true,
+        "3,3": true,
+        "3,4": true,
+        "4,1": true,
+        "4,2": true,
+        "4,3": true
+      }
+    },
+    {
+      "id": "mv1vg8vkho4jp",
+      "name": "(-7, 3)",
+      "roomNumber": 36,
+      "x": -2080,
+      "y": 600,
+      "w": 5,
+      "h": 6,
+      "cells": {
+        "0,2": true,
+        "0,3": true,
+        "0,4": true,
+        "0,5": true,
+        "1,1": true,
+        "1,2": true,
+        "1,3": true,
+        "1,4": true,
+        "1,5": true,
+        "2,1": true,
+        "2,2": true,
+        "2,3": true,
+        "2,4": true,
+        "2,5": true,
+        "3,1": true,
+        "3,2": true,
+        "3,3": true,
+        "3,4": true,
+        "3,5": true,
+        "4,1": true,
+        "4,2": true,
+        "4,3": true,
+        "4,4": true,
+        "3,0": true,
+        "2,0": true,
+        "1,0": true,
+        "4,0": true
+      }
+    },
+    {
+      "id": "mv202ix1xlw2y",
+      "name": "(-5, 5)",
+      "roomNumber": 37,
+      "x": -2320,
+      "y": 640,
+      "w": 5,
+      "h": 6,
+      "cells": {
+        "0,3": true,
+        "0,4": true,
+        "0,5": true,
+        "1,1": true,
+        "1,2": true,
+        "1,3": true,
+        "1,4": true,
+        "1,5": true,
+        "2,1": true,
+        "2,2": true,
+        "2,3": true,
+        "2,4": true,
+        "2,5": true,
+        "3,1": true,
+        "3,2": true,
+        "3,3": true,
+        "3,4": true,
+        "4,1": true,
+        "4,2": true,
+        "4,3": true,
+        "4,4": true,
+        "0,2": true,
+        "3,5": true,
+        "2,0": true,
+        "3,0": true,
+        "1,0": true,
+        "4,0": true
+      }
+    },
+    {
+      "id": "mv20879x7onps",
+      "name": "(-8, 5)",
+      "roomNumber": 38,
+      "x": -2560,
+      "y": 760,
+      "w": 5,
+      "h": 6,
+      "cells": {
+        "0,2": true,
+        "0,3": true,
+        "0,4": true,
+        "1,2": true,
+        "1,3": true,
+        "1,4": true,
+        "2,2": true,
+        "2,3": true,
+        "2,4": true,
+        "3,2": true,
+        "3,3": true,
+        "3,4": true,
+        "4,2": true,
+        "4,3": true,
+        "4,4": true,
+        "3,5": true,
+        "2,5": true,
+        "1,5": true,
+        "0,5": true,
+        "1,1": true,
+        "2,1": true,
+        "3,1": true,
+        "0,1": true,
+        "1,0": true,
+        "0,0": true
+      }
+    },
+    {
+      "id": "mv20o9o6ipp2q",
+      "name": "(0, 5)",
+      "roomNumber": 39,
+      "x": -2640,
+      "y": 1040,
+      "w": 5,
+      "h": 6,
+      "cells": {
+        "1,1": true,
+        "1,2": true,
+        "1,3": true,
+        "1,4": true,
+        "2,0": true,
+        "2,1": true,
+        "2,2": true,
+        "2,3": true,
+        "2,4": true,
+        "3,0": true,
+        "3,1": true,
+        "3,2": true,
+        "3,3": true,
+        "3,4": true,
+        "4,0": true,
+        "4,1": true,
+        "4,2": true,
+        "4,3": true,
+        "4,4": true,
+        "0,4": true,
+        "0,1": true,
+        "1,5": true,
+        "0,5": true,
+        "2,5": true,
+        "3,5": true,
+        "4,5": true,
+        "0,2": true
+      }
+    },
+    {
+      "id": "mv21mihddpzg6",
+      "name": "(-8, 6)",
+      "roomNumber": 40,
+      "x": -2400,
+      "y": 1040,
+      "w": 5,
+      "h": 7,
+      "cells": {
+        "0,1": true,
+        "0,2": true,
+        "0,4": true,
+        "1,1": true,
+        "1,2": true,
+        "1,3": true,
+        "1,4": true,
+        "2,0": true,
+        "2,1": true,
+        "2,2": true,
+        "2,3": true,
+        "2,4": true,
+        "3,0": true,
+        "3,1": true,
+        "3,2": true,
+        "3,3": true,
+        "3,4": true,
+        "4,0": true,
+        "4,1": true,
+        "4,2": true,
+        "4,3": true,
+        "4,4": true,
+        "0,5": true,
+        "1,5": true,
+        "2,5": true,
+        "3,5": true,
+        "4,5": true,
+        "0,3": true,
+        "0,6": true,
+        "1,6": true,
+        "2,6": true,
+        "3,6": true,
+        "4,6": true
+      }
+    },
+    {
+      "id": "mv3rnznx30ue5",
+      "name": "(-8, 4)",
+      "roomNumber": 41,
+      "x": -2160,
+      "y": 1080,
+      "w": 5,
+      "h": 1,
+      "cells": {
+        "0,0": true,
+        "1,0": true,
+        "2,0": true,
+        "3,0": true,
+        "4,0": true
+      }
+    },
+    {
+      "id": "mv22ivhmtehi4",
+      "name": "(-8, 6)",
+      "roomNumber": 42,
+      "x": -1920,
+      "y": 1080,
+      "w": 5,
+      "h": 1,
+      "cells": {
+        "0,0": true,
+        "1,0": true,
+        "2,0": true,
+        "3,0": true,
+        "4,0": true
+      }
+    },
+    {
+      "id": "mv4ns0eb53mce",
+      "name": "(-8, 6)",
+      "roomNumber": 43,
+      "x": -1680,
+      "y": 960,
+      "w": 6,
+      "h": 5,
+      "cells": {
+        "2,1": true,
+        "2,2": true,
+        "2,3": true,
+        "3,1": true,
+        "3,2": true,
+        "3,3": true,
+        "4,1": true,
+        "4,2": true,
+        "4,3": true,
+        "5,1": true,
+        "5,2": true,
+        "5,3": true,
+        "5,0": true,
+        "4,0": true,
+        "3,0": true,
+        "2,0": true,
+        "1,0": true,
+        "1,1": true,
+        "1,2": true,
+        "2,4": true,
+        "3,4": true,
+        "4,4": true,
+        "5,4": true,
+        "1,3": true,
+        "1,4": true,
+        "0,2": true,
+        "0,3": true
+      }
+    },
+    {
+      "id": "mv4o60huxmmcm",
+      "name": "(-5, 6)",
+      "roomNumber": 44,
+      "x": -1640,
+      "y": 1200,
+      "w": 5,
+      "h": 3,
+      "cells": {
+        "0,1": true,
+        "1,1": true,
+        "1,2": true,
+        "2,1": true,
+        "2,2": true,
+        "3,0": true,
+        "3,1": true,
+        "3,2": true,
+        "4,0": true,
+        "4,1": true,
+        "2,0": true
+      }
+    },
+    {
+      "id": "mv4owsg52x6nw",
+      "name": "(-4, 5)",
+      "roomNumber": 45,
+      "x": -1640,
+      "y": 760,
+      "w": 4,
+      "h": 4,
+      "cells": {
+        "0,1": true,
+        "0,2": true,
+        "0,3": true,
+        "1,1": true,
+        "1,2": true,
+        "1,3": true,
+        "2,1": true,
+        "2,2": true,
+        "2,3": true,
+        "3,1": true,
+        "3,2": true,
+        "3,3": true,
+        "0,0": true,
+        "1,0": true,
+        "2,0": true,
+        "3,0": true
+      }
+    },
+    {
+      "id": "mv4o9ysvwkcms",
+      "name": "(-5, 5)",
+      "roomNumber": 46,
+      "x": -920,
+      "y": 760,
+      "w": 8,
+      "h": 6,
+      "cells": {
+        "2,1": true,
+        "2,2": true,
+        "2,3": true,
+        "2,4": true,
+        "3,1": true,
+        "3,2": true,
+        "3,3": true,
+        "3,4": true,
+        "4,1": true,
+        "4,2": true,
+        "4,3": true,
+        "4,4": true,
+        "5,1": true,
+        "5,2": true,
+        "6,1": true,
+        "6,2": true,
+        "6,3": true,
+        "7,3": true,
+        "7,1": true,
+        "7,2": true,
+        "3,0": true,
+        "2,0": true,
+        "1,0": true,
+        "1,1": true,
+        "1,2": true,
+        "1,3": true,
+        "1,4": true,
+        "0,1": true,
+        "0,2": true,
+        "3,5": true
+      }
+    },
+    {
+      "id": "mv4pgwmribhd1",
+      "name": "(-6, 5)",
+      "roomNumber": 47,
+      "x": -880,
+      "y": 1160,
+      "w": 5,
+      "h": 5,
+      "cells": {
+        "0,1": true,
+        "0,2": true,
+        "0,3": true,
+        "0,4": true,
+        "1,0": true,
+        "1,1": true,
+        "1,2": true,
+        "1,3": true,
+        "1,4": true,
+        "2,0": true,
+        "2,1": true,
+        "2,2": true,
+        "2,3": true,
+        "2,4": true,
+        "3,0": true,
+        "3,1": true,
+        "3,2": true,
+        "3,3": true,
+        "4,0": true,
+        "4,1": true,
+        "4,2": true,
+        "4,3": true
+      }
+    },
+    {
+      "id": "mv4p36q5v7gm9",
+      "name": "(-3, 3)",
+      "roomNumber": 48,
+      "x": -1200,
+      "y": 680,
+      "w": 5,
+      "h": 7,
+      "cells": {
+        "0,3": true,
+        "0,4": true,
+        "0,5": true,
+        "0,6": true,
+        "1,3": true,
+        "1,4": true,
+        "1,5": true,
+        "1,6": true,
+        "2,3": true,
+        "2,4": true,
+        "2,5": true,
+        "2,6": true,
+        "3,3": true,
+        "3,4": true,
+        "3,5": true,
+        "3,6": true,
+        "4,3": true,
+        "4,4": true,
+        "4,5": true,
+        "4,6": true,
+        "1,1": true,
+        "1,0": true,
+        "2,1": true
+      }
+    },
+    {
+      "id": "mv22u0g7xjjci",
+      "name": "(-5, 5)",
+      "roomNumber": 49,
+      "x": -1160,
+      "y": 480,
+      "w": 11,
+      "h": 5,
+      "cells": {
+        "3,0": true,
+        "3,1": true,
+        "3,2": true,
+        "4,0": true,
+        "4,1": true,
+        "5,0": true,
+        "5,1": true,
+        "6,0": true,
+        "6,1": true,
+        "7,0": true,
+        "7,2": true,
+        "8,0": true,
+        "8,1": true,
+        "8,2": true,
+        "8,3": true,
+        "7,1": true,
+        "8,4": true,
+        "9,2": true,
+        "9,3": true,
+        "9,4": true,
+        "10,4": true,
+        "10,3": true,
+        "10,2": true,
+        "10,1": true,
+        "10,0": true,
+        "9,0": true,
+        "9,1": true,
+        "2,2": true,
+        "2,1": true,
+        "2,0": true,
+        "1,2": true,
+        "1,1": true,
+        "1,0": true,
+        "0,0": true,
+        "0,1": true,
+        "0,2": true,
+        "1,3": true,
+        "2,3": true,
+        "0,3": true,
+        "4,2": true
+      }
+    },
+    {
+      "id": "mv23x7gdy8ho2",
+      "name": "(-4, 6)",
+      "roomNumber": 50,
+      "x": -680,
+      "y": 480,
+      "w": 11,
+      "h": 5,
+      "cells": {
+        "0,0": true,
+        "0,1": true,
+        "0,2": true,
+        "0,3": true,
+        "1,0": true,
+        "1,1": true,
+        "1,2": true,
+        "1,3": true,
+        "2,0": true,
+        "2,1": true,
+        "2,2": true,
+        "2,3": true,
+        "3,0": true,
+        "3,1": true,
+        "3,2": true,
+        "4,0": true,
+        "4,1": true,
+        "4,2": true,
+        "5,0": true,
+        "6,0": true,
+        "7,0": true,
+        "8,0": true,
+        "8,1": true,
+        "9,1": true,
+        "10,1": true,
+        "10,0": true,
+        "9,0": true,
+        "8,2": true,
+        "9,2": true,
+        "10,2": true,
+        "7,2": true,
+        "7,1": true,
+        "6,1": true,
+        "5,1": true,
+        "8,3": true,
+        "9,3": true,
+        "10,3": true,
+        "8,4": true,
+        "9,4": true,
+        "10,4": true,
+        "0,4": true
+      }
+    },
+    {
+      "id": "mv243oja6jm9j",
+      "name": "(0, 6)",
+      "roomNumber": 51,
+      "x": -200,
+      "y": 480,
+      "w": 5,
+      "h": 3,
+      "cells": {
+        "0,0": true,
+        "0,1": true,
+        "0,2": true,
+        "1,0": true,
+        "1,1": true,
+        "1,2": true,
+        "2,0": true,
+        "2,1": true,
+        "2,2": true,
+        "3,0": true,
+        "3,1": true,
+        "3,2": true,
+        "4,0": true,
+        "4,1": true,
+        "4,2": true
+      }
+    },
+    {
+      "id": "mv2458o1q5ltt",
+      "name": "(-1, 6)",
+      "roomNumber": 52,
+      "x": -200,
+      "y": 640,
+      "w": 4,
+      "h": 5,
+      "cells": {
+        "0,1": true,
+        "0,2": true,
+        "1,0": true,
+        "1,1": true,
+        "1,2": true,
+        "1,3": true,
+        "2,0": true,
+        "2,1": true,
+        "2,2": true,
+        "2,3": true,
+        "3,1": true,
+        "3,2": true,
+        "3,3": true,
+        "3,4": true,
+        "0,0": true,
+        "2,4": true
+      }
+    },
+    {
+      "id": "mvc5ue1tn8qip",
+      "name": "(-1, 7)",
+      "roomNumber": 53,
+      "x": -160,
+      "y": 1240,
+      "w": 4,
+      "h": 4,
+      "cells": {
+        "0,1": true,
+        "0,2": true,
+        "0,3": true,
+        "1,1": true,
+        "1,2": true,
+        "1,3": true,
+        "2,0": true,
+        "2,1": true,
+        "2,2": true,
+        "2,3": true,
+        "3,0": true,
+        "3,1": true,
+        "3,2": true,
+        "3,3": true
+      }
+    }
+  ],
+  "items": [
+    {
+      "id": "unity-rock-N-0-0",
+      "name": "石头",
+      "kind": "rock",
+      "color": "#85939d",
+      "w": 1,
+      "h": 1,
+      "magnet": {
+        "type": "rock",
+        "pole": "N",
+        "direction": "0"
+      },
+      "img": "data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%2740%27%20height%3D%2740%27%20viewBox%3D%270%200%2040%2040%27%3E%3Crect%20x%3D%278%27%20y%3D%276%27%20width%3D%2724%27%20height%3D%2728%27%20fill%3D%27%2385939d%27%2F%3E%3C%2Fsvg%3E"
+    },
+    {
+      "id": "unity-player-N-0-0",
+      "name": "出生点",
+      "kind": "player",
+      "color": "#e95261",
+      "w": 1,
+      "h": 1,
+      "img": "data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%2740%27%20height%3D%2740%27%20viewBox%3D%270%200%2040%2040%27%3E%3Crect%20x%3D%278%27%20y%3D%276%27%20width%3D%2724%27%20height%3D%2728%27%20fill%3D%27%23e95261%27%2F%3E%3C%2Fsvg%3E"
+    },
+    {
+      "id": "unity-bar-N-0-0",
+      "name": "N 长条",
+      "kind": "bar",
+      "color": "#e95261",
+      "w": 1,
+      "h": 1,
+      "magnet": {
+        "type": "bar",
+        "pole": "N",
+        "direction": "0"
+      },
+      "img": "data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%2740%27%20height%3D%2740%27%20viewBox%3D%270%200%2040%2040%27%3E%3Crect%20x%3D%278%27%20y%3D%276%27%20width%3D%2724%27%20height%3D%2728%27%20fill%3D%27%23e95261%27%2F%3E%3C%2Fsvg%3E"
+    },
+    {
+      "id": "unity-bar-N-90-0",
+      "name": "N 长条",
+      "kind": "bar",
+      "color": "#e95261",
+      "w": 1,
+      "h": 1,
+      "magnet": {
+        "type": "bar",
+        "pole": "N",
+        "direction": "90"
+      },
+      "img": "data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%2740%27%20height%3D%2740%27%20viewBox%3D%270%200%2040%2040%27%3E%3Crect%20x%3D%278%27%20y%3D%276%27%20width%3D%2724%27%20height%3D%2728%27%20fill%3D%27%23e95261%27%2F%3E%3C%2Fsvg%3E"
+    },
+    {
+      "id": "unity-bar-S-90-0",
+      "name": "S 长条",
+      "kind": "bar",
+      "color": "#499ed4",
+      "w": 1,
+      "h": 1,
+      "magnet": {
+        "type": "bar",
+        "pole": "S",
+        "direction": "90"
+      },
+      "img": "data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%2740%27%20height%3D%2740%27%20viewBox%3D%270%200%2040%2040%27%3E%3Crect%20x%3D%278%27%20y%3D%276%27%20width%3D%2724%27%20height%3D%2728%27%20fill%3D%27%23499ed4%27%2F%3E%3C%2Fsvg%3E"
+    },
+    {
+      "id": "unity-bar-S-0-0",
+      "name": "S 长条",
+      "kind": "bar",
+      "color": "#499ed4",
+      "w": 1,
+      "h": 1,
+      "magnet": {
+        "type": "bar",
+        "pole": "S",
+        "direction": "0"
+      },
+      "img": "data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%2740%27%20height%3D%2740%27%20viewBox%3D%270%200%2040%2040%27%3E%3Crect%20x%3D%278%27%20y%3D%276%27%20width%3D%2724%27%20height%3D%2728%27%20fill%3D%27%23499ed4%27%2F%3E%3C%2Fsvg%3E"
+    },
+    {
+      "id": "unity-wide-N-0-0",
+      "name": "N 加宽条",
+      "kind": "wide",
+      "color": "#e95261",
+      "w": 1,
+      "h": 1,
+      "magnet": {
+        "type": "wide",
+        "pole": "N",
+        "direction": "0"
+      },
+      "img": "data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%2740%27%20height%3D%2740%27%20viewBox%3D%270%200%2040%2040%27%3E%3Crect%20x%3D%278%27%20y%3D%276%27%20width%3D%2724%27%20height%3D%2728%27%20fill%3D%27%23e95261%27%2F%3E%3C%2Fsvg%3E"
+    },
+    {
+      "id": "unity-bar-N-180-0",
+      "name": "N 长条",
+      "kind": "bar",
+      "color": "#e95261",
+      "w": 1,
+      "h": 1,
+      "magnet": {
+        "type": "bar",
+        "pole": "N",
+        "direction": "180"
+      },
+      "img": "data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%2740%27%20height%3D%2740%27%20viewBox%3D%270%200%2040%2040%27%3E%3Crect%20x%3D%278%27%20y%3D%276%27%20width%3D%2724%27%20height%3D%2728%27%20fill%3D%27%23e95261%27%2F%3E%3C%2Fsvg%3E"
+    },
+    {
+      "id": "unity-bar-N-0-90",
+      "name": "N 长条",
+      "kind": "bar",
+      "color": "#e95261",
+      "w": 1,
+      "h": 1,
+      "magnet": {
+        "type": "bar",
+        "pole": "N",
+        "direction": "0"
+      },
+      "img": "data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%2740%27%20height%3D%2740%27%20viewBox%3D%270%200%2040%2040%27%3E%3Crect%20x%3D%278%27%20y%3D%276%27%20width%3D%2724%27%20height%3D%2728%27%20fill%3D%27%23e95261%27%2F%3E%3C%2Fsvg%3E"
+    },
+    {
+      "id": "unity-bar-S-0-90",
+      "name": "S 长条",
+      "kind": "bar",
+      "color": "#499ed4",
+      "w": 1,
+      "h": 1,
+      "magnet": {
+        "type": "bar",
+        "pole": "S",
+        "direction": "0"
+      },
+      "img": "data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%2740%27%20height%3D%2740%27%20viewBox%3D%270%200%2040%2040%27%3E%3Crect%20x%3D%278%27%20y%3D%276%27%20width%3D%2724%27%20height%3D%2728%27%20fill%3D%27%23499ed4%27%2F%3E%3C%2Fsvg%3E"
+    },
+    {
+      "id": "unity-bar-S-180-90",
+      "name": "S 长条",
+      "kind": "bar",
+      "color": "#499ed4",
+      "w": 1,
+      "h": 1,
+      "magnet": {
+        "type": "bar",
+        "pole": "S",
+        "direction": "180"
+      },
+      "img": "data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%2740%27%20height%3D%2740%27%20viewBox%3D%270%200%2040%2040%27%3E%3Crect%20x%3D%278%27%20y%3D%276%27%20width%3D%2724%27%20height%3D%2728%27%20fill%3D%27%23499ed4%27%2F%3E%3C%2Fsvg%3E"
+    },
+    {
+      "id": "unity-wide-N-90-0",
+      "name": "N 加宽条",
+      "kind": "wide",
+      "color": "#e95261",
+      "w": 1,
+      "h": 1,
+      "magnet": {
+        "type": "wide",
+        "pole": "N",
+        "direction": "90"
+      },
+      "img": "data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%2740%27%20height%3D%2740%27%20viewBox%3D%270%200%2040%2040%27%3E%3Crect%20x%3D%278%27%20y%3D%276%27%20width%3D%2724%27%20height%3D%2728%27%20fill%3D%27%23e95261%27%2F%3E%3C%2Fsvg%3E"
+    },
+    {
+      "id": "unity-bar-S-180-180",
+      "name": "S 长条",
+      "kind": "bar",
+      "color": "#499ed4",
+      "w": 1,
+      "h": 1,
+      "magnet": {
+        "type": "bar",
+        "pole": "S",
+        "direction": "180"
+      },
+      "img": "data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%2740%27%20height%3D%2740%27%20viewBox%3D%270%200%2040%2040%27%3E%3Crect%20x%3D%278%27%20y%3D%276%27%20width%3D%2724%27%20height%3D%2728%27%20fill%3D%27%23499ed4%27%2F%3E%3C%2Fsvg%3E"
+    },
+    {
+      "id": "unity-bar-S-270-90",
+      "name": "S 长条",
+      "kind": "bar",
+      "color": "#499ed4",
+      "w": 1,
+      "h": 1,
+      "magnet": {
+        "type": "bar",
+        "pole": "S",
+        "direction": "270"
+      },
+      "img": "data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%2740%27%20height%3D%2740%27%20viewBox%3D%270%200%2040%2040%27%3E%3Crect%20x%3D%278%27%20y%3D%276%27%20width%3D%2724%27%20height%3D%2728%27%20fill%3D%27%23499ed4%27%2F%3E%3C%2Fsvg%3E"
+    },
+    {
+      "id": "unity-bar-N-270-180",
+      "name": "N 长条",
+      "kind": "bar",
+      "color": "#e95261",
+      "w": 1,
+      "h": 1,
+      "magnet": {
+        "type": "bar",
+        "pole": "N",
+        "direction": "270"
+      },
+      "img": "data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%2740%27%20height%3D%2740%27%20viewBox%3D%270%200%2040%2040%27%3E%3Crect%20x%3D%278%27%20y%3D%276%27%20width%3D%2724%27%20height%3D%2728%27%20fill%3D%27%23e95261%27%2F%3E%3C%2Fsvg%3E"
+    },
+    {
+      "id": "unity-bar-S-90-90",
+      "name": "S 长条",
+      "kind": "bar",
+      "color": "#499ed4",
+      "w": 1,
+      "h": 1,
+      "magnet": {
+        "type": "bar",
+        "pole": "S",
+        "direction": "90"
+      },
+      "img": "data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%2740%27%20height%3D%2740%27%20viewBox%3D%270%200%2040%2040%27%3E%3Crect%20x%3D%278%27%20y%3D%276%27%20width%3D%2724%27%20height%3D%2728%27%20fill%3D%27%23499ed4%27%2F%3E%3C%2Fsvg%3E"
+    },
+    {
+      "id": "unity-bar-N-180-90",
+      "name": "N 长条",
+      "kind": "bar",
+      "color": "#e95261",
+      "w": 1,
+      "h": 1,
+      "magnet": {
+        "type": "bar",
+        "pole": "N",
+        "direction": "180"
+      },
+      "img": "data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%2740%27%20height%3D%2740%27%20viewBox%3D%270%200%2040%2040%27%3E%3Crect%20x%3D%278%27%20y%3D%276%27%20width%3D%2724%27%20height%3D%2728%27%20fill%3D%27%23e95261%27%2F%3E%3C%2Fsvg%3E"
+    },
+    {
+      "id": "unity-blackhole-N-0-0",
+      "name": "黑洞",
+      "kind": "blackhole",
+      "color": "#9a60cf",
+      "w": 1,
+      "h": 1,
+      "img": "data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%2740%27%20height%3D%2740%27%20viewBox%3D%270%200%2040%2040%27%3E%3Ccircle%20cx%3D%2720%27%20cy%3D%2720%27%20r%3D%2716%27%20fill%3D%27%23241332%27%20stroke%3D%27%23b78be8%27%20stroke-width%3D%274%27%2F%3E%3C%2Fsvg%3E"
+    },
+    {
+      "id": "unity-collectible-N-0-0",
+      "name": "收藏品",
+      "kind": "collectible",
+      "color": "#f4cb4c",
+      "w": 1,
+      "h": 1,
+      "img": "data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%2740%27%20height%3D%2740%27%20viewBox%3D%270%200%2040%2040%27%3E%3Cpath%20d%3D%27M20%203L25%2014L38%2015L28%2024L31%2037L20%2030L9%2037L12%2024L2%2015L15%2014Z%27%20fill%3D%27%23f4cb4c%27%2F%3E%3C%2Fsvg%3E"
+    }
+  ],
+  "placements": {
+    "muzb4fp7gmlk5": [
+      {
+        "id": "e5e7e14a4d624dff9c16f443f7991844",
+        "itemId": "unity-rock-N-0-0",
+        "cx": 5,
+        "cy": 0,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "7d4161fb3b564f839883c5cb5866deb8",
+        "itemId": "unity-rock-N-0-0",
+        "cx": 6,
+        "cy": 1,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "899536ffbde84528b5af6362a781c8a1",
+        "itemId": "unity-player-N-0-0",
+        "cx": 1,
+        "cy": 3,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "fb976697860c40c49169c5f35128c741",
+        "itemId": "unity-bar-N-0-0",
+        "cx": 5,
+        "cy": 1,
+        "rotation": 0,
+        "vertical": 0
+      }
+    ],
+    "mv0lptprfar38": [
+      {
+        "id": "efc4e5f6823a47db8639bcab3c25eea9",
+        "itemId": "unity-bar-N-90-0",
+        "cx": 0,
+        "cy": 1,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "60fb592518ff45c787f593e3caae11c6",
+        "itemId": "unity-bar-S-90-0",
+        "cx": 0,
+        "cy": 3,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "0a927a3e29754577b58b3afa153cf28e",
+        "itemId": "unity-bar-N-0-0",
+        "cx": 5,
+        "cy": 1,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "ed4a08de29804a48a453d869d6f9b815",
+        "itemId": "unity-bar-S-0-0",
+        "cx": 3,
+        "cy": 3,
+        "rotation": 0,
+        "vertical": 0
+      }
+    ],
+    "mv0o6wm28f2mq": [
+      {
+        "id": "66351a0748d041e5978514820bc5f7ed",
+        "itemId": "unity-rock-N-0-0",
+        "cx": 4,
+        "cy": 1,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "ce48e8d3db964337b266eb07c62c0a08",
+        "itemId": "unity-bar-N-0-0",
+        "cx": 1,
+        "cy": 1,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "9a78d6fdacba45b2a1cddcac536e96ed",
+        "itemId": "unity-bar-N-0-0",
+        "cx": 4,
+        "cy": 2,
+        "rotation": 0,
+        "vertical": 0
+      }
+    ],
+    "mv221u9sspr5z": [
+      {
+        "id": "d230b20a79b74ce9b880b8d8b06bfad4",
+        "itemId": "unity-bar-N-0-0",
+        "cx": 3,
+        "cy": 0,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "9b1f8fb48a734cdcb312687debd17c4a",
+        "itemId": "unity-bar-S-0-0",
+        "cx": 3,
+        "cy": 1,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "d63464297a8546d493e26b0a3a56fe03",
+        "itemId": "unity-wide-N-0-0",
+        "cx": 5,
+        "cy": 0,
+        "rotation": 0,
+        "vertical": 0
+      }
+    ],
+    "mv228t318jsqu": [
+      {
+        "id": "44f3d6976426455b84c5b6f54d9c2126",
+        "itemId": "unity-bar-N-0-0",
+        "cx": 1,
+        "cy": 4,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "49ce988fbc2648d089f5f5627eac9616",
+        "itemId": "unity-bar-S-90-0",
+        "cx": 1,
+        "cy": 2,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "8c25dd0211c140b2b9d6edf4eaab63b6",
+        "itemId": "unity-wide-N-0-0",
+        "cx": -1,
+        "cy": 5,
+        "rotation": 0,
+        "vertical": 0
+      }
+    ],
+    "mv22cmtccn8l5": [
+      {
+        "id": "85db4bca93c847bc99845581a82d73b2",
+        "itemId": "unity-rock-N-0-0",
+        "cx": 0,
+        "cy": 1,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "751d12fae8f141cd8267c682250a8755",
+        "itemId": "unity-bar-N-0-0",
+        "cx": 0,
+        "cy": 2,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "16efe8d6588d4c91a89d03c2fb55c6ec",
+        "itemId": "unity-bar-N-0-0",
+        "cx": 1,
+        "cy": 1,
+        "rotation": 0,
+        "vertical": 0
+      }
+    ],
+    "mv0mjiii141z8": [
+      {
+        "id": "5378bff332184df79f84a630352e1ecc",
+        "itemId": "unity-rock-N-0-0",
+        "cx": 0,
+        "cy": 3,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "4b204470322b4f6e9ea80347fde1655a",
+        "itemId": "unity-bar-N-180-0",
+        "cx": 3,
+        "cy": 1,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "9392fa4aa2ca4afd98a2b3e3ab07553f",
+        "itemId": "unity-bar-S-90-0",
+        "cx": 3,
+        "cy": 3,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "8fab4bf31e554b49a4552875e59bd379",
+        "itemId": "unity-bar-N-0-0",
+        "cx": 0,
+        "cy": 4,
+        "rotation": 0,
+        "vertical": 0
+      }
+    ],
+    "mv3rc4ng9muvh": [
+      {
+        "id": "5ef62b053db344f080b7228318dd87ff",
+        "itemId": "unity-rock-N-0-0",
+        "cx": 1,
+        "cy": 4,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "813211d1409042d388d26f124919fc12",
+        "itemId": "unity-rock-N-0-0",
+        "cx": 3,
+        "cy": 4,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "c2cc344705884b8b87f7dad83dbac30a",
+        "itemId": "unity-bar-N-0-0",
+        "cx": 1,
+        "cy": 2,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "3824497ae1c148e0b6623096395b096d",
+        "itemId": "unity-bar-S-0-0",
+        "cx": 3,
+        "cy": 2,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "f206a9b887c94a4094e84bc67c0b03bd",
+        "itemId": "unity-bar-S-90-0",
+        "cx": 1,
+        "cy": 3,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "f76b7b806b8f4a7cad9806eb84de3060",
+        "itemId": "unity-bar-N-90-0",
+        "cx": 3,
+        "cy": 3,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "7b29ed210bbd411aa258d656be22ee0f",
+        "itemId": "unity-bar-N-0-90",
+        "cx": 2,
+        "cy": 4,
+        "rotation": 0,
+        "vertical": 90
+      },
+      {
+        "id": "7d38387e36b548b0aa82296d85940d2a",
+        "itemId": "unity-bar-S-90-0",
+        "cx": 2,
+        "cy": 5,
+        "rotation": 0,
+        "vertical": 0
+      }
+    ],
+    "mv3reiyu8dgpc": [
+      {
+        "id": "9ac981acbcdd4e24b99641b3ec46652a",
+        "itemId": "unity-rock-N-0-0",
+        "cx": 0,
+        "cy": 1,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "3dbd7adcb19d439b97159126cac53b07",
+        "itemId": "unity-bar-N-0-0",
+        "cx": 0,
+        "cy": 2,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "b90513c185ee4290a7754a61692e15e3",
+        "itemId": "unity-bar-N-0-0",
+        "cx": 1,
+        "cy": 1,
+        "rotation": 0,
+        "vertical": 0
+      }
+    ],
+    "mv0nf9ixrggv4": [
+      {
+        "id": "b554a763e2f94caaa60981531ad30ff8",
+        "itemId": "unity-rock-N-0-0",
+        "cx": 3,
+        "cy": 2,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "98e2bb76a74146b9be29ec6997b1b54d",
+        "itemId": "unity-rock-N-0-0",
+        "cx": 4,
+        "cy": 3,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "d063b71a2a134aeb9bdb6bcc3115f051",
+        "itemId": "unity-bar-N-90-0",
+        "cx": 2,
+        "cy": 2,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "49a741c0eace4dc6a5c946d8e794c8be",
+        "itemId": "unity-bar-S-0-0",
+        "cx": 1,
+        "cy": 2,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "20be25d1eea14ee2b3bb5449efa3fcfa",
+        "itemId": "unity-bar-S-0-90",
+        "cx": 5,
+        "cy": 2,
+        "rotation": 0,
+        "vertical": 90
+      },
+      {
+        "id": "c4a1a1559b1e48e1a06d0c4b0bcabda6",
+        "itemId": "unity-bar-N-0-90",
+        "cx": 6,
+        "cy": 2,
+        "rotation": 0,
+        "vertical": 90
+      },
+      {
+        "id": "2cbbbf82ac5249a493935e691ce2db2f",
+        "itemId": "unity-bar-N-0-0",
+        "cx": 3,
+        "cy": 3,
+        "rotation": 0,
+        "vertical": 0
+      }
+    ],
+    "mv1si3qs35eo6": [
+      {
+        "id": "27a6b8151ff146658222cfd8f5233e4e",
+        "itemId": "unity-rock-N-0-0",
+        "cx": 0,
+        "cy": 4,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "5a96ee18782240968c30c3a0842d27eb",
+        "itemId": "unity-bar-N-0-0",
+        "cx": 0,
+        "cy": 2,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "2f8d7bf45bc240ec980240347e56fe25",
+        "itemId": "unity-bar-N-0-0",
+        "cx": 0,
+        "cy": 3,
+        "rotation": 0,
+        "vertical": 0
+      }
+    ],
+    "mv1ufokdn73hm": [
+      {
+        "id": "98981580c45e4803ac806b139371d243",
+        "itemId": "unity-rock-N-0-0",
+        "cx": 3,
+        "cy": 0,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "544242e5f33847cca98a6aafabec3ab4",
+        "itemId": "unity-bar-N-0-0",
+        "cx": 3,
+        "cy": 2,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "ca88c289a4b941a1b5bf7ea8204e6650",
+        "itemId": "unity-bar-N-0-0",
+        "cx": 3,
+        "cy": 1,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "7cabd5bac242488893247aae5f61033f",
+        "itemId": "unity-bar-S-0-0",
+        "cx": 1,
+        "cy": 5,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "920adc1335cb450ba41ea3256b5b77ac",
+        "itemId": "unity-bar-N-0-0",
+        "cx": -1,
+        "cy": 3,
+        "rotation": 0,
+        "vertical": 0
+      }
+    ],
+    "mv5dilba54kz0": [
+      {
+        "id": "293327f2173449dcb6d0a99b995c7c47",
+        "itemId": "unity-bar-N-0-0",
+        "cx": -1,
+        "cy": 2,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "eb8d5af67f0543c2b08702da85398c98",
+        "itemId": "unity-bar-S-0-0",
+        "cx": 2,
+        "cy": 3,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "0a9621fc5d5541aebe09115136cf92ba",
+        "itemId": "unity-bar-N-90-0",
+        "cx": 2,
+        "cy": -1,
+        "rotation": 0,
+        "vertical": 0
+      }
+    ],
+    "mv58wcpg4pctg": [
+      {
+        "id": "9b2679b357b4464bb676497a5079a223",
+        "itemId": "unity-rock-N-0-0",
+        "cx": 0,
+        "cy": 0,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "6e59df13c25c4b69832460567c96b3c6",
+        "itemId": "unity-bar-N-0-0",
+        "cx": 1,
+        "cy": 0,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "72392585d594498a8c3d327370acf4b5",
+        "itemId": "unity-bar-N-0-0",
+        "cx": 2,
+        "cy": 0,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "a9ac18f656724e93b05556c23fd9a4c1",
+        "itemId": "unity-collectible-N-0-0",
+        "cx": 1,
+        "cy": 3,
+        "rotation": 0,
+        "vertical": 0
+      }
+    ],
+    "mv58yoc494mdj": [
+      {
+        "id": "c4a4df39d70246c297ae0e74d0c27b94",
+        "itemId": "unity-rock-N-0-0",
+        "cx": 0,
+        "cy": 4,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "ca1e772a514f4eb896a6fc4b87ab292c",
+        "itemId": "unity-bar-N-0-0",
+        "cx": 0,
+        "cy": 3,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "85726d52122b4546a764096307edd111",
+        "itemId": "unity-bar-N-0-0",
+        "cx": 0,
+        "cy": 2,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "f6ba7de65d2f491a985f5362951eff0c",
+        "itemId": "unity-bar-S-0-0",
+        "cx": 4,
+        "cy": 2,
+        "rotation": 0,
+        "vertical": 0
+      }
+    ],
+    "mv590pjc236sl": [
+      {
+        "id": "f4efb13315e748699c8bf9682db87a1a",
+        "itemId": "unity-collectible-N-0-0",
+        "cx": 2,
+        "cy": 2,
+        "rotation": 0,
+        "vertical": 0
+      }
+    ],
+    "mv3q5ffuqwmp2": [
+      {
+        "cx": 7,
+        "cy": 0,
+        "itemId": "unity-blackhole-N-0-0"
+      }
+    ],
+    "muzb662ruucgg": [
+      {
+        "id": "f66262a2bf9e45d7bb616ff3ba3e70d6",
+        "itemId": "unity-wide-N-0-0",
+        "cx": 7,
+        "cy": 2,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "d71d454a539240e7a361934f2006fb0c",
+        "itemId": "unity-wide-N-0-0",
+        "cx": -1,
+        "cy": 0,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "7b86949b48804b25998dbba610ee0e7b",
+        "itemId": "unity-wide-N-0-0",
+        "cx": -1,
+        "cy": 2,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "237aa2703c454c64b585feeeade9bcf8",
+        "itemId": "unity-bar-N-0-0",
+        "cx": -6,
+        "cy": 2,
+        "rotation": 0,
+        "vertical": 0
+      }
+    ],
+    "mv3qjzy1vmcfl": [
+      {
+        "id": "c794bd2497e543ddb0fe59fd3d3736d7",
+        "itemId": "unity-bar-S-0-0",
+        "cx": 1,
+        "cy": 0,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "e112108a1cc34b84a6b8ec470823bbf4",
+        "itemId": "unity-blackhole-N-0-0",
+        "cx": 0,
+        "cy": 0,
+        "rotation": 0,
+        "vertical": 0
+      }
+    ],
+    "mv3qk71w8022m": [
+      {
+        "id": "152a74751d9d478b878d741b97a45b14",
+        "itemId": "unity-blackhole-N-0-0",
+        "cx": 0,
+        "cy": 0,
+        "rotation": 0,
+        "vertical": 0
+      }
+    ],
+    "mv3q7rc78fkqo": [
+      {
+        "id": "b85c5c7043d14f06abc3db2bbbbf3265",
+        "itemId": "unity-bar-S-180-90",
+        "cx": 1,
+        "cy": 2,
+        "rotation": 0,
+        "vertical": 90
+      },
+      {
+        "id": "2366c73e8a31449a82b2fdbf5bb46a30",
+        "itemId": "unity-bar-N-0-0",
+        "cx": -1,
+        "cy": 2,
+        "rotation": 0,
+        "vertical": 0
+      }
+    ],
+    "mv0wd5hyppx7d": [
+      {
+        "id": "d780a06dbcb74646bf99fa5215723c71",
+        "itemId": "unity-bar-N-0-0",
+        "cx": 3,
+        "cy": 1,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "880e7a80a6974d0a9a7854dfa374aaf5",
+        "itemId": "unity-bar-S-90-0",
+        "cx": 2,
+        "cy": 6,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "d6948eeeecc9414dabf19e7c9d72bbfb",
+        "itemId": "unity-bar-N-0-0",
+        "cx": 1,
+        "cy": 2,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "99cc059cbb494f298ebcf6579f434880",
+        "itemId": "unity-bar-S-90-0",
+        "cx": 2,
+        "cy": 3,
+        "rotation": 0,
+        "vertical": 0
+      }
+    ],
+    "mv1roghwam60s": [
+      {
+        "id": "56bf474507b04092b849ac0edc1add7c",
+        "itemId": "unity-wide-N-90-0",
+        "cx": 2,
+        "cy": 4,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "b3f3a2be346a4e10ba4414e7b8f5cf59",
+        "itemId": "unity-wide-N-90-0",
+        "cx": -11,
+        "cy": 1,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "5becf432a8e144a39db5f8dc46caee31",
+        "itemId": "unity-blackhole-N-0-0",
+        "cx": 0,
+        "cy": 1,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "69221eef6c614b7689d04bdfb4670f58",
+        "itemId": "unity-blackhole-N-0-0",
+        "cx": 4,
+        "cy": 2,
+        "rotation": 0,
+        "vertical": 0
+      }
+    ],
+    "mv1rzz4hyu0nx": [
+      {
+        "id": "7dd8595614f34fb4bc1b45589ed6c0e3",
+        "itemId": "unity-bar-N-0-0",
+        "cx": -1,
+        "cy": 2,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "f841cc4069b144a8b1633e8e9d163a97",
+        "itemId": "unity-collectible-N-0-0",
+        "cx": 2,
+        "cy": 2,
+        "rotation": 0,
+        "vertical": 0
+      }
+    ],
+    "mv1qrrnep2643": [
+      {
+        "id": "82dd42d67bf44c648f066c7a2ad85994",
+        "itemId": "unity-bar-S-180-90",
+        "cx": 3,
+        "cy": 1,
+        "rotation": 0,
+        "vertical": 90
+      },
+      {
+        "id": "da4ee07034744c779833526fd6072222",
+        "itemId": "unity-bar-N-0-0",
+        "cx": 0,
+        "cy": -4,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "5fe114db0ecf40a2a51ed76dc5aab8f2",
+        "itemId": "unity-blackhole-N-0-0",
+        "cx": 2,
+        "cy": 1,
+        "rotation": 0,
+        "vertical": 0
+      }
+    ],
+    "mv1s11vlpygpg": [
+      {
+        "id": "cc43ce4da2384962a809a2312f4ae97a",
+        "itemId": "unity-collectible-N-0-0",
+        "cx": 2,
+        "cy": 2,
+        "rotation": 0,
+        "vertical": 0
+      }
+    ],
+    "mv3r4lv1mew2f": [
+      {
+        "id": "8ce91db471de4ab6bba1bea715bbd24f",
+        "itemId": "unity-bar-N-0-0",
+        "cx": -1,
+        "cy": 3,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "81ffdfeacec644b38c5594545dfcc135",
+        "itemId": "unity-bar-S-0-0",
+        "cx": 4,
+        "cy": 7,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "58dcc34f68094311b43b7948af987487",
+        "itemId": "unity-bar-N-180-0",
+        "cx": 3,
+        "cy": 7,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "54601fa8060a4db69becf6e8bfe51907",
+        "itemId": "unity-blackhole-N-0-0",
+        "cx": 0,
+        "cy": 3,
+        "rotation": 0,
+        "vertical": 0
+      }
+    ],
+    "mv1te7zqpmtlh": [
+      {
+        "id": "908b6f265d0e4417bf906c72ed51a092",
+        "itemId": "unity-bar-S-180-180",
+        "cx": 1,
+        "cy": 2,
+        "rotation": 0,
+        "vertical": 180
+      },
+      {
+        "id": "5ec30c2b2e5f4118a07960981d6b55a1",
+        "itemId": "unity-blackhole-N-0-0",
+        "cx": 0,
+        "cy": 2,
+        "rotation": 0,
+        "vertical": 0
+      }
+    ],
+    "mv1sfta0d8zx8": [
+      {
+        "id": "146f91bd9a954775a4e5ebef4bd36051",
+        "itemId": "unity-bar-S-0-0",
+        "cx": 1,
+        "cy": 1,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "da1f1cc298c446ec83b25e043bf8faf9",
+        "itemId": "unity-bar-N-0-0",
+        "cx": 2,
+        "cy": 1,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "426fb19505a5454f8762df30aad8315b",
+        "itemId": "unity-bar-N-90-0",
+        "cx": 7,
+        "cy": 2,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "7cb06e5688e54c6bb4813db3ccc8d951",
+        "itemId": "unity-blackhole-N-0-0",
+        "cx": 3,
+        "cy": 0,
+        "rotation": 0,
+        "vertical": 0
+      }
+    ],
+    "mv1ust1by276u": [
+      {
+        "id": "bfd3a07584944d1288fd397ec81b3233",
+        "itemId": "unity-rock-N-0-0",
+        "cx": 1,
+        "cy": 2,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "07b25d5c8d3845a29ea00c4484ae20b4",
+        "itemId": "unity-rock-N-0-0",
+        "cx": 2,
+        "cy": 3,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "d9767575231f450fab47b778bccec5a7",
+        "itemId": "unity-rock-N-0-0",
+        "cx": 2,
+        "cy": 4,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "ccbaac30264a4ae8b4c2657d0e32a24b",
+        "itemId": "unity-rock-N-0-0",
+        "cx": 2,
+        "cy": 5,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "b9d1f7eda3124f91bd1891610675b74e",
+        "itemId": "unity-rock-N-0-0",
+        "cx": 3,
+        "cy": 1,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "3e08975445b24d32a04ed469561b802a",
+        "itemId": "unity-rock-N-0-0",
+        "cx": 3,
+        "cy": 2,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "844a2ab34606489da24fbf113f8fbd6c",
+        "itemId": "unity-bar-N-0-0",
+        "cx": -1,
+        "cy": 5,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "d6b3a6e2cf4b4136b727e3841a09036b",
+        "itemId": "unity-bar-S-0-0",
+        "cx": 0,
+        "cy": 5,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "7afd247d2a5a45188151efb35de38387",
+        "itemId": "unity-wide-N-0-0",
+        "cx": 0,
+        "cy": 3,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "af8b64faefc0469b97aeb03e0dc79a66",
+        "itemId": "unity-blackhole-N-0-0",
+        "cx": 2,
+        "cy": 2,
+        "rotation": 0,
+        "vertical": 0
+      }
+    ],
+    "mv5dw54h82rip": [],
+    "mv5cadbhjyu19": [
+      {
+        "id": "837abc988897470b8925e632f8a924d2",
+        "itemId": "unity-bar-S-270-90",
+        "cx": 1,
+        "cy": 2,
+        "rotation": 0,
+        "vertical": 90
+      },
+      {
+        "id": "1684cedd09e749c09f202ea250c91f1e",
+        "itemId": "unity-bar-N-270-180",
+        "cx": 0,
+        "cy": -1,
+        "rotation": 0,
+        "vertical": 180
+      },
+      {
+        "id": "e1188898fde741289bbb8786b48c818d",
+        "itemId": "unity-blackhole-N-0-0",
+        "cx": 0,
+        "cy": 2,
+        "rotation": 0,
+        "vertical": 0
+      }
+    ],
+    "mv5cle7xdrymh": [
+      {
+        "id": "d3b827a09de444f08fc99985b6ae1b0f",
+        "itemId": "unity-bar-N-0-0",
+        "cx": 2,
+        "cy": 1,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "5a58370285c24d4789804df128f517d0",
+        "itemId": "unity-bar-S-0-0",
+        "cx": 1,
+        "cy": 1,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "4b71b67db9b84b86b7c280bb27f4cc6c",
+        "itemId": "unity-bar-N-90-0",
+        "cx": 5,
+        "cy": 2,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "0fa2015e299a4121ae2b15f5a7b35ac2",
+        "itemId": "unity-wide-N-90-0",
+        "cx": 6,
+        "cy": 2,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "704ba0f6a3bc40fe8aca6a5c11aee352",
+        "itemId": "unity-wide-N-90-0",
+        "cx": 5,
+        "cy": 3,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "068b36d1cffa4a59b0fabbf7aae5eb36",
+        "itemId": "unity-blackhole-N-0-0",
+        "cx": 3,
+        "cy": 0,
+        "rotation": 0,
+        "vertical": 0
+      }
+    ],
+    "mv5ds091afwbc": [
+      {
+        "id": "0ead5062083448b1bc2e5050660dd304",
+        "itemId": "unity-collectible-N-0-0",
+        "cx": 1,
+        "cy": 0,
+        "rotation": 0,
+        "vertical": 0
+      }
+    ],
+    "mv5dmxg4g7lte": [
+      {
+        "id": "bebf39c93e4c457888903eb97d9a379b",
+        "itemId": "unity-wide-N-90-0",
+        "cx": 2,
+        "cy": 10,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "8fcecf1142ce46cea7083dba95a205b0",
+        "itemId": "unity-collectible-N-0-0",
+        "cx": 2,
+        "cy": 2,
+        "rotation": 0,
+        "vertical": 0
+      }
+    ],
+    "mv1vg8vkho4jp": [
+      {
+        "id": "2884e0a73e0944afa082d727a37dac7b",
+        "itemId": "unity-rock-N-0-0",
+        "cx": 0,
+        "cy": 3,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "ec44d2c18117447692cbfb84a97b7a39",
+        "itemId": "unity-rock-N-0-0",
+        "cx": 1,
+        "cy": 3,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "e228b5423ea4471681cb13c4d51658ff",
+        "itemId": "unity-rock-N-0-0",
+        "cx": 2,
+        "cy": 4,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "aa2aaed899184a6db09186f490a21c08",
+        "itemId": "unity-rock-N-0-0",
+        "cx": 2,
+        "cy": 5,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "a647293419e44168a9e0604c6e03b5bd",
+        "itemId": "unity-bar-S-90-90",
+        "cx": 3,
+        "cy": 2,
+        "rotation": 0,
+        "vertical": 90
+      },
+      {
+        "id": "e71b2488362c461da882d4175f2f1e75",
+        "itemId": "unity-bar-N-0-0",
+        "cx": 0,
+        "cy": 5,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "ac681311d5b34903aba4a7d1ec2f219e",
+        "itemId": "unity-bar-S-0-0",
+        "cx": -1,
+        "cy": 5,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "28e3e4b839464c28962f7a6f2010f387",
+        "itemId": "unity-blackhole-N-0-0",
+        "cx": 2,
+        "cy": 2,
+        "rotation": 0,
+        "vertical": 0
+      }
+    ],
+    "mv202ix1xlw2y": [
+      {
+        "id": "c3257f3e317e41f3bf3e604a79e4bd64",
+        "itemId": "unity-rock-N-0-0",
+        "cx": 0,
+        "cy": 3,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "c7ec024273ba4ddc9647c3d001d734d5",
+        "itemId": "unity-rock-N-0-0",
+        "cx": 1,
+        "cy": 3,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "ce766e084fad4318a35887b7941c5625",
+        "itemId": "unity-rock-N-0-0",
+        "cx": 2,
+        "cy": 4,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "af3b24634cfc462387eb83c251005934",
+        "itemId": "unity-rock-N-0-0",
+        "cx": 2,
+        "cy": 5,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "e066a39c150c48389299dd251afe9393",
+        "itemId": "unity-bar-S-0-0",
+        "cx": 3,
+        "cy": 2,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "a579f78c140f48ca94898c2f2783bade",
+        "itemId": "unity-bar-N-0-0",
+        "cx": 0,
+        "cy": 5,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "d21229dd4e6844ed82e314abca90e0a9",
+        "itemId": "unity-bar-S-0-0",
+        "cx": -1,
+        "cy": 5,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "95f6240f622949f984c7866b49ae2333",
+        "itemId": "unity-blackhole-N-0-0",
+        "cx": 2,
+        "cy": 2,
+        "rotation": 0,
+        "vertical": 0
+      }
+    ],
+    "mv20879x7onps": [
+      {
+        "id": "5e008e37dae74bd6a185c44b55f67628",
+        "itemId": "unity-rock-N-0-0",
+        "cx": 0,
+        "cy": 3,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "d192a9c2a9174615b41d3fd3d38f44a2",
+        "itemId": "unity-rock-N-0-0",
+        "cx": 1,
+        "cy": 4,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "83032fb22cc24018867cb844e3f62059",
+        "itemId": "unity-rock-N-0-0",
+        "cx": 1,
+        "cy": 5,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "b02e69aa187f4ba7abb80ff0925750a6",
+        "itemId": "unity-bar-S-0-90",
+        "cx": 3,
+        "cy": 2,
+        "rotation": 0,
+        "vertical": 90
+      },
+      {
+        "id": "7ea1a5a0fb8840a4807fd58c7ffa2609",
+        "itemId": "unity-bar-S-0-0",
+        "cx": 0,
+        "cy": 1,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "9a7418b6f0984befbcaa4af76a1d5d99",
+        "itemId": "unity-bar-N-90-0",
+        "cx": 0,
+        "cy": 5,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "804d8e9acfe44073ba746b3ef32a39a0",
+        "itemId": "unity-bar-S-90-0",
+        "cx": 0,
+        "cy": 6,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "2100df8ec0084d70bb7faadbe6d16990",
+        "itemId": "unity-blackhole-N-0-0",
+        "cx": 2,
+        "cy": 2,
+        "rotation": 0,
+        "vertical": 0
+      }
+    ],
+    "mv20o9o6ipp2q": [
+      {
+        "id": "0a599acfc60247b587689d076b15b2a0",
+        "itemId": "unity-rock-N-0-0",
+        "cx": 1,
+        "cy": 2,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "d1d106bf077442c0b36380b20c9ab8d7",
+        "itemId": "unity-rock-N-0-0",
+        "cx": 4,
+        "cy": 4,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "0e6521d958ad48e8a8e07a2bc7f63418",
+        "itemId": "unity-bar-N-0-0",
+        "cx": 1,
+        "cy": 1,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "6117ac49a66844f99530c72917d87806",
+        "itemId": "unity-blackhole-N-0-0",
+        "cx": 4,
+        "cy": 3,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "10497bc5203f494ca19693ce380827c0",
+        "itemId": "unity-blackhole-N-0-0",
+        "cx": 0,
+        "cy": 2,
+        "rotation": 0,
+        "vertical": 0
+      }
+    ],
+    "mv21mihddpzg6": [
+      {
+        "id": "d0f11c2f75c04e958f9e09e7381d25c5",
+        "itemId": "unity-rock-N-0-0",
+        "cx": 0,
+        "cy": 2,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "8832135c54a841e091b5ce5620a0c0a5",
+        "itemId": "unity-rock-N-0-0",
+        "cx": 0,
+        "cy": 4,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "2572cd5f270747f5b682114b9bfc82e1",
+        "itemId": "unity-rock-N-0-0",
+        "cx": 1,
+        "cy": 2,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "a566c5b703c94e2ea21053f1ab04bf24",
+        "itemId": "unity-rock-N-0-0",
+        "cx": 2,
+        "cy": 4,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "34be2beda91f4af08e13b0c590a04a9b",
+        "itemId": "unity-rock-N-0-0",
+        "cx": 4,
+        "cy": 4,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "cbf353b29c064a549917f3fdfc1639a4",
+        "itemId": "unity-rock-N-0-0",
+        "cx": 0,
+        "cy": 3,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "1e2e90249ef54600b4256c3c3a403594",
+        "itemId": "unity-bar-N-0-0",
+        "cx": 1,
+        "cy": 1,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "447bf9a7ad3c4fc79573e2c237f77777",
+        "itemId": "unity-bar-S-0-0",
+        "cx": 2,
+        "cy": 5,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "5434a98cede740658ef81cf91141d5bb",
+        "itemId": "unity-bar-S-0-0",
+        "cx": 2,
+        "cy": 2,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "7c889da260bd4b8892d8cca7f037a6e5",
+        "itemId": "unity-bar-S-0-0",
+        "cx": 5,
+        "cy": 1,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "49b3eb534f6c4380b7e2a4a6f87f9a49",
+        "itemId": "unity-bar-S-0-0",
+        "cx": -1,
+        "cy": 5,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "c6f5cb1c2e244fe0ade1686667609137",
+        "itemId": "unity-blackhole-N-0-0",
+        "cx": 4,
+        "cy": 3,
+        "rotation": 0,
+        "vertical": 0
+      }
+    ],
+    "mv3rnznx30ue5": [
+      {
+        "id": "ddbf383630d14172aa2c6655c860a040",
+        "itemId": "unity-rock-N-0-0",
+        "cx": 4,
+        "cy": 0,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "e58e60a5dc4e4494a2a03ab56cecd1c7",
+        "itemId": "unity-bar-S-0-90",
+        "cx": 2,
+        "cy": 0,
+        "rotation": 0,
+        "vertical": 90
+      },
+      {
+        "id": "1265254b077044b692779ecca07f6c89",
+        "itemId": "unity-blackhole-N-0-0",
+        "cx": 3,
+        "cy": 0,
+        "rotation": 0,
+        "vertical": 0
+      }
+    ],
+    "mv22ivhmtehi4": [
+      {
+        "id": "0993879eaf444539a8c52db75f30e63a",
+        "itemId": "unity-rock-N-0-0",
+        "cx": 4,
+        "cy": 0,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "85efba9176f44752a7c0df40991dd657",
+        "itemId": "unity-bar-S-0-0",
+        "cx": 2,
+        "cy": 0,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "d6659650c2b84c7b80fd9c632e70eaf8",
+        "itemId": "unity-wide-N-0-0",
+        "cx": -1,
+        "cy": 0,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "f6d853fdaf284c7298a69547f5257982",
+        "itemId": "unity-blackhole-N-0-0",
+        "cx": 3,
+        "cy": 0,
+        "rotation": 0,
+        "vertical": 0
+      }
+    ],
+    "mv4ns0eb53mce": [
+      {
+        "id": "d0639a6ab4d44bb18cb5fbc07ccd4c8f",
+        "itemId": "unity-rock-N-0-0",
+        "cx": 3,
+        "cy": 1,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "468f48060b974faca3c6404fc478dd2d",
+        "itemId": "unity-rock-N-0-0",
+        "cx": 4,
+        "cy": 3,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "49b0b22962e54446aa448c847ea5e767",
+        "itemId": "unity-rock-N-0-0",
+        "cx": 5,
+        "cy": 2,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "d90cb43490ae4595aeaaa2c3b8373caf",
+        "itemId": "unity-rock-N-0-0",
+        "cx": 5,
+        "cy": 3,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "7691a33c563646ec86c308ae8d749590",
+        "itemId": "unity-rock-N-0-0",
+        "cx": 3,
+        "cy": 0,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "8c0770e6d7de4fbfa3caee5895ea7f58",
+        "itemId": "unity-rock-N-0-0",
+        "cx": 4,
+        "cy": 4,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "ad044de489d94198a2f987b4d7d097ff",
+        "itemId": "unity-rock-N-0-0",
+        "cx": 5,
+        "cy": 4,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "e1f42603f6c8425fbe8bb4725fe973e7",
+        "itemId": "unity-bar-S-90-0",
+        "cx": 2,
+        "cy": 1,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "fceab156f7264eda9487b6d76386011b",
+        "itemId": "unity-wide-N-0-0",
+        "cx": -1,
+        "cy": 3,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "261ae635201d4c269f27df28e268f8fe",
+        "itemId": "unity-blackhole-N-0-0",
+        "cx": 4,
+        "cy": 2,
+        "rotation": 0,
+        "vertical": 0
+      }
+    ],
+    "mv4o60huxmmcm": [
+      {
+        "id": "c74a363abfa04da0b35334c36d882965",
+        "itemId": "unity-wide-N-90-0",
+        "cx": 4,
+        "cy": -1,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "bcf3502cb621465f8086dd09ea6827b0",
+        "itemId": "unity-blackhole-N-0-0",
+        "cx": 0,
+        "cy": 1,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "263ccc68f290404faa21b8f5e00c33ff",
+        "itemId": "unity-collectible-N-0-0",
+        "cx": 2,
+        "cy": 1,
+        "rotation": 0,
+        "vertical": 0
+      }
+    ],
+    "mv4owsg52x6nw": [
+      {
+        "id": "1fb188eb543447408d2476577d3879bc",
+        "itemId": "unity-rock-N-0-0",
+        "cx": 0,
+        "cy": 0,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "39f2d012c9464b9098519a8fdc97ecaf",
+        "itemId": "unity-bar-N-0-0",
+        "cx": 1,
+        "cy": 0,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "83c263109cb6467aa585069b05c93c72",
+        "itemId": "unity-bar-N-0-0",
+        "cx": 2,
+        "cy": 0,
+        "rotation": 0,
+        "vertical": 0
+      }
+    ],
+    "mv4o9ysvwkcms": [
+      {
+        "id": "d9239a63fdf84136a5843d433b860660",
+        "itemId": "unity-rock-N-0-0",
+        "cx": 3,
+        "cy": 2,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "8b6c34cdb40a4664bdc26e27e199683b",
+        "itemId": "unity-bar-S-0-0",
+        "cx": 5,
+        "cy": 2,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "cf3e6eaaa20e462085a1c4ba969cc5df",
+        "itemId": "unity-wide-N-90-0",
+        "cx": -16,
+        "cy": 4,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "9c96bfd1dc3e429e90e89c2477adba00",
+        "itemId": "unity-bar-S-0-0",
+        "cx": 2,
+        "cy": 2,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "188cd867775b427f910ae71751de6998",
+        "itemId": "unity-blackhole-N-0-0",
+        "cx": 4,
+        "cy": 2,
+        "rotation": 0,
+        "vertical": 0
+      }
+    ],
+    "mv4pgwmribhd1": [
+      {
+        "id": "343876bc939246dc8d03b07f660fb2e9",
+        "itemId": "unity-blackhole-N-0-0",
+        "cx": 4,
+        "cy": 2,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "2bc5e52c5668423c9a93dae27ab10ae2",
+        "itemId": "unity-collectible-N-0-0",
+        "cx": 2,
+        "cy": 2,
+        "rotation": 0,
+        "vertical": 0
+      }
+    ],
+    "mv4p36q5v7gm9": [
+      {
+        "id": "5ef8cd0158bb437392341d304fc87f8e",
+        "itemId": "unity-bar-S-90-0",
+        "cx": 2,
+        "cy": 4,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "579e683981d047049c9917cc54587487",
+        "itemId": "unity-bar-N-90-0",
+        "cx": 1,
+        "cy": 4,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "9909c99a844f43f9b0dc23279c79e118",
+        "itemId": "unity-bar-S-90-0",
+        "cx": 1,
+        "cy": 0,
+        "rotation": 0,
+        "vertical": 0
+      }
+    ],
+    "mv22u0g7xjjci": [
+      {
+        "id": "7b64613cf9da4873adf68db2733edaac",
+        "itemId": "unity-rock-N-0-0",
+        "cx": 4,
+        "cy": 0,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "f00f27e7e0f740e397dade89690886b7",
+        "itemId": "unity-rock-N-0-0",
+        "cx": 5,
+        "cy": 0,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "1c6c4f6c449e47e2a7581a5620af9b04",
+        "itemId": "unity-rock-N-0-0",
+        "cx": 6,
+        "cy": 0,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "056f6f2c4add44cbabf24af96d8c419b",
+        "itemId": "unity-rock-N-0-0",
+        "cx": 7,
+        "cy": 0,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "a09511b8f217445ea0c43620c3d0b261",
+        "itemId": "unity-rock-N-0-0",
+        "cx": 7,
+        "cy": 2,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "1cdac637cab9406daa02bde73d47e10e",
+        "itemId": "unity-rock-N-0-0",
+        "cx": 8,
+        "cy": 2,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "ca51181f644d422680ba326615e876a2",
+        "itemId": "unity-rock-N-0-0",
+        "cx": 8,
+        "cy": 3,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "2ceef33818834d529cfd5bb73a2f9bb4",
+        "itemId": "unity-rock-N-0-0",
+        "cx": 8,
+        "cy": 4,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "a3157ccea75a48d28f142a47a03b59f7",
+        "itemId": "unity-rock-N-0-0",
+        "cx": 9,
+        "cy": 3,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "99a326286966480eb45d1847e463e250",
+        "itemId": "unity-rock-N-0-0",
+        "cx": 10,
+        "cy": 3,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "521ed114e60841da9527efb2ec980ef6",
+        "itemId": "unity-bar-N-180-90",
+        "cx": 2,
+        "cy": 1,
+        "rotation": 0,
+        "vertical": 90
+      },
+      {
+        "id": "7e8fe0e690154ee28f5d5cf7cdda6594",
+        "itemId": "unity-bar-N-0-0",
+        "cx": 10,
+        "cy": 4,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "834c55339c034e6ab252dfc5a5632f12",
+        "itemId": "unity-bar-N-90-0",
+        "cx": 0,
+        "cy": 4,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "273dd50e48a94226b0da96eba1e52da3",
+        "itemId": "unity-blackhole-N-0-0",
+        "cx": 4,
+        "cy": 1,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "fda81d15b25d4ee6bcfb44e8acd367b7",
+        "itemId": "unity-blackhole-N-0-0",
+        "cx": 6,
+        "cy": 1,
+        "rotation": 0,
+        "vertical": 0
+      }
+    ],
+    "mv23x7gdy8ho2": [
+      {
+        "id": "e4dac1a8ea59459e91fde3c6a5dcdd29",
+        "itemId": "unity-rock-N-0-0",
+        "cx": 4,
+        "cy": 0,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "6ec82dde69a54b8994d32bbd69da0ea6",
+        "itemId": "unity-rock-N-0-0",
+        "cx": 5,
+        "cy": 0,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "34332ac62f2f45be83b37e36d1416d2d",
+        "itemId": "unity-rock-N-0-0",
+        "cx": 6,
+        "cy": 0,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "a552eb8e35b0469da81aa80a97c2b8ad",
+        "itemId": "unity-rock-N-0-0",
+        "cx": 7,
+        "cy": 0,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "830f638ab4024cbb836b43c6173a9ed3",
+        "itemId": "unity-rock-N-0-0",
+        "cx": 8,
+        "cy": 2,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "a9102af46be6487c94b99e6fc791b3c5",
+        "itemId": "unity-rock-N-0-0",
+        "cx": 7,
+        "cy": 2,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "8fd8de01336e4034a02e9132ef8d6309",
+        "itemId": "unity-rock-N-0-0",
+        "cx": 8,
+        "cy": 3,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "fd2349e5dbb5471fa0332285c0c36bf7",
+        "itemId": "unity-rock-N-0-0",
+        "cx": 9,
+        "cy": 3,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "dcc0c9cd20624b0f841584c4cb5d5a66",
+        "itemId": "unity-rock-N-0-0",
+        "cx": 10,
+        "cy": 3,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "739ee0458b7145ff98705f4affd743e7",
+        "itemId": "unity-rock-N-0-0",
+        "cx": 8,
+        "cy": 4,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "046e8c1af41042a096fc0f572ec07c3d",
+        "itemId": "unity-bar-N-0-0",
+        "cx": 2,
+        "cy": 1,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "7c03e0ae6b9a4ab9820d186cc9888ce1",
+        "itemId": "unity-bar-N-0-0",
+        "cx": 10,
+        "cy": 4,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "c60294c9b3004cacbc0aa3aeb3cb4ccb",
+        "itemId": "unity-bar-S-0-0",
+        "cx": 11,
+        "cy": 1,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "703382bda1de4c6b8b762118d624bebd",
+        "itemId": "unity-bar-S-0-0",
+        "cx": -1,
+        "cy": 4,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "56f725f0740b4dfe87e0acf094c8989f",
+        "itemId": "unity-blackhole-N-0-0",
+        "cx": 4,
+        "cy": 1,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "c0baff50a7dd450eb2acee1d205f79e9",
+        "itemId": "unity-blackhole-N-0-0",
+        "cx": 6,
+        "cy": 1,
+        "rotation": 0,
+        "vertical": 0
+      }
+    ],
+    "mv243oja6jm9j": [
+      {
+        "id": "bf753b4294e04424897df51bb8e179eb",
+        "itemId": "unity-collectible-N-0-0",
+        "cx": 2,
+        "cy": 1,
+        "rotation": 0,
+        "vertical": 0
+      }
+    ],
+    "mv2458o1q5ltt": [
+      {
+        "id": "93c807d242c743f089d4d6a48d6e43c8",
+        "itemId": "unity-rock-N-0-0",
+        "cx": 3,
+        "cy": 1,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "6e2d499dd6e6489a8c0be1d419da4f07",
+        "itemId": "unity-bar-S-0-0",
+        "cx": -1,
+        "cy": 0,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "f2641185ec624760a31026ebb822ea29",
+        "itemId": "unity-bar-N-0-0",
+        "cx": 3,
+        "cy": 2,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "9b3dea4924d04d27887ff4ca69e343ce",
+        "itemId": "unity-bar-N-0-0",
+        "cx": 3,
+        "cy": 3,
+        "rotation": 0,
+        "vertical": 0
+      }
+    ],
+    "mvc5ue1tn8qip": [
+      {
+        "id": "0009806bbcd44cb1a867fb3aa36be578",
+        "itemId": "unity-rock-N-0-0",
+        "cx": 3,
+        "cy": 3,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "c0e37ca96d184a6f97d1cdf45d4ccbd7",
+        "itemId": "unity-bar-N-0-0",
+        "cx": 2,
+        "cy": 3,
+        "rotation": 0,
+        "vertical": 0
+      },
+      {
+        "id": "b3748dd1e8694b1592f271e3e0c63c9f",
+        "itemId": "unity-bar-N-0-0",
+        "cx": 1,
+        "cy": 3,
+        "rotation": 0,
+        "vertical": 0
+      }
+    ]
+  },
+  "roomOrder": [
+    "muzb4fp7gmlk5",
+    "mv0lptprfar38",
+    "mv0o6wm28f2mq",
+    "mv221u9sspr5z",
+    "mv228t318jsqu",
+    "mv22cmtccn8l5",
+    "mv0mjiii141z8",
+    "mv3rc4ng9muvh",
+    "mv3reiyu8dgpc",
+    "mv0nf9ixrggv4",
+    "mv1si3qs35eo6",
+    "mv1ufokdn73hm",
+    "mv5dilba54kz0",
+    "mv58wcpg4pctg",
+    "mv58yoc494mdj",
+    "mv590pjc236sl",
+    "mv3q5ffuqwmp2",
+    "muzb662ruucgg",
+    "mv3qjzy1vmcfl",
+    "mv3qk71w8022m",
+    "mv3q7rc78fkqo",
+    "mv0wd5hyppx7d",
+    "mv1roghwam60s",
+    "mv1rzz4hyu0nx",
+    "mv1qrrnep2643",
+    "mv1s11vlpygpg",
+    "mv3r4lv1mew2f",
+    "mv1te7zqpmtlh",
+    "mv1sfta0d8zx8",
+    "mv1ust1by276u",
+    "mv5dw54h82rip",
+    "mv5cadbhjyu19",
+    "mv5cle7xdrymh",
+    "mv5ds091afwbc",
+    "mv5dmxg4g7lte",
+    "mv1vg8vkho4jp",
+    "mv202ix1xlw2y",
+    "mv20879x7onps",
+    "mv20o9o6ipp2q",
+    "mv21mihddpzg6",
+    "mv3rnznx30ue5",
+    "mv22ivhmtehi4",
+    "mv4ns0eb53mce",
+    "mv4o60huxmmcm",
+    "mv4owsg52x6nw",
+    "mv4o9ysvwkcms",
+    "mv4pgwmribhd1",
+    "mv4p36q5v7gm9",
+    "mv22u0g7xjjci",
+    "mv23x7gdy8ho2",
+    "mv243oja6jm9j",
+    "mv2458o1q5ltt",
+    "mvc5ue1tn8qip"
+  ]
+}

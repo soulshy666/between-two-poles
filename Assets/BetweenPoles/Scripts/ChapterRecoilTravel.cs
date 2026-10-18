@@ -117,7 +117,7 @@ public sealed partial class ChapterRecoilTravel:MonoBehaviour {
         var runner=prepared&&prepared.source==exit.GetComponent<GridPlayground>()?prepared:new GameObject("连续星际飞行").AddComponent<ChapterRecoilTravel>();DontDestroyOnLoad(runner.gameObject);
         if(runner.preloadRoutine!=null){runner.StopCoroutine(runner.preloadRoutine);runner.preloadRoutine=null;}
         runner.source=exit.GetComponent<GridPlayground>();runner.magnet=incoming;
-        runner.view=FindObjectsOfType<CurvedTrialCamera>().First(c=>c.island&&c.island.board==runner.source);
+        runner.view=FindObjectsOfType<CurvedTrialCamera>().First(c=>c.isActiveAndEnabled&&c.GetComponent<Camera>().enabled&&c.island&&c.island.board==runner.source);
         // Preserve the departure's vertical framing instead of snapping from island
         // center to the launcher's row as soon as flight begins.
         var framing=runner.view.transform.position-runner.view.island.viewingOffset-runner.source.RecoilCameraFocus;
@@ -273,6 +273,13 @@ public sealed partial class ChapterRecoilTravel:MonoBehaviour {
         foreach(var root in destination.GetRootGameObjects()){
             root.transform.position+=shift;Advance();yield return null;
         }
+        // These authored grid coordinates are not Transforms. Rebase them with
+        // the destination, or a later chapter exit fails after playing through
+        // the preceding chapter despite working when opened directly.
+        var destinationExit=board.GetComponent<ChapterRecoilExit>();
+        if(destinationExit){destinationExit.exitRow+=shiftCell.y;destinationExit.testCell+=shiftCell;}
+        var destinationEnding=board.GetComponent<SolarEnding>();
+        if(destinationEnding)destinationEnding.exitRow+=shiftCell.y;
         board.InvalidateTileLookup();
         shore+=shiftCell;innerCell+=shiftCell;
         var targetIsland=targetView.island;var targetCenters=targetIsland.islandCenters;

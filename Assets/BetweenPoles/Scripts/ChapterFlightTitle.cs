@@ -13,6 +13,10 @@ public sealed class ChapterFlightTitle:MonoBehaviour {
     public static bool HoldsMusic {get{return activeTitle&&activeTitle.running;}}
     readonly Texture2D[] silhouettes=new Texture2D[4],highlights=new Texture2D[4];
     readonly Color32[][] original=new Color32[4][],working=new Color32[4][];
+    readonly Color[][] sourceColors=new Color[4][];
+    readonly int[][] visiblePixels=new int[4][];
+    readonly float[] previousFlash={-1,-1,-1,-1};
+    readonly float[] previousSweep={float.NaN,float.NaN,float.NaN,float.NaN};
     static readonly int[] subtitleSteps={2,7,12,18,24,29,34,39,42,48,54,59,62,67,72,77,82,87};
     static readonly Color Red=new Color32(240,59,76,255),Blue=new Color32(50,147,206,255);
     static readonly Color LightRed=new Color32(255,138,149,255),LightBlue=new Color32(143,208,255,255);
@@ -42,6 +46,13 @@ public sealed class ChapterFlightTitle:MonoBehaviour {
         Preload();magnet=actor;view=camera;properties=new MaterialPropertyBlock();
         for(int i=0;i<4;i++)if(letters[i]){
             original[i]=letters[i].GetPixels32();working[i]=new Color32[original[i].Length];
+            sourceColors[i]=new Color[original[i].Length];
+            var visible=new System.Collections.Generic.List<int>();
+            for(int j=0;j<original[i].Length;j++){
+                sourceColors[i][j]=original[i][j];working[i][j]=original[i][j];
+                if(original[i][j].a>0)visible.Add(j);
+            }
+            visiblePixels[i]=visible.ToArray();
             silhouettes[i]=NewTexture(letters[i]);highlights[i]=NewTexture(letters[i]);
             var tint=(Color32)(i<2?Red:Blue);var pixels=new Color32[original[i].Length];
             for(int j=0;j<pixels.Length;j++){pixels[j]=tint;pixels[j].a=original[i][j].a;}
@@ -78,10 +89,17 @@ public sealed class ChapterFlightTitle:MonoBehaviour {
             if(t<end)flash=0;
             float sweep=t-(Drop+.9f),p=Mathf.Repeat(sweep,3.6f)/1.1f;
             float x=208+(1464-208)*p;
-            for(int y=0;y<letters[i].height;y++)for(int px=0;px<letters[i].width;px++){
-                int index=y*letters[i].width+px;var c=(Color)original[i][index];
-                float wx=836+(i-1.5f)*226-129+px*6,wy=TitleY-129+(42-y)*6;
-                float dx=wx-Snap(x+(wy-TitleY)*.55f,5);
+            // Between sweeps the title is unchanged. Do not recalculate and
+            // upload four textures for the entire time it awaits interaction.
+            float sweepKey=sweep>=0&&p<1?x:float.PositiveInfinity;
+            if(previousFlash[i]==flash&&previousSweep[i]==sweepKey)continue;
+            previousFlash[i]=flash;previousSweep[i]=sweepKey;
+            int width=letters[i].width,lastRow=-1;float sweepX=0;
+            foreach(int index in visiblePixels[i]){
+                int y=index/width,px=index-y*width;var c=sourceColors[i][index];
+                if(y!=lastRow){lastRow=y;float rowY=TitleY-129+(42-y)*6;sweepX=Snap(x+(rowY-TitleY)*.55f,5);}
+                float wx=836+(i-1.5f)*226-129+px*6;
+                float dx=wx-sweepX;
                 float shine=sweep>=0&&p<1&&((dx>=0&&dx<30)||(dx>=45&&dx<55))?.85f:0;
                 float alpha=c.a;c=Color.Lerp(c,Color.white,Mathf.Max(flash,shine));c.a=alpha;working[i][index]=c;
             }
