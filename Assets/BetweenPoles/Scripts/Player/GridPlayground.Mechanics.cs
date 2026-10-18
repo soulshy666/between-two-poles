@@ -108,6 +108,7 @@ public sealed partial class GridPlayground {
         if(Busy||Mathf.Abs(dir.x)+Mathf.Abs(dir.y)!=1)return false;
         if(RingRouteReserved(Cell(player)+dir))return Reject("圆环正在经过这里，请避开滚动路线");
         var edgePose=player.GetComponent<PlayerPushPose>();if(edgePose){edgePose.InterruptEdgeBalance(dir);edgePose.InterruptStonePush(dir);}
+        EnsureCrossMaterials();
         var before=SaveWorld();
         bool accepted=TryStepCore(dir);
         if(accepted){RecordHistory(before);if(interruptiblePush)pushUndo=before;}

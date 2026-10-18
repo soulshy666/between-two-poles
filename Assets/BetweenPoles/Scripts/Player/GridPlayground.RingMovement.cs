@@ -193,6 +193,8 @@ public sealed partial class GridPlayground {
         float motionSeconds=jumpDown?Mathf.Max(seconds,playerSeconds):seconds;
         bool releasedPush=false;
         bool detached=false;
+        // Keep a cross split and its destination interaction in this push's undo transaction.
+        bool crossImpact=CrossImpactPossible(ring,Piece(origin+dir*(cells+1),ring),dir);
         ring.walkable=false;player.rotation=Quaternion.LookRotation(forward);
         bool lifting=tip&&!falling&&!slideOff;
         var style=lifting?PlayerPushPose.FlowPushStyle.LiftBar:PlayerPushPose.FlowPushStyle.ShoveBar;
@@ -244,7 +246,7 @@ public sealed partial class GridPlayground {
                     pushPose.SamplePlatformJump(Mathf.Clamp01((actorTime-rimShoveSeconds)/jumpDownSeconds));
                 if(!tip&&pushProgress>=1){
                     pushPose.ReleaseFlowPush();releasedPush=true;
-                    if(!recordingPush&&!finishingMovement&&!BlackHolePortal.At(this,origin+dir*cells)){
+                    if(!crossImpact&&!recordingPush&&!finishingMovement&&!BlackHolePortal.At(this,origin+dir*cells)){
                         pendingRingRelease=PrepareLiveRing(ring,origin,dir,cells,end,intoSpace?floatingPose:rolledPose,intoSpace);
                         detached=true;
                         EndPushInterrupt();player.position=playerEnd;NotifyLanding(origin);Busy=false;
@@ -357,7 +359,9 @@ public sealed partial class GridPlayground {
                 ring.geometry.position+=forward*offset;
                 if(!contacted&&elapsed>=contactSeconds){
                     contacted=true;
-                    if(transferMomentum&&!recordingPush&&!finishingMovement)
+                    if(transferMomentum&&CrossImpactPossible(ring,obstacle,new Vector2Int(Mathf.RoundToInt(forward.x),Mathf.RoundToInt(forward.z))))
+                        yield return KnockCrossTop(ring,obstacle,new Vector2Int(Mathf.RoundToInt(forward.x),Mathf.RoundToInt(forward.z)),portalClock);
+                    else if(transferMomentum&&!recordingPush&&!finishingMovement)
                         TryTransferRingMomentum(ring,obstacle,new Vector2Int(Mathf.RoundToInt(forward.x),Mathf.RoundToInt(forward.z)),speed);
                 }
                 if(elapsed>=duration)break;
@@ -500,6 +504,10 @@ public sealed partial class GridPlayground {
     // Use the same rolling/toppling playback as ordinary ground impacts, with
     // the portal clock so animation skipping settles every participant as well.
     public IEnumerator TransferPortalRingMomentum(MagnetPiece source,MagnetPiece target,Vector2Int direction,float speed,int depth=0){
+        if(CrossImpactPossible(source,target,direction)){
+            EnsureCrossMaterials();
+            yield return KnockCrossTop(source,target,direction,true);yield break;
+        }
         if(depth>=magnets.Length||!target||MagnetStillAnimating(target)||!Supported(target)
             ||!SameHeight(source.transform.position.y,target.transform.position.y))yield break;
         var forward=new Vector3(direction.x,0,direction.y);var axis=new Vector3(direction.y,0,-direction.x);
