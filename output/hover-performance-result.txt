@@ -1,0 +1,54 @@
+Hover performance validation, 2026-10-18
+
+Only production change: GridPlayground.Hover.cs. Cargo platform classification,
+height and bob are computed once per camera callback and reused for all cargo.
+Original support predicates, rider weighting, update timing, camera callbacks,
+geometry-top calculation, movement, and animation constants are retained.
+The scratch list is rebuilt each render and cleared during hover cleanup.
+
+Method: isolated Unity 2022.3.60f1c1 batch-mode Play-mode project with matching
+runtime C# source hashes. Synthetic fixtures, no actual chapter scenes or GPU
+rendering. Call original and modified rendering methods on identical state,
+compare every magnet geometry and player visual position within 0.000001 world
+units, then verify complete restoration. Tests cover grounded/floating rings,
+plain cargo, a carried ring sharing a floating ring's root, partial horizontal
+influence, player riding, reordered magnets, replaced geometry, and repeated
+render/restore callbacks. 21,420 comparisons passed.
+The reference render method exists only in the temporary test project.
+
+Before -> after: render+restore milliseconds per camera (30 measured calls after
+5 warmups). Baseline and optimized runs are separate; these are not whole-frame
+FPS measurements. Fixtures contain 12 rings total; only hovering count changes.
+72 magnets, 0 floating: 0.068 -> 0.071
+72 magnets, 1 floating: 4.732 -> 0.283
+72 magnets, 4 floating: 17.492 -> 0.711
+72 magnets, 12 floating: 51.514 -> 1.679
+145 magnets, 0 floating: 0.228 -> 0.194
+145 magnets, 1 floating: 14.593 -> 0.440
+145 magnets, 4 floating: 57.550 -> 1.126
+145 magnets, 12 floating: 156.255 -> 3.080
+290 magnets, 0 floating: 0.297 -> 0.853
+290 magnets, 1 floating: 54.439 -> 0.954
+290 magnets, 4 floating: 192.391 -> 2.041
+290 magnets, 12 floating: 581.756 -> 5.202
+
+Full optimized diagnostic output:
+N=72, hovering=0, update=0.242 ms, render+restore per camera=0.071 ms
+N=72, hovering=1, update=0.498 ms, render+restore per camera=0.283 ms
+N=72, hovering=4, update=1.343 ms, render+restore per camera=0.711 ms
+N=72, hovering=12, update=3.649 ms, render+restore per camera=1.679 ms
+N=145, hovering=0, update=0.466 ms, render+restore per camera=0.194 ms
+N=145, hovering=1, update=0.902 ms, render+restore per camera=0.440 ms
+N=145, hovering=4, update=2.150 ms, render+restore per camera=1.126 ms
+N=145, hovering=12, update=5.589 ms, render+restore per camera=3.080 ms
+N=290, hovering=0, update=1.719 ms, render+restore per camera=0.853 ms
+N=290, hovering=1, update=1.837 ms, render+restore per camera=0.954 ms
+N=290, hovering=4, update=3.685 ms, render+restore per camera=2.041 ms
+N=290, hovering=12, update=9.474 ms, render+restore per camera=5.202 ms
+PASS: 21420 visual/restore comparisons against original render method
+Additional regression run after optimization: PASS
+- 16 ring bridge route cases, including undo/replay.
+- 32 ring platform push cases, including second push and undo/replay.
+- 20,819 existing presentation/performance assertions in Unity Play mode.
+- git diff --check passed.
+Actual Chapter 3/4 interactive frame rate has not been measured in this run.

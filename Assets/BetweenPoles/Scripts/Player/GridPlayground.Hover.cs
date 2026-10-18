@@ -2,6 +2,12 @@ using System.Collections.Generic;
 using UnityEngine;
 namespace BetweenPoles {
 public sealed partial class GridPlayground {
+    struct HoverCargoPlatform {
+        public MagnetPiece piece;
+        public Vector3 position;
+        public float height,bob;
+    }
+    readonly List<HoverCargoPlatform> hoverCargoPlatforms=new List<HoverCargoPlatform>();
     readonly Dictionary<MagnetPiece,float> uLandingBounces=new Dictionary<MagnetPiece,float>();
     readonly List<MagnetPiece> expiredUBounces=new List<MagnetPiece>();
     void RenderULandingBounces(){
@@ -290,18 +296,29 @@ public sealed partial class GridPlayground {
         }
         // Riders use the platform's bob, not its geometry-to-shore alignment offset.
         // Roots retain logical grid heights for pushing, collision and undo.
+        // Classify after all platform offsets are saved, using RingRestCentre's
+        // original centres. Rebuild for each render so movement, undo and portal
+        // changes cannot leave stale support/pose data between cameras or frames.
+        hoverCargoPlatforms.Clear();
+        foreach(var entry in hoveringMagnets){
+            var platform=entry.Key;
+            if(!FloatingWidePlatform(platform)&&!FloatingRing(platform))continue;
+            float t=entry.Value;
+            hoverCargoPlatforms.Add(new HoverCargoPlatform{
+                piece=platform,position=platform.transform.position,height=DeckHeight(platform),
+                bob=MagnetHoverAmplitude*Mathf.Sin(t*Mathf.PI*2/MagnetHoverPeriod)*Mathf.SmoothStep(0,1,Mathf.Clamp01(t/.4f))
+            });
+        }
         foreach(var cargo in magnets){
             if(!cargo||!cargo.enabled||!cargo.gameObject.activeInHierarchy||!cargo.geometry
                 ||hoveringMagnets.ContainsKey(cargo)||MagnetFlightOwnsHeight(cargo)||portalAnimatedMagnets.Contains(cargo))continue;
             float cargoBob=0,totalWeight=0;
-            foreach(var entry in hoveringMagnets){
-                var platform=entry.Key;
-                if((!FloatingWidePlatform(platform)&&!FloatingRing(platform))||platform==cargo)continue;
-                var delta=cargo.transform.position-platform.transform.position;
-                if(!SameHeight(cargo.transform.position.y,DeckHeight(platform)))continue;
+            foreach(var platform in hoverCargoPlatforms){
+                if(platform.piece==cargo)continue;
+                var delta=cargo.transform.position-platform.position;
+                if(!SameHeight(cargo.transform.position.y,platform.height))continue;
                 float weight=1-Mathf.SmoothStep(0,1,Mathf.InverseLerp(cellSize*.35f,cellSize,new Vector2(delta.x,delta.z).magnitude));
-                float t=entry.Value;
-                cargoBob+=weight*MagnetHoverAmplitude*Mathf.Sin(t*Mathf.PI*2/MagnetHoverPeriod)*Mathf.SmoothStep(0,1,Mathf.Clamp01(t/.4f));
+                cargoBob+=weight*platform.bob;
                 totalWeight+=weight;
             }
             if(totalWeight<=0)continue;
@@ -327,6 +344,7 @@ public sealed partial class GridPlayground {
         hoverRenderPositions.Clear();
     }
     void ClearMagnetHover(){
+        hoverCargoPlatforms.Clear();
         blockedUNudge=null;blockedUNudgeOffset=0;
         barRocks.Clear();
         portalMagnetPresentation=false;

@@ -678,6 +678,12 @@ public sealed partial class GridPlayground {
         return AssembleCore(incoming,target,dir,arrival,product,next,bridgeDir,false);
     }
     IEnumerator AssembleCore(MagnetPiece incoming,MagnetPiece target,Vector2Int dir,Quaternion arrival,MagnetProduct product,Vector2Int next,Vector2Int bridgeDir,bool portal){
+        var previousIncoming=activeAssemblyIncoming;var previousReceiver=activeAssemblyReceiver;
+        activeAssemblyIncoming=incoming;activeAssemblyReceiver=target;
+        try{yield return AssembleCoreAnimation(incoming,target,dir,arrival,product,next,bridgeDir,portal);}
+        finally{activeAssemblyIncoming=previousIncoming;activeAssemblyReceiver=previousReceiver;}
+    }
+    IEnumerator AssembleCoreAnimation(MagnetPiece incoming,MagnetPiece target,Vector2Int dir,Quaternion arrival,MagnetProduct product,Vector2Int next,Vector2Int bridgeDir,bool portal){
         if(!portal)BeginPushInterrupt(dir,playPushSound:false);
         pushHoverParticipants.Add(incoming);pushHoverParticipants.Add(target);
         Vector3 start=incoming.transform.position;Quaternion old=incoming.Pose;float degrees;MagnetPiece.Rolled(incoming.shape,old,dir,out degrees);

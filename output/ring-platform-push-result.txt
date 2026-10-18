@@ -1,0 +1,2 @@
+PASS: 32 cases; four directions, both array orders and postures, authored/settled platforms, second push and undo/replay.PASS: existing PortalRepulsionRegression.RunRingTerrain (floor/cargo support and order-independent occupancy).
+Validation: isolated Unity 2022.3 batch editor; pre-fix reproduction failed on overlapping ring bounds; updated runtime compiled successfully (two existing unused-field warnings). No live-scene visual playtest.

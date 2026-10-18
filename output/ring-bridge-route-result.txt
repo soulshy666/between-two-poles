@@ -1,0 +1,2 @@
+PASS: 16 cases; four directions, array orders, tipping and rolling, both bridge cells, opposite shore, undo/replay and sideways rejection.PASS: prior 32-case ring-platform push regression and PortalRepulsionRegression.RunRingTerrain.
+Pre-fix reproduction: Ring on bridge became floating terrain. Validation: isolated Unity batch editor; runtime compilation passed with two existing unused-field warnings. Live-scene visual playtest not performed.
