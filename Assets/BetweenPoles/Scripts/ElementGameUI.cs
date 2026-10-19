@@ -11,16 +11,15 @@ public sealed class ElementGameUI:MonoBehaviour {
     public EditorPanel editorPanel;
     static readonly Dictionary<string,Texture2D> assets=new Dictionary<string,Texture2D>();
     static readonly string[] themes={"ice","grass","earth","fire"};
-    static float audibleVolume=1;
     public static bool Paused {get;private set;}
     GridPlayground board;ChapterMapReturn map;float previousTimeScale=1;bool ownsPause;
     string toast,hovered;float toastUntil;AudioSource audioSource;
     readonly Dictionary<string,AudioClip> clips=new Dictionary<string,AudioClip>();
     public const float UIScale=1.5f;
     public static int BaseK {get{return Mathf.Clamp(Mathf.FloorToInt(Screen.width/460f+.5f),2,4);}}
-    public static Rect SafeRect {get{var safe=Application.isMobilePlatform?Screen.safeArea:new Rect(0,0,Screen.width,Screen.height);return new Rect(safe.x,Screen.height-safe.yMax,safe.width,safe.height);}}
-    public static float K {get{return Application.isMobilePlatform?Mathf.Clamp(Mathf.Min(SafeRect.height/150f,SafeRect.width/160f),1.5f,8f):BaseK*UIScale;}}
-    public static float TextScale {get{return Application.isMobilePlatform?K*.75f:Mathf.Max(1,BaseK-1)*UIScale;}}
+    public static Rect SafeRect => MobileUI.SafeRect;
+    public static float K {get{return MobileUI.Enabled?Mathf.Clamp(Mathf.Min(SafeRect.height/150f,SafeRect.width/160f),1.5f,8f):BaseK*UIScale;}}
+    public static float TextScale {get{return MobileUI.Enabled?K*.75f:Mathf.Max(1,BaseK-1)*UIScale;}}
     public static string Theme {
         get{string name=SceneManager.GetActiveScene().name;for(int i=0;i<4;i++)if(name.Contains("Chapter0"+(i+1)))return themes[i];return themes[Mathf.Clamp(ChapterAtlas.ReturnChapter,0,3)];}
     }
@@ -59,9 +58,12 @@ public sealed class ElementGameUI:MonoBehaviour {
     public static bool NavigationButton(string asset,bool right,System.Action action){
         var texture=Asset(asset);if(!texture)return false;float k=K,t=TextScale;
         var safe=SafeRect;
-        var rect=new Rect(right?safe.xMax-6*k-texture.width*t:safe.x+6*k,safe.y+6*k,texture.width*t,texture.height*t);
-        if(rect.Contains(Event.current.mousePosition)&&Input.GetMouseButton(0))rect.y+=t;
-        GUI.DrawTexture(rect,texture);if(GUI.Button(rect,GUIContent.none,GUIStyle.none)){action();return true;}return false;
+        float width=texture.width*t,height=texture.height*t;
+        if(MobileUI.Enabled){float factor=Mathf.Max(1,18*k/height);width*=factor;height*=factor;}
+        var rect=new Rect(right?safe.xMax-6*k-width:safe.x+6*k,safe.y+6*k,width,height);
+        var visual=rect;
+        if(rect.Contains(Event.current.mousePosition)&&Input.GetMouseButton(0))visual.y+=t;
+        GUI.DrawTexture(visual,texture);if(MobileUI.Button("nav-"+asset+right,rect)){action();return true;}return false;
     }
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     static void ResetState(){Paused=false;assets.Clear();}
@@ -70,7 +72,7 @@ public sealed class ElementGameUI:MonoBehaviour {
     void Initialize(){board=GetComponent<GridPlayground>();map=GetComponent<ChapterMapReturn>();if(!Application.isPlaying||audioSource)return;audioSource=gameObject.AddComponent<AudioSource>();audioSource.playOnAwake=false;audioSource.ignoreListenerPause=true;}
     bool HUDReady {get{return gameObject.scene==SceneManager.GetActiveScene()&&board&&board.enabled&&!board.OpeningCinematic&&!ChapterRecoilTravel.Active&&!BlackHoleTravel.Selecting&&!BlackHoleTravel.InTransit;}}
     bool Available {get{return HUDReady&&!board.Busy;}}
-    void SetPaused(bool value){if(value==Paused)return;if(value){previousTimeScale=Time.timeScale;Time.timeScale=0;}else Time.timeScale=previousTimeScale;ownsPause=value;Paused=value;}
+    void SetPaused(bool value){if(value==Paused)return;if(value){previousTimeScale=Time.timeScale;Time.timeScale=0;MobileUI.ResetTouches();}else{Time.timeScale=previousTimeScale;PlayerPrefs.Save();}ownsPause=value;Paused=value;}
     void OnDisable(){if(ownsPause)SetPaused(false);}
     void OnDestroy(){foreach(var clip in clips.Values)if(clip)Destroy(clip);}
     void Update(){
@@ -94,7 +96,7 @@ public sealed class ElementGameUI:MonoBehaviour {
     void Activate(string action){
         if(!Application.isPlaying)return;
         if(action=="map"){if(Paused)SetPaused(false);map.OpenLocalOverview();Blip("map");return;}
-        if(action=="sound"){if(AudioListener.volume>0){audibleVolume=AudioListener.volume;AudioListener.volume=0;}else AudioListener.volume=audibleVolume;Notify(AudioListener.volume>0?"sound":"mute");return;}
+        if(action=="sound"){GameAudioSettings.ToggleMute();Notify(AudioListener.volume>0?"sound":"mute");return;}
         if(action=="pause"){SetPaused(!Paused);Blip("click");return;}
         if(!Available||Paused)return;
         if(action=="undo"){board.UndoStep();Notify(action);}
@@ -120,22 +122,23 @@ public sealed class ElementGameUI:MonoBehaviour {
         Draw(rect,icon+"-"+state);
         if(action=="undo"){int frame=(int)(Time.unscaledTime/.18f)%2;Draw(new Rect(x-k,y-3*k,5*k,6*k),"deco-"+frame);}
         bool old=GUI.enabled;GUI.enabled=enabled;
-        if(GUI.Button(rect,GUIContent.none,GUIStyle.none))Activate(action);GUI.enabled=old;
-        if(hot&&visuallyEnabled){
+        if(MobileUI.Button("hud-"+action,rect))Activate(action);GUI.enabled=old;
+        if(hot&&visuallyEnabled&&!MobileUI.Enabled){
             if(hovered!=action&&Event.current.type==EventType.Repaint){hovered=action;Blip("hover");}
             var tip=Asset("tip-"+icon+"-k"+BaseK);float t=TextScale;if(tip){float left=action=="map"?x:action=="pause"?rect.xMax-tip.width*t:rect.center.x-tip.width*t/2f;GUI.DrawTexture(new Rect(left,rect.yMax+k,tip.width*t,tip.height*t),tip);}
         }
     }
     void OnGUI(){
+        if(TelevisionSceneTransition.Busy)return;
         if(!Application.isPlaying){if(gameObject.scene==SceneManager.GetActiveScene())DrawEditorPreview(Screen.width,Screen.height);return;}
         if(gameObject.scene!=SceneManager.GetActiveScene()||!board||ChapterAtlas.IsInspectionScene(gameObject.scene)||ChapterRecoilTravel.Active||BlackHoleTravel.Selecting||BlackHoleTravel.InTransit||board.OpeningCinematic)return;
         if(map&&map.MapSessionActive)return;
         GUI.depth=-20;float k=K;
         if(Paused){
             var pauseSafe=SafeRect;
-            GUI.BeginGroup(pauseSafe);
+            var matrix=GUI.matrix;GUI.matrix=Matrix4x4.Translate(new Vector3(pauseSafe.x,pauseSafe.y));
             DrawPausePanel(pauseSafe.width,pauseSafe.height,k,true);
-            GUI.EndGroup();
+            GUI.matrix=matrix;
             return;
         }
         var safe=SafeRect;float top=safe.y+6*k;
@@ -148,6 +151,7 @@ public sealed class ElementGameUI:MonoBehaviour {
     }
     bool returningToMenu;
     void DrawPausePanel(float width,float height,float k,bool interactive){
+        if(MobileUI.Enabled){DrawMobilePause(width,height,k,interactive);return;}
         var panel=Asset("pause-panel");
         float panelHeight=panel?panel.height*k:60*k;
         float top=(height-panelHeight-46*k)*.5f;
@@ -168,6 +172,29 @@ public sealed class ElementGameUI:MonoBehaviour {
         if(Event.current.type==EventType.MouseUp&&Event.current.button==0&&!menu.Contains(Event.current.mousePosition)){
             SetPaused(false);Event.current.Use();
         }
+    }
+    void DrawMobilePause(float width,float height,float k,bool interactive){
+        var color=GUI.color;GUI.color=new Color(.02f,.04f,.08f,.94f);GUI.DrawTexture(new Rect(0,0,width,height),Texture2D.whiteTexture);GUI.color=color;
+        float w=Mathf.Min(width-12*k,110*k),x=(width-w)/2,y=(height-112*k)/2;
+        bool old=GUI.enabled;GUI.enabled=interactive&&!returningToMenu;
+        Panel(new Rect(x,y,w,14*k));ProgressText(new Rect(x,y,w,14*k),SessionPlayTime.Display,false,true);
+        var volume=new Rect(x+22*k,y+22*k,w-44*k,13*k);
+        Draw(new Rect(x,y+22*k,19*k,21*k),(AudioListener.volume>0?"sound":"mute")+"-normal");
+        if(MobileUI.Button("pause-mute",new Rect(x,y+22*k,19*k,21*k)))GameAudioSettings.ToggleMute();
+        float value=MobileUI.Slider("pause-volume",volume,AudioListener.volume);
+        if(!Mathf.Approximately(value,AudioListener.volume))GameAudioSettings.SetVolume(value);
+        ProgressText(new Rect(x+w-21*k,y+22*k,21*k,13*k),Mathf.RoundToInt(AudioListener.volume*100).ToString(),true);
+        var minus=new Rect(x,y+41*k,24*k,17*k);var plus=new Rect(x+w-24*k,y+41*k,24*k,17*k);
+        Panel(minus);Panel(plus);
+        var ink=GUI.color;GUI.color=Ink;
+        GUI.DrawTexture(new Rect(minus.center.x-4*k,minus.center.y-k,8*k,2*k),Texture2D.whiteTexture);
+        GUI.DrawTexture(new Rect(plus.center.x-4*k,plus.center.y-k,8*k,2*k),Texture2D.whiteTexture);
+        GUI.DrawTexture(new Rect(plus.center.x-k,plus.center.y-4*k,2*k,8*k),Texture2D.whiteTexture);GUI.color=ink;
+        if(MobileUI.Button("volume-minus",minus))GameAudioSettings.SetVolume(AudioListener.volume-.1f);
+        if(MobileUI.Button("volume-plus",plus))GameAudioSettings.SetVolume(AudioListener.volume+.1f);
+        if(PixelGameUI.Button(new Rect(x,y+64*k,w,20*k),"继续游戏"))SetPaused(false);
+        if(PixelGameUI.Button(new Rect(x,y+90*k,w,20*k),"返回主菜单")){returningToMenu=true;StartCoroutine(ReturnToMenu());}
+        GUI.enabled=old;
     }
     System.Collections.IEnumerator ReturnToMenu(){
         GameSaveSlots.SaveNow();

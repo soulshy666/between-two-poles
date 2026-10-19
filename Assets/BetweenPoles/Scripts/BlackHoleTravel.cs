@@ -13,16 +13,18 @@ public sealed partial class BlackHoleTravel : MonoBehaviour {
     bool busy;
     static bool settlingAnimation;
     static int skipInputFrame=-1;
+    static bool mobileSkipAvailable,mobileSkipRequested;
     public static bool SkipTransitionActive {get{return settlingAnimation||Time.frameCount==skipInputFrame;}}
     static readonly System.Collections.Generic.HashSet<string> watchedAnimations=new System.Collections.Generic.HashSet<string>();
     public static float AnimationSpeed {get{return settlingAnimation?100000f:1f;}}
     public static float AnimationDeltaTime {get{return settlingAnimation?10000f:Time.unscaledDeltaTime;}}
-    static bool SkipPressed(){return Input.GetKeyDown(KeyCode.LeftArrow)||Input.GetKeyDown(KeyCode.RightArrow)
+    static bool SkipPressed(){return mobileSkipRequested||Input.GetKeyDown(KeyCode.LeftArrow)||Input.GetKeyDown(KeyCode.RightArrow)
         ||Input.GetKeyDown(KeyCode.UpArrow)||Input.GetKeyDown(KeyCode.DownArrow)
         ||Input.GetKeyDown(KeyCode.A)||Input.GetKeyDown(KeyCode.D)||Input.GetKeyDown(KeyCode.W)||Input.GetKeyDown(KeyCode.S);}
     public static System.Collections.IEnumerator PlayAnimation(string kind,System.Collections.IEnumerator routine){
         if(Application.isPlaying&&!instance){instance=new GameObject("Portal travel").AddComponent<BlackHoleTravel>();DontDestroyOnLoad(instance.gameObject);}
         bool canSkip=watchedAnimations.Contains(kind),skipped=false;
+        mobileSkipAvailable=canSkip;mobileSkipRequested=false;
         int firstFrame=Time.frameCount,guard=100000;
         var stack=new System.Collections.Generic.Stack<System.Collections.IEnumerator>();stack.Push(routine);
         try{
@@ -40,6 +42,7 @@ public sealed partial class BlackHoleTravel : MonoBehaviour {
             if(Application.isPlaying)watchedAnimations.Add(kind);
             settlingAnimation=false;
         }finally{
+            mobileSkipAvailable=mobileSkipRequested=false;
             while(stack.Count>0)(stack.Pop() as System.IDisposable)?.Dispose();
             settlingAnimation=false;
         }
@@ -53,7 +56,7 @@ public sealed partial class BlackHoleTravel : MonoBehaviour {
         for(float age=0;age<seconds;age+=AnimationDeltaTime)yield return null;
     }
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-    static void ResetStatics(){instance=null;Selecting=false;settlingAnimation=false;skipInputFrame=-1;watchedAnimations.Clear();}
+    static void ResetStatics(){instance=null;Selecting=false;settlingAnimation=false;skipInputFrame=-1;mobileSkipAvailable=mobileSkipRequested=false;watchedAnimations.Clear();}
     public static void Begin(BlackHolePortal portal){
         if(Selecting||InTransit||!portal||!portal.CanArrive)return;
         if(!instance){instance=new GameObject("黑洞穿梭").AddComponent<BlackHoleTravel>();DontDestroyOnLoad(instance.gameObject);}

@@ -34,7 +34,7 @@ public sealed partial class BlackHoleTravel {
             testMessage="点击已探索的黑洞出洞；出口受阻时会弹回入口。左键拖拽查看，滚轮缩放。";
             busy=false;
             while(!testDestination){
-                if(Input.GetKeyDown(KeyCode.Z)){undoRequested=true;yield break;}
+                if(Input.GetKeyDown(KeyCode.Z)||touchUndoRequested||(MobileUI.Enabled&&Input.GetKeyDown(KeyCode.Escape))){undoRequested=true;touchUndoRequested=false;yield break;}
                 UpdateNavigation();yield return null;
             }
             busy=true;var destination=testDestination;

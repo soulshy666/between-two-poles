@@ -90,6 +90,7 @@ public sealed class IceCrashIntro:MonoBehaviour {
         var r=g.GetComponent<Renderer>();r.sharedMaterial=material;r.shadowCastingMode=UnityEngine.Rendering.ShadowCastingMode.Off;r.localBounds=new Bounds(Vector3.zero,Vector3.one*300);return g.transform;
     }
     bool skipRequested;
+    void OnGUI(){if(MobileUI.Enabled&&Playing&&!TelevisionSceneTransition.Busy&&MobileUI.SkipButton("opening-skip"))skipRequested=true;}
     public void Skip(){
         if(!Playing)return;
         if(!ready){skipRequested=true;return;}

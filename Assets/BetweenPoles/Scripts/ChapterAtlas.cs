@@ -40,19 +40,23 @@ public sealed partial class ChapterAtlas : MonoBehaviour {
     void Start(){
         if(!showcaseCamera)showcaseCamera=GetComponent<Camera>();
         chartCameraPosition=showcaseCamera.transform.position;chartCameraSize=showcaseCamera.orthographicSize;
+        chartHome=chartCameraPosition;chartHomeSize=chartCameraSize;chartTouch.Reset(Input.touchCount>0);
         CurrentChapter=Mathf.Clamp(ReturnChapter,0,chapters.Length-1);
         font=Font.CreateDynamicFontFromOSFont(new[]{"Microsoft YaHei","SimHei","Arial"},20);
         BuildUI();CacheChartPlanets();if(ChartArrivalFrame)StartCoroutine(ArriveAtChart());
     }
     void Update(){
+        if(TelevisionSceneTransition.Busy)return;
         if(Input.GetKeyDown(KeyCode.Tab)){ReturnToGame();return;}
-        if(chartTransitioning){if(Input.GetKeyDown(KeyCode.Escape))ReturnToGame();return;}
+        if(chartTransitioning){chartTouch.Reset(Input.touchCount>0);if(Input.GetKeyDown(KeyCode.Escape))ReturnToGame();return;}
         if(IsInspecting){if(!inspectionLoading){if(inspectionNavigation){inspectionNavigation.TickInspection();if(inspectionNavigation.PlayerReturnRequested){ReturnToGame();return;}}if(Input.GetKeyDown(KeyCode.Escape))CloseInspection();}return;}
         if(Input.GetKeyDown(KeyCode.Escape)){ReturnToGame();return;}
+        if(MobileUI.Enabled||Input.touchCount>0){UpdateChartTouch();return;}
         if(Input.GetMouseButtonDown(0)&&(!EventSystem.current||!EventSystem.current.IsPointerOverGameObject()))ClickPlanet(Input.mousePosition);
     }
 
     void LateUpdate(){
+        LayoutChartTouch();
         if(!locator||CurrentChapter<0||CurrentChapter>=chapters.Length||!chapters[CurrentChapter].planet)return;
         var p=showcaseCamera.WorldToViewportPoint(chapters[CurrentChapter].planet.position);
         var size=root.rect.size;
@@ -78,11 +82,13 @@ public sealed partial class ChapterAtlas : MonoBehaviour {
         var go=new GameObject("星际航图界面",typeof(Canvas),typeof(CanvasScaler),typeof(GraphicRaycaster));SceneManager.MoveGameObjectToScene(go,gameObject.scene);
         canvas=go.GetComponent<Canvas>();canvas.renderMode=RenderMode.ScreenSpaceOverlay;canvas.sortingOrder=200;root=(RectTransform)go.transform;
         var scaler=go.GetComponent<CanvasScaler>();scaler.uiScaleMode=CanvasScaler.ScaleMode.ScaleWithScreenSize;scaler.referenceResolution=new Vector2(1600,900);scaler.matchWidthOrHeight=.5f;
-        Label("两极之间  /  星际航图",root,new Vector2(-480,390),new Vector2(520,55),28);
+        chartHeading=Label("两极之间  /  星际航图",root,new Vector2(-480,390),new Vector2(520,55),28).rectTransform;
         string text=ChapterMapReturn.HasSuspendedGame?"返回游戏（Esc）":"进入游戏";
         var button=Box(text,root,new Vector2(645,385),new Vector2(220,52));button.gameObject.AddComponent<Image>().color=new Color(.07f,.13f,.18f,.95f);
+        chartReturn=button;
         button.localScale=Vector3.one*ElementGameUI.UIScale;button.anchoredPosition=new Vector2(755-110*ElementGameUI.UIScale,411-26*ElementGameUI.UIScale);
         var returnButton=button.gameObject.AddComponent<Button>();returnButton.onClick.AddListener(ReturnToGame);PixelGameUI.StyleButton(returnButton);Label(text,button,Vector2.zero,new Vector2(220,52),21);
+        if(MobileUI.Enabled)button.gameObject.SetActive(false);
         locator=Box("主角当前位置",root,Vector2.zero,new Vector2(240,150));
         portrait=CreatePlayerPortrait();var icon=Box("主角形象",locator,new Vector2(0,30),new Vector2(64,80)).gameObject.AddComponent<RawImage>();icon.texture=portrait;icon.raycastTarget=false;
         arrow=new Texture2D(9,7,TextureFormat.RGBA32,false){filterMode=FilterMode.Point};var pixels=new Color[63];

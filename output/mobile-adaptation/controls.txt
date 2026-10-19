@@ -1,0 +1,1 @@
+PASS: 50 assertions; tap, drag, pinch, finger identity, UI exclusion, cancellation, focus-reset, safe-area fitting, persistent volume. Device validation still required.
