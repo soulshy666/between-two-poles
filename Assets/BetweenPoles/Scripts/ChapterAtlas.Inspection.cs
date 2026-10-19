@@ -113,7 +113,8 @@ public sealed partial class ChapterAtlas {
     void OnGUI(){
         DrawInspectionTransition();
         if(!IsInspecting){
-            if(canvas&&!canvas.enabled&&PixelGameUI.Button(new Rect(Screen.width-240,22,218,52),"返回游戏（Esc）"))ReturnToGame();
+            if(MobileUI.Enabled)ElementGameUI.NavigationButton("return",true,ReturnToGame);
+            else if(canvas&&!canvas.enabled&&PixelGameUI.Button(new Rect(Screen.width-240,22,218,52),"返回游戏（Esc）"))ReturnToGame();
             return;
         }
         GUI.enabled=true;

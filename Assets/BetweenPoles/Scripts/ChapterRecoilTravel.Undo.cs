@@ -36,6 +36,10 @@ public sealed partial class ChapterRecoilTravel {
     void Update(){
         if(activeFlight==this&&Active&&Time.timeScale>0&&Input.GetKeyDown(KeyCode.Z))TryUndoFlight();
     }
+    void OnGUI(){
+        if(MobileUI.Enabled&&!TelevisionSceneTransition.Busy&&activeFlight==this&&Active&&Time.timeScale>0)
+            if(MobileUI.ActionIcon("flight-undo","undo",true))TryUndoFlight();
+    }
     public static bool TryUndoFlight(){
         if(!Active||!activeFlight||!activeFlight.source||activeFlight.source.UndoCount==0)return false;
         UndoInputFrame=Time.frameCount;

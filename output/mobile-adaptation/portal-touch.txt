@@ -1,0 +1,1 @@
+PASS: actual mechanism test scene; walk into portal, screen-space pan and pinch, UI gesture exclusion, no selection on drag/pinch release, unchanged portal positions, screen-space tap chooses destination, existing travel completes at expected exit. Synthetic touch samples in Editor; device testing still required.

@@ -93,15 +93,13 @@ public sealed partial class CoverMenu:MonoBehaviour {
   if(loading||TelevisionSceneTransition.Busy)return;
   var mouse=Input.mousePosition;
   if(!settings&&!exitPrompt&&!savePage&&(mouse-lastMouse).sqrMagnitude>.01f){
-   float k=Mathf.Max(Screen.width/1376f,Screen.height/768f);
-   float ox=Screen.width/1376f<Screen.height/768f?0:(Screen.width-1376*k)*.5f;
-   var point=new Vector2((mouse.x-ox)/k,(Screen.height-mouse.y-(Screen.height-768*k)*.5f)/k);
+   var layout=CoverRect();float k=layout.width/1376f;
+   var point=new Vector2((mouse.x-layout.x)/k,(Screen.height-mouse.y-layout.y)/k);
    point=CRTContentPoint(point);
    for(int i=0;i<3;i++)if(new Rect(30,330+i*106,350,92).Contains(point))selected=i;
   }
-  float screenScale=Mathf.Max(Screen.width/1376f,Screen.height/768f);
-  float screenLeft=Screen.width/1376f<Screen.height/768f?0:(Screen.width-1376*screenScale)*.5f;
-  var coverMouse=new Vector2((mouse.x-screenLeft)/screenScale,(Screen.height-mouse.y-(Screen.height-768*screenScale)*.5f)/screenScale);
+  var screenRect=CoverRect();float screenScale=screenRect.width/1376f;
+  var coverMouse=new Vector2((mouse.x-screenRect.x)/screenScale,(Screen.height-mouse.y-screenRect.y)/screenScale);
   UpdateAstronaut(CRTContentPoint(coverMouse),!settings&&!exitPrompt&&!savePage&&mouse.x>=0&&mouse.x<=Screen.width&&mouse.y>=0&&mouse.y<=Screen.height);
   lastMouse=mouse;
   parallax=Vector2.Lerp(parallax,new Vector2(Mathf.Clamp01(Input.mousePosition.x/Screen.width)-.5f,.5f-Mathf.Clamp01(Input.mousePosition.y/Screen.height))*2,1-Mathf.Exp(-Time.unscaledDeltaTime*2.4f));
@@ -125,10 +123,11 @@ public sealed partial class CoverMenu:MonoBehaviour {
   yield break;
  }
  const string PixelGlyphs="两极之间开始游戏设置退出确定要吗？取消声音返回0123456789%−+› ";
- Texture2D pixelGlyphs,saveGlyphs;
+ static Texture2D pixelGlyphs,saveGlyphs;
  const string SaveGlyphs="选择存档新继续删除是否确认读取失败保存游戏返回取消确定吗？×0123456789› ";
  static int GlyphWidth(char c){return c<128||c=='−'||c=='›'?6:12;}
- void PixelText(Rect rect,string value,float maxScale,bool centered=true,bool shadow=true){
+ public static bool HasPixelText(string value){foreach(char c in value)if(PixelGlyphs.IndexOf(c)<0&&SaveGlyphs.IndexOf(c)<0)return false;return true;}
+ public static void PixelText(Rect rect,string value,float maxScale,bool centered=true,bool shadow=true){
   if(!pixelGlyphs){pixelGlyphs=Resources.Load<Texture2D>("ElementUI/CoverPixelGlyphs");if(pixelGlyphs){pixelGlyphs.filterMode=FilterMode.Point;pixelGlyphs.wrapMode=TextureWrapMode.Clamp;}}
   if(!pixelGlyphs)return;
   int width=2;foreach(char c in value)width+=GlyphWidth(c);
@@ -201,8 +200,9 @@ public sealed partial class CoverMenu:MonoBehaviour {
   if((!coverWorld&&(!background||!astronaut))||!title)return;
   EnsurePreview();
   var matrix=GUI.matrix;var color=GUI.color;
-  float scale=Mathf.Max(Screen.width/1376f,Screen.height/768f);
-  GUI.matrix=Matrix4x4.TRS(new Vector3(Screen.width/1376f<Screen.height/768f?0:(Screen.width-1376*scale)*.5f,(Screen.height-768*scale)*.5f,0),Quaternion.identity,Vector3.one*scale);
+  var layout=CoverRect();float scale=layout.width/1376f;
+  GUI.matrix=Matrix4x4.TRS(new Vector3(layout.x,layout.y,0),Quaternion.identity,Vector3.one*scale);
+  bool previousEnabled=GUI.enabled;GUI.enabled=previousEnabled&&!TelevisionSceneTransition.Busy;
   var originalMouse=Event.current.mousePosition;
   Event.current.mousePosition=CRTContentPoint(originalMouse);
   float t=AnimationTime;
@@ -211,7 +211,7 @@ public sealed partial class CoverMenu:MonoBehaviour {
   if(loading){
    DrawCRT();
    Event.current.mousePosition=originalMouse;
-   GUI.matrix=matrix;if(fade>0){GUI.color=new Color(0,0,0,fade);GUI.DrawTexture(new Rect(0,0,Screen.width,Screen.height),Texture2D.whiteTexture);}GUI.color=color;return;
+   GUI.matrix=matrix;if(fade>0){GUI.color=new Color(0,0,0,fade);GUI.DrawTexture(new Rect(0,0,Screen.width,Screen.height),Texture2D.whiteTexture);}GUI.color=color;GUI.enabled=previousEnabled;return;
   }
   DrawPixelTitle(new Rect(42,46,510,150));
   var labels=new[]{startLabel,settingsLabel,exitLabel};
@@ -229,9 +229,9 @@ public sealed partial class CoverMenu:MonoBehaviour {
    if(settings){
     ExitText(new Rect(428,260,520,75),"设置",48);
     ExitText(new Rect(508,355,360,75),"声音  "+Mathf.RoundToInt(AudioListener.volume*100)+"%",48);
-    if(ExitChoice(new Rect(388,355,120,75),"−",48))AudioListener.volume=Mathf.Clamp01(AudioListener.volume-.1f);
-    if(ExitChoice(new Rect(868,355,120,75),"+",48))AudioListener.volume=Mathf.Clamp01(AudioListener.volume+.1f);
-    if(ExitChoice(new Rect(568,465,240,75),"返回",48))settings=false;
+    if(ExitChoice(new Rect(388,355,120,75),"−",48))GameAudioSettings.SetVolume(AudioListener.volume-.1f);
+    if(ExitChoice(new Rect(868,355,120,75),"+",48))GameAudioSettings.SetVolume(AudioListener.volume+.1f);
+    if(ExitChoice(new Rect(568,465,240,75),"返回",48)){settings=false;PlayerPrefs.Save();}
    }
    else{
     ExitText(new Rect(428,310,520,60),"确定要退出游戏吗？",32);
@@ -242,7 +242,12 @@ public sealed partial class CoverMenu:MonoBehaviour {
   }
   DrawCRT();
   Event.current.mousePosition=originalMouse;
-  GUI.matrix=matrix;if(fade>0){GUI.color=new Color(0,0,0,fade);GUI.DrawTexture(new Rect(0,0,Screen.width,Screen.height),Texture2D.whiteTexture);}GUI.color=color;
+  GUI.matrix=matrix;if(fade>0){GUI.color=new Color(0,0,0,fade);GUI.DrawTexture(new Rect(0,0,Screen.width,Screen.height),Texture2D.whiteTexture);}GUI.color=color;GUI.enabled=previousEnabled;
+ }
+ Rect CoverRect(){
+  if(MobileUI.Enabled)return MobileUI.Fit(MobileUI.SafeRect,new Vector2(1376,768));
+  float scale=Mathf.Max(Screen.width/1376f,Screen.height/768f);
+  return new Rect(Screen.width/1376f<Screen.height/768f?0:(Screen.width-1376*scale)*.5f,(Screen.height-768*scale)*.5f,1376*scale,768*scale);
  }
 #if UNITY_EDITOR
  void OnDrawGizmos(){

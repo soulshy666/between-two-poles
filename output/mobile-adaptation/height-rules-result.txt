@@ -1,0 +1,3 @@
+FAIL: System.Exception: Equal-height move slid or teleported instead of jumping
+  at BetweenPoles.EditorTools.HeightRulesRegression.Check (System.Boolean ok, System.String message) [0x00016] in F:\GitProjects\between-two-poles\Assets\BetweenPoles\Editor\HeightRulesRegression.cs:17 
+  at BetweenPoles.EditorTools.HeightRulesRegression.Run () [0x00522] in F:\GitProjects\between-two-poles\Assets\BetweenPoles\Editor\HeightRulesRegression.cs:81 

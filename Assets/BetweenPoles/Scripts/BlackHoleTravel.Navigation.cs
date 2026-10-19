@@ -93,7 +93,7 @@ public sealed partial class BlackHoleTravel {
             foreach(var renderer in m.GetComponentsInChildren<Renderer>())SetNavigationVisible(renderer,show);
         }
         if(mapPresentation){BeginUnknownIslands(board);BeginMapLighting(board);}
-        navigationFinger=-1;touchGestureBlocked=Input.touchCount>0;
+        navigationTouch.Reset(Input.touchCount>0);touchUndoRequested=false;
         dragging=false;playerReturnPressed=false;PlayerReturnRequested=false;ApplyNavigation();
     }
     void SetNavigationVisible(Renderer renderer,bool show){
@@ -303,6 +303,11 @@ public sealed partial class BlackHoleTravel {
         }
     }
     void OnGUI(){
+        if(TelevisionSceneTransition.Busy)return;
+        if(MobileUI.Enabled&&instance==this){
+            if(mobileSkipAvailable&&MobileUI.SkipButton("portal-skip"))mobileSkipRequested=true;
+            if(Selecting&&!busy&&MobileUI.ActionIcon("portal-undo","undo",true))touchUndoRequested=true;
+        }
         DrawUnknownIslands();
         if(navigationCamera&&navigationWindow&&navigationMapPresentation){
             int unlocked=0,total=0;

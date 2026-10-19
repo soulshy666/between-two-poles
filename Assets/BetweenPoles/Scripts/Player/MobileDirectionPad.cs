@@ -14,8 +14,9 @@ public sealed class MobileDirectionPad : MonoBehaviour {
     static readonly Vector2Int[] Directions = { Vector2Int.up, Vector2Int.right, Vector2Int.down, Vector2Int.left };
     public Vector2Int Held { get; private set; }
     public Vector2Int Pressed { get; private set; }
-    bool Visible => (Application.isMobilePlatform || (Application.isEditor && previewInEditor))
-        && Application.isFocused && board && board.isActiveAndEnabled
+    bool Visible => (MobileUI.Enabled || (Application.isEditor && previewInEditor))
+        && !TelevisionSceneTransition.Busy
+        && (Application.isFocused || (Application.isEditor && (previewInEditor || MobileUI.PreviewInEditor))) && board && board.isActiveAndEnabled
         && gameObject.scene == SceneManager.GetActiveScene() && !board.OpeningCinematic
         && !ElementGameUI.Paused && Time.timeScale > 0
         && !ChapterRecoilTravel.Active && !BlackHoleTravel.InTransit
@@ -54,7 +55,7 @@ public sealed class MobileDirectionPad : MonoBehaviour {
         } else {
             finger = -1;
             // Mouse simulation is editor-only; do not reuse Unity's emulated touch mouse.
-            if (Application.isEditor && previewInEditor) {
+            if (Application.isEditor && (previewInEditor || MobileUI.PreviewInEditor)) {
                 if (Input.GetMouseButtonDown(0) && area.Contains(Input.mousePosition)) mouseOwned = true;
                 if (!Input.GetMouseButton(0)) mouseOwned = false;
                 if (mouseOwned) next = DirectionAt(Input.mousePosition);

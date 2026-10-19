@@ -69,6 +69,7 @@ public sealed partial class ChapterAtlas {
         finally{if(planet)planet.localRotation=original;shakingPlanets.Remove(planet);}
     }
     IEnumerator ApproachPlanet(Transform planet){
+        if(MobileUI.Enabled){chartCameraPosition=showcaseCamera.transform.position;chartCameraSize=showcaseCamera.orthographicSize;chartTouch.Reset(true);}
         chartTransitioning=true;
         canvas.enabled=false;
         for(float age=0;age<1.25f;age+=Mathf.Min(Time.unscaledDeltaTime,.05f)){

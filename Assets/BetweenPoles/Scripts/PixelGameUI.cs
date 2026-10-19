@@ -21,8 +21,9 @@ public static class PixelGameUI {
   Panel(visual);
   var texture=ElementGameUI.TextTexture(text);
   if(texture){float k=Mathf.Max(1,Mathf.Floor(Mathf.Min((r.width-16)/texture.width,(r.height-8)/texture.height)));GUI.DrawTexture(new Rect(Mathf.Round(visual.center.x-texture.width*k/2),Mathf.Round(visual.center.y-texture.height*k/2),texture.width*k,texture.height*k),texture);}
+  else if(MobileUI.Enabled&&CoverMenu.HasPixelText(text)){var color=GUI.color;GUI.color=Ink;CoverMenu.PixelText(visual,text,Mathf.Max(1,Mathf.Floor((r.height-8)/15)),true,false);GUI.color=color;}
   else{var style=Text(r.height<40?14:16,TextAnchor.MiddleCenter);GUI.Label(visual,text,style);}
-  return GUI.Button(r,GUIContent.none,GUIStyle.none);
+  return MobileUI.Button("pixel-"+text,r);
  }
  public static void Label(Rect r,string text){GUI.Label(r,text,Text());}
  public static void StyleButton(Button b){

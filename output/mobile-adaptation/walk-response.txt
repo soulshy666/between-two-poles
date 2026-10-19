@@ -1,0 +1,3 @@
+FAIL: System.Exception: Same-island stone was ignored
+  at BetweenPoles.EditorTools.WalkResponseRegression.ValidateLocalRecoil (BetweenPoles.GridPlayground board, UnityEngine.GameObject root) [0x00c37] in F:\GitProjects\between-two-poles\Assets\BetweenPoles\Editor\WalkResponseRegression.cs:301 
+  at BetweenPoles.EditorTools.WalkResponseRegression.Run () [0x00ce5] in F:\GitProjects\between-two-poles\Assets\BetweenPoles\Editor\WalkResponseRegression.cs:135 

@@ -195,7 +195,7 @@ public sealed class SolarEnding : MonoBehaviour {
         GUI.color = new Color(1, .91f, .70f, opacity);
         Text(returnLabel, button.center, k);
         GUI.enabled = ShowingThanks && !leaving;
-        if (GUI.Button(button, GUIContent.none, GUIStyle.none)) ReturnToMenu();
+        if (MobileUI.Button("ending-return",button)) ReturnToMenu();
     }
 
     static void Text(Texture2D texture, Vector2 center, float scale) {

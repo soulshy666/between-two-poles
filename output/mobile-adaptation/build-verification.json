@@ -1,0 +1,16 @@
+{
+  "apk": "output\\android\\between-two-poles-test.apk",
+  "bytes": 92394529,
+  "sha256": "79a57f6436a4ff8b7b5612b4582d3d7b2b65fa8abfae048c118b41770be356ab",
+  "result": "Succeeded",
+  "errors": 0,
+  "package": "com.betweentwopoles.playtest",
+  "architectures": [
+    "arm64-v8a",
+    "armeabi-v7a"
+  ],
+  "signing": "Android debug certificate; verified; same certificate as previous APK",
+  "project_settings": "SHA256 unchanged before/after build",
+  "device_test": "Not performed; no connected Android device",
+  "ios": "Shared mobile input code only; no iOS build or iPhone device test"
+}
