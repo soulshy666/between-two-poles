@@ -7,16 +7,19 @@ public sealed partial class CoverMenu {
  [Range(0,1)] public float crtGlow=.35f;
  [Range(.5f,1.5f)] public float crtBrightness=1f;
  Material crtMaterial;
+ // The IMGUI GrabPass can read a black framebuffer on mobile graphics backends.
+ // Present the original menu directly there; hit testing must use the same path.
+ bool UseCRT => crtEnabled&&crtStrength>0&&!MobileUI.Enabled;
  float CRTCurvature => .06f+.22f*crtStrength;
  // Same screen-to-content mapping as the reference renderer, used for clicks and hover.
  Vector2 CRTContentPoint(Vector2 point){
-  if(!crtEnabled||crtStrength<=0)return point;
+  if(!UseCRT)return point;
   var c=new Vector2(point.x/1376f-.5f,point.y/768f-.5f);
   c*=(1+CRTCurvature*c.sqrMagnitude)*(1-CRTCurvature*.25f);
   return new Vector2((c.x+.5f)*1376,(c.y+.5f)*768);
  }
  void DrawCRT(){
-  if(!crtEnabled||crtStrength<=0||Event.current.type!=EventType.Repaint)return;
+  if(!UseCRT||Event.current.type!=EventType.Repaint)return;
   if(!crtMaterial){
    var shader=Resources.Load<Shader>("Shaders/CoverCRT");if(!shader||!shader.isSupported)return;
    crtMaterial=new Material(shader){hideFlags=HideFlags.HideAndDontSave};
