@@ -72,6 +72,9 @@ mono_crash.*
 /output/windows-*-result.txt
 *.apk
 *.aab
+*.keystore
+*.jks
+signing.json
 *.unitypackage
 *.unitypackage.meta
 *.app

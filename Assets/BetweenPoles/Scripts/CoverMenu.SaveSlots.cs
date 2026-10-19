@@ -40,7 +40,7 @@ public sealed partial class CoverMenu {
                 GUI.color=i==saveSelection?Color.white:new Color(.75f,.82f,.85f);
                 PixelText(new Rect(row.x,row.y,110,row.height),"0"+(i+1),3,false);
                 PixelText(new Rect(row.x+110,row.y,260,row.height),occupiedSlots[i]?"继续游戏":"新游戏",3,false);
-                if(i==saveSelection&&triangle)GUI.DrawTexture(new Rect(row.x-24,row.y+25,10,14),triangle);
+                if(i==saveSelection&&triangle)CoverTexture(new Rect(row.x-24,row.y+25,10,14),triangle);
                 if(GUI.Button(row,GUIContent.none,GUIStyle.none)&&interactive){saveSelection=i;ChooseSlot(i);}
                 if(occupiedSlots[i]){
                     var cross=new Rect(510,row.y+8,50,50);GUI.color=cross.Contains(Event.current.mousePosition)?new Color(1,.48f,.42f):new Color(.8f,.8f,.8f);
