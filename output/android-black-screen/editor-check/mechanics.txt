@@ -1,0 +1,8 @@
+WalkResponseRegression.Run: FAIL: System.Exception: Same-island stone was ignored
+HeightRulesRegression.Run: FAIL: System.Exception: Equal-height move slid or teleported instead of jumping
+CrossImpactRegression.Run: PASS: 288 cases. Four directions, both upper poles and layer orders, adjacent and rolling approach; ground, space, opposite-pole ground/space assembly, stone, wrong axis, same-pole repulsion, fixed obstacle, height mismatch; sampled mid-impact undo, replay and disk roundtrip.
+PortalRepulsionRegression.Run: FAIL: System.Exception: Wrong blocked-destination outcome 4
+PortalRepulsionRegression.RunPortalRollingCheck: FAIL: System.Reflection.TargetParameterCountException: Number of parameters specified does not match the expected number.
+PortalRepulsionRegression.RunRingBridgeCheck: PASS: 72 checks; four directions, both bridge cells, shore exit, side entry/exit, height mismatch and unfinished bridge.
+PortalRepulsionRegression.RunSharedStorage: Completed without a report
+PortalFloatRegression.Run: PASS: hover survives disable and continues ticking; shore offset; spring compression and high airborne return; hidden entry and magnet restoration.

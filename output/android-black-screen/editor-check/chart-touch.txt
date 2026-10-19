@@ -1,0 +1,1 @@
+PASS: actual chart scene, screen-normalized pan with pixel render texture, proportional pinch zoom, no planet selection on drag release. Synthetic Editor input, device test pending.

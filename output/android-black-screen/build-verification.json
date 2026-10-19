@@ -1,0 +1,10 @@
+{
+  "apk": "output\\android\\between-two-poles-android-cover-check.apk",
+  "bytes": 100436331,
+  "sha256": "8e5f3b2415d3dafeedfaaca3e47135eeac72cfbed1fae69759598e37dd7b7f1a",
+  "build": "Succeeded, 0 errors",
+  "signing": "Verified, same certificate and package as previous test APK",
+  "source_change": "CoverMenu.CRT.cs only: bypass mobile CRT and matching curvature hit testing",
+  "editor_checks": "50 input assertions; menu captures; chart and black-hole synthetic touch integration passed",
+  "device_confirmation": "Pending: no authorized USB device attached; root cause remains a hypothesis"
+}
