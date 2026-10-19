@@ -1,0 +1,6 @@
+FAIL: System.Reflection.TargetParameterCountException: Number of parameters specified does not match the expected number.
+  at System.Reflection.RuntimeMethodInfo.ConvertValues (System.Reflection.Binder binder, System.Object[] args, System.Reflection.ParameterInfo[] pinfo, System.Globalization.CultureInfo culture, System.Reflection.BindingFlags invokeAttr) [0x00016] in <356d430fdcb04bbf8dc54776e1d3627f>:0 
+  at System.Reflection.RuntimeMethodInfo.Invoke (System.Object obj, System.Reflection.BindingFlags invokeAttr, System.Reflection.Binder binder, System.Object[] parameters, System.Globalization.CultureInfo culture) [0x00040] in <356d430fdcb04bbf8dc54776e1d3627f>:0 
+  at System.Reflection.MethodBase.Invoke (System.Object obj, System.Object[] parameters) [0x00000] in <356d430fdcb04bbf8dc54776e1d3627f>:0 
+  at BetweenPoles.EditorTools.PortalRepulsionRegression.IndependentRingReboundCases (UnityEngine.SceneManagement.Scene scene) [0x003ac] in F:\GitProjects\between-two-poles\Assets\BetweenPoles\Editor\PortalRepulsionRegression.cs:752 
+  at BetweenPoles.EditorTools.PortalRepulsionRegression.RunPortalRollingCheck () [0x00006] in F:\GitProjects\between-two-poles\Assets\BetweenPoles\Editor\PortalRepulsionRegression.cs:251 
