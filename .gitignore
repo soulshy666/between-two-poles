@@ -68,6 +68,8 @@ mono_crash.*
 
 # Builds
 /output/android/
+/output/windows-build*/
+/output/windows-*-result.txt
 *.apk
 *.aab
 *.unitypackage

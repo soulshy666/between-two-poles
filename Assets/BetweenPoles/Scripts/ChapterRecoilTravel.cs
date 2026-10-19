@@ -195,6 +195,12 @@ public sealed partial class ChapterRecoilTravel:MonoBehaviour {
         source.player.position+=delta;magnet.transform.position+=delta;
         var pose=source.player.GetComponent<PlayerPushPose>();if(pose)pose.SampleRecoilFlight(Time.time-flightBeganAt,magnet);
     }
+    static PixelGeneratorLab VisibleBackground(Scene scene){
+        // A previous flight leaves the chapter's authored background hidden beside
+        // the carried, visible one. Root order must never choose the hidden template.
+        return scene.GetRootGameObjects().Where(r=>r.name=="动态太空背景"&&r.activeInHierarchy)
+            .Select(r=>r.GetComponent<PixelGeneratorLab>()).FirstOrDefault(b=>b&&b.isActiveAndEnabled);
+    }
     IEnumerator BlendBackground(float duration){
         if(!flightBackground||!targetBackground)yield break;
         flightBackground.EnsureData();targetBackground.EnsureData();
@@ -294,12 +300,12 @@ public sealed partial class ChapterRecoilTravel:MonoBehaviour {
         var scale=view.islandDisplayScale*(source.GetComponent<FiveIslandWindow>()?1.1f:1f);
         // Retain source roots only for the shared presentation; puzzle geometry unloads normally.
         var roots=oldScene.GetRootGameObjects();
-        flightBackground=roots.Where(r=>r.name=="动态太空背景").Select(r=>r.GetComponent<PixelGeneratorLab>()).FirstOrDefault();
+        flightBackground=VisibleBackground(oldScene);
         // The carried background remains visible after arrival. The finale must
         // take over that same sun, not detach the hidden destination's duplicate.
         var carriedSun=flightBackground?FindBackgroundSun(flightBackground):null;
         if(destinationEnding&&carriedSun)destinationEnding.sunTemplate=carriedSun;
-        foreach(var root in roots)if(root==view.transform.root.gameObject||root.name=="动态太空背景"||root.name=="04 LIGHTING"){movedRoots.Add(root);SceneManager.MoveGameObjectToScene(root,destination);}
+        foreach(var root in roots)if(root==view.transform.root.gameObject||(flightBackground&&root==flightBackground.gameObject)||root.name=="04 LIGHTING"){movedRoots.Add(root);SceneManager.MoveGameObjectToScene(root,destination);}
         var oldActor=board.player;oldActor.gameObject.SetActive(false);
         SharedPlayer.Bind(board,true);actor=board.player;
         magnet.transform.SetParent(null,true);SceneManager.MoveGameObjectToScene(magnet.gameObject,destination);magnet.transform.SetParent(board.transform,true);

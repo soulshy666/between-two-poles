@@ -24,9 +24,8 @@ public sealed partial class ChapterRecoilTravel {
         savedCameraPosition=view.transform.position;savedCameraRotation=view.transform.rotation;
         savedFixedOrigin=view.fixedDisplayOrigin;savedDisplayOrigin=view.displayOrigin;
         savedCurveOrigin=view.curveOrigin;savedRotationOrigin=view.rotationOrigin;
-        foreach(var root in source.gameObject.scene.GetRootGameObjects())if(root.name=="动态太空背景"){
-            flightBackground=root.GetComponent<Generators.PixelGeneratorLab>();
-            if(!flightBackground)continue;
+        flightBackground=VisibleBackground(source.gameObject.scene);
+        if(flightBackground){
             flightBackground.EnsureData();originalBackground=flightBackground.background;
             originalPalette=(Color[])flightBackground.spaceColors.Clone();
             undoSun=FindBackgroundSun(flightBackground);
