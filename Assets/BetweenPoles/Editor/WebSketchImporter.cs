@@ -231,6 +231,17 @@ public static class WebSketchImporter {
         var ice=CopySurface(scene,folder);
         var board=Find<GridPlayground>(scene);var camera=Find<IslandCamera>(scene);var curved=Find<CurvedTrialCamera>(scene);
         var existingWindow=Find<FiveIslandWindow>(scene);
+        var chapterExit=board.GetComponent<ChapterRecoilExit>();
+        Vector2Int? oldExitOrigin=null;
+        if(chapterExit){
+            var exitTiles=board.tiles.Where(t=>t).Where(t=>{
+                var anchor=t.GetComponentInParent<IslandSurfaceAnchor>();
+                return anchor&&anchor.center&&anchor.center.name==chapterExit.sourceRoom;
+            }).ToArray();
+            if(exitTiles.Length>0)oldExitOrigin=new Vector2Int(
+                Mathf.RoundToInt(exitTiles.Min(t=>t.transform.position.x)/Cell),
+                Mathf.RoundToInt(exitTiles.Min(t=>t.transform.position.z)/Cell));
+        }
         var oldObjects=scene.GetRootGameObjects().SelectMany(r=>r.GetComponentsInChildren<IslandSurfaceAnchor>())
             .Where(a=>a.gameObject.activeInHierarchy&&!a.transform.IsChildOf(board.player)&&!board.transform.IsChildOf(a.transform)&&!camera.transform.IsChildOf(a.transform)&&(!curved.planet||!curved.planet.IsChildOf(a.transform)))
             .Select(a=>a.gameObject).Concat(board.tiles.Where(t=>t).Select(t=>t.gameObject)).Concat(board.magnets.Where(m=>m).Select(m=>m.gameObject)).Distinct().ToArray();
@@ -260,6 +271,16 @@ public static class WebSketchImporter {
         // when room 1 moves or changes dimensions in a later JSON export.
         if(fixedChapterThreeSpawn)shift=data.spawn-new Vector2Int(-2,0);
         foreach(var r in data.rooms){for(int i=0;i<r.cells.Count;i++)r.cells[i]-=shift;}foreach(var p in data.pieces)p.cell-=shift;data.spawn-=shift;
+        // Preserve the exit's room-local position when a reimport moves its island.
+        // Exit coordinates are serialized integers, not children of the island Transform.
+        if(chapterExit&&oldExitOrigin.HasValue){
+            var exitRoom=data.rooms.Find(r=>r.id==chapterExit.sourceRoom);
+            if(exitRoom!=null){
+                var delta=new Vector2Int(exitRoom.cells.Min(c=>c.x),exitRoom.cells.Min(c=>c.y))-oldExitOrigin.Value;
+                Undo.RecordObject(chapterExit,"更新章节出口坐标");
+                chapterExit.exitColumn+=delta.x;chapterExit.exitRow+=delta.y;chapterExit.testCell+=delta;
+            }else data.warnings.Add("原章节出口岛已不在新 JSON 中，请重新设置 ChapterRecoilExit。");
+        }
         foreach(var r in data.rooms){
             var island=Child(r.name,root.transform);var center=Child(r.id,island.transform).transform;center.position=Pos(new Vector2Int(0,0))+new Vector3((r.cells.Min(c=>c.x)+r.cells.Max(c=>c.x))*Cell*.5f,0,(r.cells.Min(c=>c.y)+r.cells.Max(c=>c.y))*Cell*.5f);
             var anchor=Undo.AddComponent<IslandSurfaceAnchor>(island);anchor.center=center;anchor.flatten=0;
