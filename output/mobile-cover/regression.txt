@@ -1,0 +1,1 @@
+PASS: 104 checks; mobile shader support, owned render targets, visible pixels, 16:9 and 20:9 aspect fill, 1080p bounded textures, settings/save page rendering, lost render texture recreation, CRT input inverse mapping. Editor GPU validation; Android device confirmation still required.

@@ -1,0 +1,11 @@
+Android build: Succeeded; Errors: 0
+APK: F:\GitProjects\between-two-poles\output\android\between-two-poles-mobile-crt.apk
+APK bytes: 100438321
+APK SHA256: FDED171F55E02D99098DFAB7D2590323467B12478B9ADBFD0AFCD3BE0D072095
+Package: com.betweentwopoles.playtest; versionCode: 1; versionName: 0.1
+ABIs: arm64-v8a, armeabi-v7a; minSdk: 22; targetSdk: 35
+APK signature verified; certificate SHA256: e886c3e0a18ffa44c1070523a2a5318164ff58d9b1fde191b6eff3566b9b0c33
+ProjectSettings.asset matches pre-build SHA256.
+Editor checks: mobile integration PASS 50; cover regression PASS 104.
+Android/iOS device validation: not performed.
+Git: no commit, push, merge or branch switch performed.

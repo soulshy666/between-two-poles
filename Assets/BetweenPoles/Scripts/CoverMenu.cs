@@ -75,13 +75,14 @@ public sealed partial class CoverMenu:MonoBehaviour {
   Graphics.Blit(background,backgroundFrame,backdrop);RenderTexture.active=previous;
  }
  void DrawCoverBackground(){
+  if(MobileUI.Enabled&&DrawMobileBackground())return;
   var rect=new Rect(0,0,1376,768);
-  if(coverWorld){if(coverWorld.Frame)GUI.DrawTexture(rect,coverWorld.Frame);return;}
+  if(coverWorld){if(coverWorld.Frame)CoverTexture(rect,coverWorld.Frame);return;}
   // Draw the supplied artwork directly: an intermediate linear render texture
   // was making its sRGB colours too dark in the IMGUI presentation pass.
   if((pixelArtwork||classicArtwork)&&background){
-   GUI.DrawTextureWithTexCoords(rect,background,new Rect(-parallax.x*.004f,parallax.y*.004f,1,1));
-  }else GUI.DrawTexture(rect,backgroundFrame?backgroundFrame:(Texture)background);
+   CoverTexture(rect,background,new Rect(-parallax.x*.004f,parallax.y*.004f,1,1));
+  }else CoverTexture(rect,backgroundFrame?backgroundFrame:(Texture)background);
  }
  void LateUpdate(){EnsurePreview();if(coverWorld){float t=AnimationTime;coverWorld.PoseActor(AstronautPosition(t)+astronautOffset+new Vector2(142.5f,97),Mathf.Sin(t*.23f)*9+Mathf.Sin(t*.61f+2)*3.5f+astronautTilt);}}
  void Update(){
@@ -140,7 +141,7 @@ public sealed partial class CoverMenu:MonoBehaviour {
    foreach(char c in value){
     int index=PixelGlyphs.IndexOf(c),length=PixelGlyphs.Length;var atlas=pixelGlyphs;
     if(index<0){if(!saveGlyphs)saveGlyphs=Resources.Load<Texture2D>("ElementUI/SaveSlotGlyphs");atlas=saveGlyphs;index=SaveGlyphs.IndexOf(c);length=SaveGlyphs.Length;}
-    if(index>=0&&atlas)GUI.DrawTextureWithTexCoords(new Rect(at,top,16*k,15*k),atlas,new Rect(index/(float)length,0,1f/length,1));at+=GlyphWidth(c)*k;
+    if(index>=0&&atlas)CoverTexture(new Rect(at,top,16*k,15*k),atlas,new Rect(index/(float)length,0,1f/length,1));at+=GlyphWidth(c)*k;
    }
   }
   GUI.color=color;
@@ -161,7 +162,7 @@ public sealed partial class CoverMenu:MonoBehaviour {
   if(Event.current.type!=EventType.Repaint)return;
   var previous=RenderTexture.active;titleSignal.SetFloat("_SignalTime",AnimationTime);
   Graphics.Blit(signalTitle,signalFrame,titleSignal);RenderTexture.active=previous;
-  GUI.DrawTexture(new Rect(Mathf.Round(rect.x-2*k),Mathf.Round(rect.center.y-height*.5f),width,height),signalFrame);
+  CoverTexture(new Rect(Mathf.Round(rect.x-2*k),Mathf.Round(rect.center.y-height*.5f),width,height),signalFrame);
  }
  Vector2 AstronautPosition(float t){if(coverWorld){// Independent slow waves keep the drift bounded without a repeating circular path.
   t=Mathf.Floor(t*8)/8;
@@ -186,7 +187,7 @@ public sealed partial class CoverMenu:MonoBehaviour {
   float height=pixelArtwork?220:285f*astronaut.height/astronaut.width;
   float width=pixelArtwork?height*astronaut.width/astronaut.height:285;
   var rect=new Rect(pivot.x-width*.5f,pivot.y-height*.5f,width,height);
-  GUI.DrawTexture(rect,astronaut);
+  CoverTexture(rect,astronaut);
   GUI.matrix=before;
  }
  bool ExitChoice(Rect rect,string value,int size=26){
@@ -197,6 +198,10 @@ public sealed partial class CoverMenu:MonoBehaviour {
   return clicked;
  }
  void OnGUI(){
+  bool capture=BeginMobileCover();
+  try{DrawMenu();}finally{if(capture)EndMobileCover();}
+ }
+ void DrawMenu(){
   if((!coverWorld&&(!background||!astronaut))||!title)return;
   EnsurePreview();
   var matrix=GUI.matrix;var color=GUI.color;
@@ -211,7 +216,7 @@ public sealed partial class CoverMenu:MonoBehaviour {
   if(loading){
    DrawCRT();
    Event.current.mousePosition=originalMouse;
-   GUI.matrix=matrix;if(fade>0){GUI.color=new Color(0,0,0,fade);GUI.DrawTexture(new Rect(0,0,Screen.width,Screen.height),Texture2D.whiteTexture);}GUI.color=color;GUI.enabled=previousEnabled;return;
+   GUI.matrix=matrix;if(fade>0){GUI.color=new Color(0,0,0,fade);CoverTexture(new Rect(0,0,Screen.width,Screen.height),Texture2D.whiteTexture);}GUI.color=color;GUI.enabled=previousEnabled;return;
   }
   DrawPixelTitle(new Rect(42,46,510,150));
   var labels=new[]{startLabel,settingsLabel,exitLabel};
@@ -221,8 +226,8 @@ public sealed partial class CoverMenu:MonoBehaviour {
    var rect=new Rect(44+12*h,330+i*106,320,92);
    if(!settings&&!exitPrompt&&!savePage&&!loading&&GUI.Button(rect,GUIContent.none,GUIStyle.none)){selected=i;Activate(i);}
    GUI.color=Color.Lerp(new Color(.80f,.85f,.88f),Color.white,h);PixelText(new Rect(rect.x,rect.y+6,320,75),new[]{"开始游戏","设置","退出"}[i],5,false);
-   GUI.color=new Color(1,1,1,Mathf.Lerp(.75f,1,h));GUI.DrawTexture(new Rect(rect.x+14,rect.y+80.5f,230+70*h,1.5f),menuLine);
-   GUI.color=new Color(1,1,1,h);GUI.DrawTexture(new Rect(rect.x-14-8*(1-h),rect.y+32,10,14),triangle);GUI.color=Color.white;
+   GUI.color=new Color(1,1,1,Mathf.Lerp(.75f,1,h));CoverTexture(new Rect(rect.x+14,rect.y+80.5f,230+70*h,1.5f),menuLine);
+   GUI.color=new Color(1,1,1,h);CoverTexture(new Rect(rect.x-14-8*(1-h),rect.y+32,10,14),triangle);GUI.color=Color.white;
   }
   if(savePage||(!Application.isPlaying&&previewSavePage))DrawSavePage();
   if(settings||exitPrompt){
@@ -242,7 +247,7 @@ public sealed partial class CoverMenu:MonoBehaviour {
   }
   DrawCRT();
   Event.current.mousePosition=originalMouse;
-  GUI.matrix=matrix;if(fade>0){GUI.color=new Color(0,0,0,fade);GUI.DrawTexture(new Rect(0,0,Screen.width,Screen.height),Texture2D.whiteTexture);}GUI.color=color;GUI.enabled=previousEnabled;
+  GUI.matrix=matrix;if(fade>0){GUI.color=new Color(0,0,0,fade);CoverTexture(new Rect(0,0,Screen.width,Screen.height),Texture2D.whiteTexture);}GUI.color=color;GUI.enabled=previousEnabled;
  }
  Rect CoverRect(){
   if(MobileUI.Enabled)return MobileUI.Fit(MobileUI.SafeRect,new Vector2(1376,768));
