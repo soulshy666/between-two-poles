@@ -3,6 +3,22 @@ namespace BetweenPoles {
 public sealed partial class CoverMenu {
  AudioSource menuAudio;
  AudioClip menuClick;
+ AudioSource coverMusic;
+ void UpdateCoverMusic(){
+  if(!coverMusic){
+   var host=new GameObject("主菜单 · 太空背景音乐");host.transform.SetParent(transform,false);
+   coverMusic=host.AddComponent<AudioSource>();coverMusic.playOnAwake=false;
+   coverMusic.loop=true;coverMusic.spatialBlend=0;coverMusic.dopplerLevel=0;
+   coverMusic.volume=0;coverMusic.ignoreListenerPause=true;
+   coverMusic.clip=Resources.Load<AudioClip>("Audio/CoverBackgroundMusic");
+   if(coverMusic.clip)coverMusic.Play();
+  }
+  if(!coverMusic.clip)return;
+  if(!loading&&!coverMusic.isPlaying)coverMusic.Play();
+  coverMusic.volume=Mathf.MoveTowards(coverMusic.volume,loading?0:.75f,
+   Time.unscaledDeltaTime*(loading?1.7f:.5f));
+ }
+ void StopCoverMusic(){if(coverMusic){coverMusic.Stop();coverMusic.volume=0;}}
  void PlayMenuClick(){
   if(!Application.isPlaying||loading||TelevisionSceneTransition.Busy||AudioListener.volume<=0)return;
   if(!menuAudio){

@@ -59,6 +59,7 @@ public sealed partial class CoverMenu:MonoBehaviour {
   if(backdrop){if(Application.isPlaying)Destroy(backdrop);else DestroyImmediate(backdrop);backdrop=null;}
  }
  void OnDisable(){
+  StopCoverMusic();
 #if UNITY_EDITOR
   UnityEditor.EditorApplication.update-=TickEditorPreview;
 #endif
@@ -87,6 +88,7 @@ public sealed partial class CoverMenu:MonoBehaviour {
  void LateUpdate(){EnsurePreview();if(coverWorld){float t=AnimationTime;coverWorld.PoseActor(AstronautPosition(t)+astronautOffset+new Vector2(142.5f,97),Mathf.Sin(t*.23f)*9+Mathf.Sin(t*.61f+2)*3.5f+astronautTilt);}}
  void Update(){
   if(!Application.isPlaying)return;
+  UpdateCoverMusic();
   if(previousSelection!=selected){previousSelection=selected;hoverAge=0;System.Array.Copy(hover,hoverStart,3);}
   hoverAge+=Time.unscaledDeltaTime;
   float ease=MenuEase(Mathf.Clamp01(hoverAge/.25f));
