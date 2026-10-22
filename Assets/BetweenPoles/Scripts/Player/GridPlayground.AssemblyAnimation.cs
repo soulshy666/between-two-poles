@@ -57,7 +57,34 @@ public sealed partial class GridPlayground {
     }
     IEnumerator AnimateBarDock(MagnetPiece incoming,MagnetPiece receiver,Vector3 push,MagnetProduct product,Quaternion yaw,
         Quaternion incomingPose,Quaternion receiverPose,Vector3 incomingScale,Vector3 receiverScale,
-        Bounds startIncoming,Bounds startReceiver,Bounds endIncoming,Bounds endReceiver,System.Action<float> follow=null){
+        Bounds startIncoming,Bounds startReceiver,Bounds endIncoming,Bounds endReceiver,System.Action<float> follow=null,bool flipSpaceBar=false){
+        if(flipSpaceBar){
+            float duration=Mathf.Max(.85f,barPushSeconds*2);
+            var axis=Vector3.Cross(Vector3.up,push);
+            float halfLength=(Mathf.Abs(push.x)*startIncoming.size.x+Mathf.Abs(push.z)*startIncoming.size.z)*.5f;
+            var pivot=startIncoming.center+push*halfLength-Vector3.up*startIncoming.extents.y;
+            var relative=startIncoming.center-pivot;
+            var naturalEnd=pivot+Quaternion.AngleAxis(180,axis)*relative;
+            for(float elapsed=0;elapsed<duration;elapsed+=MovementDeltaTime){
+                float p=Mathf.Clamp01(elapsed/duration);
+                // One continuous half-turn: ease only at takeoff and landing,
+                // never brake at the upright pose between lifting and falling.
+                float turn=180*Mathf.SmoothStep(0,1,p);
+                var rotation=Quaternion.AngleAxis(turn,axis);
+                float dock=Mathf.SmoothStep(0,1,Mathf.InverseLerp(.55f,1,p));
+                float lane=Mathf.SmoothStep(0,1,Mathf.InverseLerp(.30f,.65f,p));
+                var correction=endIncoming.center-naturalEnd;
+                var side=Vector3.Cross(Vector3.up,push);
+                var lateral=side*Vector3.Dot(correction,side);
+                PlaceAssemblyBody(incoming,rotation*incomingPose,incomingScale,
+                    pivot+rotation*relative+lateral*lane+(correction-lateral)*dock);
+                PlaceAssemblyBody(receiver,receiverPose,receiverScale,Vector3.Lerp(startReceiver.center,endReceiver.center,lane));
+                follow?.Invoke(p);yield return null;
+            }
+            PlaceAssemblyBody(incoming,Quaternion.AngleAxis(180,axis)*incomingPose,incomingScale,endIncoming.center);
+            PlaceAssemblyBody(receiver,receiverPose,receiverScale,endReceiver.center);
+            follow?.Invoke(1);AssemblyContact(incoming,receiver);yield return null;yield break;
+        }
         bool incomingStanding=MagnetPiece.VerticalBar(incomingPose),receiverStanding=MagnetPiece.VerticalBar(receiverPose);
         Quaternion incomingEnd=product==MagnetProduct.Cross?yaw*Quaternion.Euler(0,90,0):yaw;
         Quaternion receiverEnd=receiverStanding?yaw:receiverPose;
@@ -349,7 +376,7 @@ public sealed partial class GridPlayground {
         AssemblyContact(incoming,receiver);
         yield return null;
     }
-    IEnumerator AnimateAssembly(MagnetPiece incoming,MagnetPiece receiver,Vector2Int direction,MagnetProduct product,Quaternion yaw,Vector2Int bridgeDirection,bool uNorth,bool receiverOnTop,bool incomingOnTop,Quaternion receiverLanding,System.Action<float> onSlideProgress=null) {
+    IEnumerator AnimateAssembly(MagnetPiece incoming,MagnetPiece receiver,Vector2Int direction,MagnetProduct product,Quaternion yaw,Vector2Int bridgeDirection,bool uNorth,bool receiverOnTop,bool incomingOnTop,Quaternion receiverLanding,System.Action<float> onSlideProgress=null,bool flipSpaceBar=false) {
         // Plan the actual final sockets first. Each material approaches its own socket,
         // rather than both bodies occupying the same center before a model swap.
         var preview=new GameObject("吸合姿态预览");
@@ -536,7 +563,7 @@ public sealed partial class GridPlayground {
         if(incoming.shape==MagnetShape.Bar&&receiver.shape==MagnetShape.Bar
             &&(product==MagnetProduct.WideBar||product==MagnetProduct.Cross)){
             yield return AnimateBarDock(incoming,receiver,forward,product,yaw,poseIncoming,poseReceiver,
-                scaleIncoming,scaleReceiver,startIncoming,startReceiver,endIncoming,endReceiver,onSlideProgress);
+                scaleIncoming,scaleReceiver,startIncoming,startReceiver,endIncoming,endReceiver,onSlideProgress,flipSpaceBar);
             yield break;
         }
         float seconds=Mathf.Max(1.1f,joinSeconds);

@@ -31,8 +31,7 @@ public sealed partial class ChapterAtlas {
         foreach(var island in data.islands)if(SessionExploration.GetInt(Key(data.scene,island.id),0)>0)return true;
         return false;
     }
-    public void ClickPlanet(Vector2 screen){
-        if(IsInspecting||returning||chartTransitioning)return;
+    Transform PlanetAt(Vector2 screen){
         var ray=showcaseCamera.ViewportPointToRay(new Vector3(screen.x/Screen.width,screen.y/Screen.height,0));
         Transform selected=null;float closest=float.PositiveInfinity;
         foreach(var planet in chartPlanets){
@@ -40,11 +39,19 @@ public sealed partial class ChapterAtlas {
             if(!new Plane(showcaseCamera.transform.forward,planet.position).Raycast(ray,out distance))continue;
             float radius=0;
             foreach(var renderer in planet.GetComponentsInChildren<Renderer>())if(renderer.enabled)radius=Mathf.Max(radius,Mathf.Min(renderer.bounds.extents.x,renderer.bounds.extents.y));
+            if(hoverScales.TryGetValue(planet,out var baseScale)&&planet.localScale.x!=0)
+                radius*=Mathf.Abs(baseScale.x/planet.localScale.x);
             for(int i=0;i<chapters.Length;i++)if(chapters[i].planet==planet){radius=chapters[i].hitRadius;break;}
             float hit=Vector3.Distance(ray.GetPoint(distance),planet.position)/Mathf.Max(.1f,radius);
             if(hit<=1&&hit<closest){closest=hit;selected=planet;}
         }
+        return selected;
+    }
+    public void ClickPlanet(Vector2 screen){
+        if(IsInspecting||returning||chartTransitioning)return;
+        var selected=PlanetAt(screen);
         if(!selected)return;
+        ClearPlanetHover();
         for(int i=0;i<chapters.Length;i++)if(chapters[i].planet==selected){OpenInspection(i);return;}
         RejectPlanet(selected);
     }
@@ -130,6 +137,7 @@ public sealed partial class ChapterAtlas {
     }
     void RestoreChartCamera(){showcaseCamera.transform.position=chartCameraPosition;showcaseCamera.orthographicSize=chartCameraSize;transitionOpacity=0;if(transitionFrame)Destroy(transitionFrame);transitionFrame=null;}
     void ReleaseChartFeedback(){
+        ReleasePlanetHover();
         foreach(var pair in shakingPlanets)if(pair.Key)pair.Key.localRotation=pair.Value;
         shakingPlanets.Clear();if(rejectionClip)Destroy(rejectionClip);if(transitionFrame)Destroy(transitionFrame);
     }

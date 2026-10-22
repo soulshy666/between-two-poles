@@ -56,6 +56,7 @@ public sealed partial class ChapterAtlas : MonoBehaviour {
     }
 
     void LateUpdate(){
+        UpdatePlanetHover();
         LayoutChartTouch();
         if(!locator||CurrentChapter<0||CurrentChapter>=chapters.Length||!chapters[CurrentChapter].planet)return;
         var p=showcaseCamera.WorldToViewportPoint(chapters[CurrentChapter].planet.position);
