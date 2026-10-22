@@ -693,7 +693,15 @@ public sealed partial class GridPlayground {
         bool tippedReceiver=target.shape==MagnetShape.Bar&&MagnetPiece.VerticalBar(target.Pose)&&(product==MagnetProduct.WideBar||product==MagnetProduct.Cross);
         bool tippedIncoming=product==MagnetProduct.Cross&&MagnetPiece.VerticalBar(old);
         Quaternion receiverStart=target.Pose;
+        var dockAxis=new Vector3(dir.x,0,dir.y);
+        bool flipSpaceBar=!portal&&product==MagnetProduct.WideBar
+            &&incoming.shape==MagnetShape.Bar&&target.shape==MagnetShape.Bar
+            &&!MagnetPiece.VerticalBar(old)&&!MagnetPiece.VerticalBar(receiverStart)
+            &&Mathf.Abs(Vector3.Dot(old*Vector3.right,dockAxis))>.95f
+            &&Mathf.Abs(Vector3.Dot(receiverStart*Vector3.right,dockAxis))>.95f
+            &&Tile(Cell(incoming.transform))&&!Tile(Cell(target.transform));
         bool liftDock=product==MagnetProduct.ThickU||product==MagnetProduct.CrossU
+            ||flipSpaceBar
             ||(product==MagnetProduct.Ring&&SameFacingAxialRingDock(old,receiverStart,dir))
             ||(product==MagnetProduct.Lift&&incoming.shape==MagnetShape.Bar&&!MagnetPiece.VerticalBar(old));
         Vector3 receiverBodyCenter=AssemblyBounds(AssemblyBodies(target.geometry)).center;
@@ -737,7 +745,7 @@ public sealed partial class GridPlayground {
                 applyVisual:!recordingPush||progress>=1f);
             else if(throwing)pushPose.SampleBridgeThrow(progress);else pushPose.Sample(progress);
         };
-        yield return AnimateAssembly(incoming,target,dir,product,yaw,bridgeDir,uNorth,tippedReceiver,tippedIncoming,receiverEnd,follow);
+        yield return AnimateAssembly(incoming,target,dir,product,yaw,bridgeDir,uNorth,tippedReceiver,tippedIncoming,receiverEnd,follow,flipSpaceBar);
         if(!portal)EndPushInterrupt();
         if(pushPose){
             // The lifted hands are still extended at docking. Let the stance
